@@ -1,1 +1,0 @@
-# gatherbond-near-hackathon-2026
