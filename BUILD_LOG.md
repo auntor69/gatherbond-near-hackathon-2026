@@ -998,24 +998,39 @@ function can boot without it, so every Turso request fails closed.
 - No authentication rule, database schema, contract code or test assertion was changed or
   weakened.
 
+### Follow-up: the live bundle still could not load libSQL
+
+The first trace fix was deployed, but the live health endpoint still reported
+`libsql_unavailable`. A safe readiness endpoint was added to expose only booleans,
+reason codes and a redacted error detail. It identified `MODULE_NOT_FOUND: Cannot find
+module 'ws'` from `@libsql/isomorphic-ws`, a dependency of the libSQL client.
+
+Two further fixes were applied:
+
+- The loader now uses `@libsql/client/http`, the pure HTTPS Hrana client. It accepts
+  `libsql://` URLs and avoids the native `libsql` binding entirely.
+- `outputFileTracingIncludes` now carries `ws` as well as `@libsql/**`, `js-base64` and
+  `promise-limit` into the API function bundle.
+
 ### Verified outputs
 
 ```text
 npm run build (frontend)                       exit 0; compiled successfully
-/api/events route .nft.json                   342 files; 229 libSQL-related files
-  before the fix                              113 files; 0 libSQL-related files
+/api/events route .nft.json                   333 files; 19 ws files included
+live /api/health                               200
+  database_mode: turso
+  database_read: ok
+  auth_configured: true
+  contract_configured: true
+live /api/events?limit=1                       200 {"items":[],"skipped":0,"next_offset":0}
+live /api/auth/session                         401 configured:true recipient:gatherbond.app
 ```
 
-The corrected bundle still needs a Vercel Production deployment. The live environment must
-have `GATHERBOND_SESSION_SECRET`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and
-`CONTRACT_NAME` set; then the route should stop returning `metadata_store_unavailable` and
-the wallet nonce can be persisted.
+The live Turso connection is now working. The wallet signature path can reach the nonce
+store; a full live wallet approval still needs to be retried with a funded Testnet wallet.
 
 ### Remaining human gate
 
-1. Add or correct the production environment variables in Vercel (Production scope).
-2. Redeploy the corrected build.
-3. Verify `GET /api/events` no longer returns `metadata_store_unavailable`, then retry the
-   wallet sign-in on the live origin.
-4. Deploy the contract and complete a funded registration before claiming the event flow
+1. Retry the wallet sign-in on the live origin after the deployment finishes.
+2. Deploy the contract and complete a funded registration before claiming the event flow
    is end to end.
