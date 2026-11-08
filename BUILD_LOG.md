@@ -901,3 +901,77 @@ layouts. No browser console errors were observed.
 
 Wire wallet connect and the attendee registration/ticket path; then create one real
 testnet event so discovery can replace the labeled sample shelf with live publications.
+
+## 2026-11-08 (session 10) — real NEAR Connect wallet session in the UI
+
+**Status:** the missing wallet connection was a real gap, not a deployment detail. The UI
+now uses a real NEAR Connect flow: connect a Testnet wallet, request a NEP-413 signature,
+verify it on the server, and show the account only after the HttpOnly session is issued.
+No contract or frontend was deployed, no funded wallet signature or registration was
+performed, and no on-chain event exists yet.
+
+### What changed
+
+- Added `@hot-labs/near-connect@0.12.0` (zero-dependency connector, Testnet filtering,
+sandboxed wallet execution, `signMessage`, and connect without adding a function-call key).
+- Added `frontend/lib/nearWallet.js`: lazy-loads the connector only in the browser, calls
+`connect()`, reads the selected account, signs the GatherBond NEP-413 message with a fresh
+32-byte nonce, and returns only the login body. It never stores a key or signature.
+- Added `frontend/lib/walletLogin.mjs` and tests: exact 32-byte nonce encoding, message
+length, public-key normalization, 64-byte signature validation, and the server request
+shape.
+- Added `WalletProvider` / `WalletButton` and wired the header (desktop + mobile), organizer
+studio, event passport and My Commitments page. The studio now signs in/out and gates
+publish on the shared verified session instead of a static notice.
+- `GET /api/auth/session` now exposes only public `{configured, recipient}` alongside the
+session result, so the browser can decide whether to start login and which recipient to
+sign for. It never exposes the session secret or Turso token.
+- The local `GATHERBOND_SESSION_SECRET` was present but empty/short, so auth was disabled.
+A fresh 48-byte secret was written only to the git-ignored `frontend/.env.local`; the value
+was never printed or committed. The live endpoint then reported `configured:true`.
+
+### Verified outputs
+
+```text
+focused auth/helper/route tests                13 passed; 0 failed
+npm run build (frontend)                       exit 0; compiled successfully
+bash scripts/verify-local.sh                   exit 0
+  contract format: clean
+  contract tests: 37 passed; 0 failed
+  ticket-commitment parity: 8/8 vectors matched
+  metadata + auth + publication + HTTP tests: 94 passed; 0 failed
+  deploy handover: all 16 methods present; nothing deployed
+  ALL LOCAL CHECKS PASSED
+```
+
+Live browser check against `http://localhost:3100`:
+
+- Desktop header rendered `CONNECT WALLET`; clicking it opened the real NEAR Connector
+  `Select wallet` dialog. The wallet manifest request returned 200 and the dialog listed
+  Meteor Wallet, Intear Wallet, Ledger, Nightly Wallet and NEAR CLI.
+- The studio rendered `NO WALLET SESSION`, a Connect wallet button, and the verified-session
+  copy; the event passport and commitments page use the same shared control.
+- The only console errors were the expected `401` responses from the signed-out
+  `GET /api/auth/session` probe.
+
+### Limit of this verification
+
+A real wallet extension and a funded Testnet account are not available in this browser, so
+the final signature/login and registration were **not** completed in the UI. The server
+NEP-413 path (including real Ed25519 signatures, full-access key lookup, nonce replay and
+HttpOnly cookies) is covered by the passing live HTTP e2e test. The connector modal and its
+manifest are verified; the wallet approval step is still a human gate.
+
+### Remaining human gate
+
+1. Deploy the contract to NEAR Testnet with a funded account after reviewing
+   `docs/DEPLOY_RUNBOOK.md`.
+2. Connect a funded Testnet wallet in the running UI and approve the NEP-413 signature.
+3. Implement and verify registration/deposit, ticket display, check-in and claims against
+   that deployed contract; then create the first real event.
+4. Deploy the frontend with the production auth secret and verify the exact callback origin.
+
+### Next
+
+Deploy the contract, complete one funded wallet sign-in and registration, and replace the
+labeled sample shelf with the first verified on-chain publication.

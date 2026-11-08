@@ -4,15 +4,15 @@
 
 GatherBond is a crypto-native event commitment protocol for NEAR. Organizers create events with refundable native NEAR deposits; attendees register through a smart contract, receive one-time QR tickets, and can claim refunds and community rewards after organizer-authorized attendance verification.
 
-> **Project status:** the escrow contract, metadata layer, NEP-413 server sessions, rate limiting, versioned publication workflow and the editorial Next.js UI are implemented and locally tested. The Turso database has been created and migrated. **No contract or frontend is deployed, no wallet connector is wired into the UI, and no on-chain event exists yet.** This is a testnet-only prototype; no real funds are used.
+> **Project status:** the escrow contract, metadata layer, NEP-413 server sessions, rate limiting, versioned publication workflow and the editorial Next.js UI are implemented and locally tested. The Turso database has been created and migrated. The UI now includes a real NEAR Connect wallet session flow using NEP-413. **No contract or frontend is deployed, registration/deposit and on-chain events are not available yet, and no real funds are used.** This is a testnet-only prototype.
 
 ## What exists now
 
 - **Escrow contract:** event creation, exact-deposit registration, ticket commitments, organizer check-in, cancellation, permissionless finalization, pull claims, treasury accounting, pagination and failed-transfer recovery.
 - **Metadata API:** canonical SHA-256 documents, bounded published listings, a draft read, a public event passport (`GET /api/events/:id`), and append-only publish/unpublish versions. Turso stores display metadata only.
-- **Wallet sessions:** NEP-413 signature verification, an HttpOnly HMAC session cookie, one-time nonces and per-account/per-client rate limits on the server.
-- **UI:** editorial Discover, event passport, organizer studio and My Commitments screens. The empty shelf uses clearly labeled sample events; it never invents balances, transactions or check-ins.
-- **No deployment:** a testnet contract deploy, funded wallet signature and real registration/check-in/settlement remain human-gated.
+- **Wallet sessions:** NEP-413 signature verification, an HttpOnly HMAC session cookie, one-time nonces and per-account/per-client rate limits on the server. The browser connector is wired through `@hot-labs/near-connect`; it connects without adding a contract key, requests the signed login message, and shows the account only after the server verifies it.
+- **UI:** editorial Discover, event passport, organizer studio and My Commitments screens, with wallet connect/sign-out in the header and studio. The empty shelf uses clearly labeled sample events; it never invents balances, transactions or check-ins.
+- **No deployment:** a testnet contract deploy, funded wallet registration/deposit and real check-in/settlement remain human-gated.
 
 ## Run it locally
 
@@ -26,10 +26,11 @@ Open <http://localhost:3000>. The app reads server-only values from `frontend/.e
 
 Expected local views:
 
-- **Do** open `/` → **See** the Discover shelf. With no published events it shows four labeled sample events and a “Sample shelf” note.
+- **Do** open `/` → **See** the Discover shelf and the header **Connect wallet** control. With no published events it shows four labeled sample events and a “Sample shelf” note.
+- **Do** connect a NEAR Testnet wallet → **See** the wallet request a NEP-413 signature. The header and studio only show the account after the server verifies the key; cancelling leaves everything signed out.
 - **Do** open `/events/demo-studio-night` → **See** the full event passport, sample badge, commitment mechanic and metadata integrity panel.
-- **Do** open `/studio` → **See** the publication console and session state. “Load publication” calls the real API; publish/unpublish require a NEP-413 wallet session.
-- **Do** open `/commitments` → **See** the honest empty state and a sample ticket labeled “not on-chain.”
+- **Do** open `/studio` → **See** the publication console and session card. “Load publication” calls the real API; publish/unpublish remain disabled until a wallet session is verified.
+- **Do** open `/commitments` → **See** the honest empty state, the live wallet control and a sample ticket labeled “not on-chain.”
 
 The API also runs without a database: `GET /api/events` answers `503 metadata_store_unavailable` rather than serving unverified content.
 
@@ -51,7 +52,7 @@ The NEAR contract is authoritative for organizer, deposit, capacity, timestamps,
 ## Not done yet
 
 - Deploy the contract to NEAR Testnet and fund an account (needs human approval).
-- Wire wallet connect, registration, ticket display/scanning, finalization and claims into the UI.
+- Wire wallet registration/deposit, ticket display/scanning, finalization and claims into the UI.
 - Create the first real on-chain event and a public deployed frontend.
 - Replace the sample shelf with live published events.
 

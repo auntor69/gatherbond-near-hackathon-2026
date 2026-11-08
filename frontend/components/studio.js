@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   ArrowUpRight,
@@ -13,6 +13,7 @@ import {
   Wallet,
 } from "./icons";
 import { formatDate, shortHash } from "../lib/events";
+import { useWallet } from "./wallet-provider";
 
 function Notice({ notice }) {
   if (!notice) {
@@ -27,38 +28,12 @@ function Notice({ notice }) {
 }
 
 export default function Studio() {
-  const [session, setSession] = useState({ state: "loading" });
+  const wallet = useWallet();
   const [eventId, setEventId] = useState("0");
   const [publication, setPublication] = useState(null);
   const [draft, setDraft] = useState(null);
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(null);
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/auth/session", { cache: "no-store" })
-      .then(async (response) => {
-        const body = await response.json().catch(() => ({}));
-        if (!active) {
-          return;
-        }
-        if (response.ok && body.account_id) {
-          setSession({ state: "signedIn", accountId: body.account_id });
-        } else if (response.status === 503) {
-          setSession({ state: "unavailable" });
-        } else {
-          setSession({ state: "signedOut" });
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setSession({ state: "unavailable" });
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const cleanId = eventId.trim();
 
@@ -173,7 +148,7 @@ export default function Studio() {
           tone: "error",
           text:
             response.status === 401
-              ? "Sign in with a NEP-413 wallet session before publishing. No wallet signature was requested."
+              ? "Connect a wallet session first using the session card. Nothing was published."
               : response.status === 403
                 ? "This session is not the organizer for that event."
                 : "Publish failed. Nothing was changed.",
@@ -208,7 +183,7 @@ export default function Studio() {
           tone: "error",
           text:
             response.status === 401
-              ? "Sign in with a NEP-413 wallet session before unpublishing."
+              ? "Connect a wallet session first using the session card. Nothing was unpublished."
               : "Unpublish failed. The public snapshot was not changed.",
         });
       }
@@ -220,22 +195,26 @@ export default function Studio() {
   }
 
   const sessionLabel =
-    session.state === "signedIn"
-      ? "Signed organizer session"
-      : session.state === "signedOut"
+    wallet.phase === "signedIn"
+      ? "Verified wallet session"
+      : wallet.phase === "signedOut"
         ? "No wallet session"
-        : session.state === "unavailable"
+        : wallet.phase === "unavailable"
           ? "Session auth unavailable"
-          : "Checking session";
+          : wallet.phase === "error"
+            ? "Session check failed"
+            : "Checking session";
 
   const sessionCopy =
-    session.state === "signedIn"
-      ? "The server has a verified, HttpOnly session cookie. Publishing uses that actor; the browser never handles a Turso token."
-      : session.state === "signedOut"
-        ? "Reads are public. Publishing needs a verified NEP-413 wallet session; this build does not request a wallet signature yet, so publish will answer 401."
-        : session.state === "unavailable"
+    wallet.phase === "signedIn"
+      ? "The server verified a NEP-413 signature for this account and issued an HttpOnly session cookie. Publishing uses that actor; the browser never handles a Turso token."
+      : wallet.phase === "signedOut"
+        ? "Connect a NEAR Testnet wallet. It signs a NEP-413 message; no transaction or funds move. Publishing stays disabled until the server verifies the signature."
+        : wallet.phase === "unavailable"
           ? "GATHERBOND_SESSION_SECRET is not configured on this deployment, so login and authenticated writes are disabled."
-          : "Checking whether a server-side session cookie is present.";
+          : wallet.phase === "error"
+            ? "The session endpoint could not be reached. Reload the page or check that the server is running."
+            : "Checking whether a server-side session cookie is present.";
 
   return (
     <main className="page page--studio">
@@ -470,17 +449,47 @@ export default function Studio() {
         <aside className="studio-side">
           <section className="session-card">
             <div className="session-card-head">
-              <span className={`session-dot session-dot--${session.state}`} aria-hidden="true" />
+              <span className={`session-dot session-dot--${wallet.phase}`} aria-hidden="true" />
               <span>{sessionLabel}</span>
             </div>
             <p>{sessionCopy}</p>
-            {session.state === "signedIn" ? (
-              <code className="session-account">{session.accountId}</code>
+            {wallet.phase === "signedIn" && wallet.accountId ? (
+              <code className="session-account">{wallet.accountId}</code>
             ) : null}
+            <div className="session-actions">
+              {wallet.phase === "signedIn" ? (
+                <button
+                  type="button"
+                  className="button button-dark button-small"
+                  onClick={wallet.disconnect}
+                  disabled={wallet.busy !== null}
+                >
+                  {wallet.busy === "disconnect" ? "Signing out…" : "Sign out"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="button button-dark button-small"
+                  onClick={wallet.connect}
+                  disabled={
+                    wallet.busy !== null ||
+                    wallet.phase === "loading" ||
+                    wallet.phase === "unavailable"
+                  }
+                >
+                  <Wallet size={14} />
+                  {wallet.busy === "connect"
+                    ? "Waiting for wallet…"
+                    : wallet.phase === "unavailable"
+                      ? "Wallet auth unavailable"
+                      : "Connect wallet"}
+                </button>
+              )}
+            </div>
             <div className="session-rule" />
             <p className="session-footnote">
-              Authentication is a server-verified NEP-413 signature and an HttpOnly cookie. A
-              wallet connector is not embedded in this screen.
+              The wallet signs a NEP-413 message. The server verifies the key against NEAR
+              Testnet and sets an HttpOnly cookie. No transaction or funds move.
             </p>
           </section>
 

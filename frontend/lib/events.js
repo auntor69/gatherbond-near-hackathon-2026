@@ -171,6 +171,16 @@ export function shortHash(value, head = 10, tail = 6) {
   return `${value.slice(0, head)}…${value.slice(-tail)}`;
 }
 
+export function shortAccount(value, head = 8, tail = 5) {
+  if (!value || typeof value !== "string") {
+    return "Wallet";
+  }
+  if (value.length <= head + tail + 2) {
+    return value;
+  }
+  return `${value.slice(0, head)}…${value.slice(-tail)}`;
+}
+
 export function demoEventById(id) {
   return DEMO_EVENTS.find((event) => event.id === id) ?? null;
 }

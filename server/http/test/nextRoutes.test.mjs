@@ -115,7 +115,10 @@ test("Next auth session route fails closed without a session secret", async () =
 
   const get = await GET(new Request("http://localhost/api/auth/session"));
   assert.equal(get.status, 401);
-  assert.equal((await get.json()).error, "unauthorized");
+  const getBody = await get.json();
+  assert.equal(getBody.error, "unauthorized");
+  assert.equal(getBody.configured, false);
+  assert.equal(getBody.recipient, "gatherbond.app");
 });
 
 test("Next dynamic route rejects a malformed body before any chain lookup", async () => {

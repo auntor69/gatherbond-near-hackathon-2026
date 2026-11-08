@@ -1,10 +1,11 @@
 import Link from "next/link";
 
-import { ArrowRight, ArrowUpRight, Check, ShieldCheck, Ticket, Wallet } from "../../components/icons";
+import { ArrowRight, ArrowUpRight, Check, ShieldCheck, Ticket } from "../../components/icons";
+import WalletButton from "../../components/wallet-button";
 
 export const metadata = {
   title: "My commitments",
-  description: "Reservations, tickets and attendance will live here once wallet registration is connected.",
+  description: "Reservations, tickets and attendance will live here once contract registration is wired.",
 };
 
 const STATES = [
@@ -43,10 +44,7 @@ export default function CommitmentsPage() {
                 Find your first room
                 <ArrowRight size={16} />
               </Link>
-              <span className="wallet-chip">
-                <Wallet size={15} />
-                Wallet not connected
-              </span>
+              <WalletButton />
             </div>
           </div>
 
@@ -87,9 +85,9 @@ export default function CommitmentsPage() {
             <p className="eyebrow">The honest empty state</p>
             <h2>No commitments yet.</h2>
             <p>
-              When wallet registration is connected, this view will list reservations with their
-              actual contract state, deposit and claim status. Until then it stays empty rather
-              than guessing.
+              When contract registration is wired, this view will list reservations with their
+              actual contract state, deposit and claim status. This prototype does not read or
+              invent those rows yet.
             </p>
             <div className="empty-panel-actions">
               <Link href="/#discover" className="button button-dark">

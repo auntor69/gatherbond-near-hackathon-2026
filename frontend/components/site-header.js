@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ArrowUpRight, Menu } from "./icons";
+import WalletButton from "./wallet-button";
 
 const NAV_ITEMS = [
   { href: "/#discover", label: "Discover" },
@@ -31,6 +32,7 @@ export default function SiteHeader() {
             <span className="network-dot" aria-hidden="true" />
             NEAR Testnet
           </span>
+          <WalletButton />
           <Link href="/studio" className="header-cta">
             Host an event
             <ArrowUpRight size={15} />
@@ -48,6 +50,9 @@ export default function SiteHeader() {
                 <ArrowUpRight size={16} />
               </Link>
             ))}
+            <div className="mobile-wallet">
+              <WalletButton />
+            </div>
             <div className="mobile-nav-meta">
               <span className="network-dot" aria-hidden="true" />
               NEAR Testnet · prototype

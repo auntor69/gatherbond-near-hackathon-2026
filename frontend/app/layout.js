@@ -2,6 +2,7 @@ import "./globals.css";
 
 import SiteFooter from "../components/site-footer";
 import SiteHeader from "../components/site-header";
+import { WalletProvider } from "../components/wallet-provider";
 
 export const metadata = {
   title: {
@@ -26,9 +27,11 @@ export default function RootLayout({ children }) {
         <a className="skip-link" href="#main-content">
           Skip to content
         </a>
-        <SiteHeader />
-        <div id="main-content">{children}</div>
-        <SiteFooter />
+        <WalletProvider>
+          <SiteHeader />
+          <div id="main-content">{children}</div>
+          <SiteFooter />
+        </WalletProvider>
       </body>
     </html>
   );

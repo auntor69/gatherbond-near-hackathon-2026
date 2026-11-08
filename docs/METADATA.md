@@ -2,8 +2,9 @@
 
 Status: **implemented and locally tested. The Turso database has been created and the
 migration applied; the Next.js UI now consumes the public listing, publication and event
-passport routes. Nothing is deployed, no wallet connector is wired, and no on-chain event
-exists yet.** The database is optional: the escrow contract remains fully usable without it.
+passport routes. A real NEAR Connect NEP-413 wallet session is wired into the UI; on-chain
+registration/deposit is not. Nothing is deployed and no on-chain event exists yet.** The
+database is optional: the escrow contract remains fully usable without it.
 
 ## 1. Source-of-truth boundary
 
@@ -181,7 +182,10 @@ an Ed25519 full-access key, `POST /api/auth/session` verifies it and checks
 `view_access_key(account, public_key)` through the read-only RPC seam, then sets an
 HttpOnly `gatherbond_session` cookie. The nonce is single-use per account, persisted in
 `auth_nonces` (created with `IF NOT EXISTS`, so the Turso migration command is unchanged).
-`GET`/`DELETE /api/auth/session` report and clear the session. Without
+`GET`/`DELETE /api/auth/session` report and clear the session; the GET body also publishes
+`configured` and `recipient` so the browser can decide whether to start a login and which
+recipient to sign for. The browser uses `@hot-labs/near-connect` and requests
+`wallet.signMessage` after connecting; it never adds a function-call key. Without
 `GATHERBOND_SESSION_SECRET` login is disabled (503) and writes stay 401.
 
 The development-only `GATHERBOND_ALLOW_DEV_ACTOR=1` + `x-gatherbond-actor` seam remains for
@@ -207,6 +211,7 @@ cd frontend && npx next build && npx next start -p 3105
 # GET /api/events/0                   -> 503 metadata_store_unavailable
 # GET /api/events/0/metadata          -> 503 metadata_store_unavailable
 # GET /api/events/0/publication       -> 503 metadata_store_unavailable
+# GET /api/auth/session               -> 401 configured:false (when auth is unset)
 # PUT /api/events/0/metadata          -> 401 unauthorized
 # POST /api/events/0/publication      -> 401 unauthorized
 ```
@@ -261,7 +266,7 @@ nonce), and the live signed-login lifecycle over real HTTP.
 ## 7. Not done
 
 - Contract/frontend deployment and the first funded testnet event (human-gated).
-- Wallet connect, registration, ticket display/scanning, finalization and claims in the UI.
+- Wallet registration/deposit, ticket display/scanning, finalization and claims in the UI.
 - Saving metadata from a create-event flow; the server publication workflow exists, but the
   organizer UI currently works from an existing event ID.
 - A public demo deployment and real published events; the current shelf uses labeled sample

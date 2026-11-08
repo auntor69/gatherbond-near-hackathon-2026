@@ -78,7 +78,10 @@ test("login sets an HttpOnly cookie that whoami accepts, and logout clears it", 
     new Request("http://localhost/api/auth/session", { headers: { cookie } }),
   );
   assert.equal(whoami.status, 200);
-  assert.equal((await whoami.json()).account_id, "organizer.testnet");
+  const whoamiBody = await whoami.json();
+  assert.equal(whoamiBody.account_id, "organizer.testnet");
+  assert.equal(whoamiBody.configured, true);
+  assert.equal(whoamiBody.recipient, RECIPIENT);
 
   const logout = await handlers.logout();
   assert.equal(logout.status, 204);
@@ -94,6 +97,10 @@ test("without a session secret login is 503 and whoami is 401", async () => {
 
   const whoami = await handlers.session(new Request("http://localhost/api/auth/session"));
   assert.equal(whoami.status, 401);
+  const whoamiBody = await whoami.json();
+  assert.equal(whoamiBody.error, "unauthorized");
+  assert.equal(whoamiBody.configured, false);
+  assert.equal(whoamiBody.recipient, RECIPIENT);
 });
 
 test("an expired cookie is reported as session_expired", async () => {

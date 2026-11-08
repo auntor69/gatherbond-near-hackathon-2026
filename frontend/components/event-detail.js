@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import EventArt from "./event-art";
+import { useWallet } from "./wallet-provider";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -23,6 +24,7 @@ import {
   formatDate,
   formatNear,
   mapDetail,
+  shortAccount,
   shortHash,
   statusLabel,
 } from "../lib/events";
@@ -90,6 +92,7 @@ export default function EventDetail({ id }) {
     demo ? { status: "demo", event: demo } : { status: "loading", event: null },
   );
   const [shareLabel, setShareLabel] = useState("Share event");
+  const wallet = useWallet();
 
   useEffect(() => {
     if (demo) {
@@ -507,6 +510,12 @@ export default function EventDetail({ id }) {
                 <dt>Organizer</dt>
                 <dd>{event.organizer}</dd>
               </div>
+              {wallet.accountId ? (
+                <div>
+                  <dt>Wallet</dt>
+                  <dd title={wallet.accountId}>{shortAccount(wallet.accountId, 10, 5)}</dd>
+                </div>
+              ) : null}
               {contractUrl ? (
                 <div>
                   <dt>Contract</dt>
@@ -531,15 +540,45 @@ export default function EventDetail({ id }) {
               </div>
             ) : (
               <div className="passport-note">
-                <Wallet size={17} />
-                <p>
-                  Wallet registration is the next integration step. This build never invents a
-                  balance or a confirmed transaction.
-                </p>
+                {wallet.phase === "signedIn" && wallet.accountId ? (
+                  <>
+                    <Check size={17} />
+                    <p>
+                      Verified wallet session for{" "}
+                      <strong>{shortAccount(wallet.accountId, 12, 6)}</strong>. Registration
+                      needs a deployed contract and a deposit transaction; neither is available
+                      in this build.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Wallet size={17} />
+                    <p>
+                      Connect a NEAR Testnet wallet to sign in. Registration needs a deployed
+                      contract and a deposit transaction; this build never invents a balance or
+                      confirmed transaction.
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
             <div className="passport-actions">
+              {!event.demo && wallet.phase !== "signedIn" ? (
+                <button
+                  type="button"
+                  className="button button-lime button-full"
+                  onClick={wallet.connect}
+                  disabled={
+                    wallet.busy !== null ||
+                    wallet.phase === "loading" ||
+                    wallet.phase === "unavailable"
+                  }
+                >
+                  <Wallet size={16} />
+                  {wallet.busy === "connect" ? "Waiting for wallet…" : "Connect wallet"}
+                </button>
+              ) : null}
               {event.startAt ? (
                 <button type="button" className="button button-dark button-full" onClick={downloadCalendar}>
                   <Calendar size={16} />

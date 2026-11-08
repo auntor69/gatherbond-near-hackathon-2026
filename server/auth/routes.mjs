@@ -103,14 +103,19 @@ export function createAuthRoutes({
 
     async session(request) {
       const result = readSessionCookie(request, { secret: config.secret, now: now() });
+      // Public auth metadata lets the browser know whether it can start a login and
+      // which recipient it must sign for. It contains no secret or session token.
+      const auth = { configured: enabled, recipient: config.recipient ?? null };
       if (!result.accountId) {
         return jsonResponse(401, {
           error: result.reason === "expired" ? "session_expired" : "unauthorized",
+          ...auth,
         });
       }
       return jsonResponse(200, {
         account_id: result.accountId,
         expires_at: new Date(result.expiresAt * 1000).toISOString(),
+        ...auth,
       });
     },
 
