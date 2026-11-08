@@ -19,6 +19,14 @@ import { nonceStoreForSelection } from "../auth/nonceStore.mjs";
 import { isSessionSecretConfigured, readSessionCookie } from "../auth/session.mjs";
 import { createRateLimiters, readRateLimitConfig } from "../http/rateLimit.mjs";
 
+/** Keep deployment diagnostics useful without exposing URLs or long credentials. */
+function safeErrorDetail(error) {
+  return String(error?.message ?? error ?? "")
+    .replace(/(?:libsql|https?|wss?):\/\/[^\s'"`]+/gi, "[redacted-url]")
+    .replace(/[A-Za-z0-9_-]{40,}/g, "[redacted]")
+    .slice(0, 220);
+}
+
 function unavailableStore(reason) {
   const fail = async () => {
     throw new Error(`metadata store unavailable: ${reason}`);
@@ -57,6 +65,8 @@ export async function selectStore(env = process.env, { importLibsql } = {}) {
       return {
         mode: "unavailable",
         reason: `libsql_unavailable: ${error.message}`,
+        errorCode: error?.code ?? null,
+        errorDetail: safeErrorDetail(error),
         store: null,
       };
     }
@@ -162,10 +172,12 @@ export async function createMetadataRuntime({
     reason: selection.reason ?? null,
     status: {
       database_mode: selection.mode,
-      // Expose only the reason code, never a credential-bearing error message.
+      // Expose only a reason code and a redacted diagnostic, never credentials.
       database_reason: selection.reason
         ? String(selection.reason).split(":")[0]
         : null,
+      database_error_code: selection.errorCode ?? null,
+      database_error_detail: selection.errorDetail ?? null,
       auth_configured: isSessionSecretConfigured(authConfig.secret),
       contract_configured: Boolean(configuredContract),
     },
