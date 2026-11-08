@@ -130,7 +130,28 @@ test(
 
     // Local chain state: get_event anchors and the access keys that may sign in.
     const chain = new Map(
-      Object.entries(documents).map(([id]) => [id, { metadata_hash: hashes[id].array }]),
+      Object.entries(documents).map(([id]) => [
+        id,
+        {
+          event_id: Number(id),
+          organizer: "organizer.testnet",
+          metadata_hash: hashes[id].array,
+          deposit: "1000000000000000000000000",
+          capacity: 3,
+          registered: 0,
+          checked_in: 0,
+          start_at: "1763000000000000000",
+          end_at: "1763003600000000000",
+          registration_deadline: "1762990000000000000",
+          checkin_open: "1763000000000000000",
+          checkin_close: "1763003600000000000",
+          status: "Open",
+          refund_pool: "0",
+          reward_pool: "0",
+          reward_per_attendee: "0",
+          locked: false,
+        },
+      ]),
     );
     const accessKeys = new Map([
       [`${organizer.accountId}:${organizer.publicKey}`, "FullAccess"],
@@ -243,6 +264,10 @@ test(
         cwd: frontendDir,
         env: {
           ...process.env,
+          // The Next app loads frontend/.env.local. Clear Turso explicitly so this
+          // test always exercises the temporary SQLite database it just created.
+          TURSO_DATABASE_URL: "",
+          TURSO_AUTH_TOKEN: "",
           METADATA_SQLITE_PATH: dbPath,
           NEAR_RPC_URL: rpcUrl,
           CONTRACT_NAME: "contract.testnet",
@@ -525,6 +550,14 @@ test(
       assert.equal(firstSnapshotBody.verified, true);
       assert.equal(firstSnapshotBody.version, 1);
       assert.equal(firstSnapshotBody.metadata.title, documents[0].title);
+
+      const detailsResponse = await fetch(`${base}/api/events/0`);
+      const detailsBody = await detailsResponse.json();
+      assert.equal(detailsResponse.status, 200, JSON.stringify(detailsBody));
+      assert.equal(detailsBody.verified, true);
+      assert.equal(detailsBody.version, 1);
+      assert.equal(detailsBody.onchain.capacity, 3);
+      assert.equal(detailsBody.onchain.status, "Open");
 
       const identicalPublish = await publication(0, { cookie: organizerCookie });
       const identicalPublishBody = await identicalPublish.json();

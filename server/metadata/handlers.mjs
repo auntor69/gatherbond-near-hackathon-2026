@@ -380,6 +380,62 @@ export function createMetadataHandlers({
     },
 
     /**
+     * GET /api/events/:id — the verified publication plus the contract's public terms.
+     * The publication remains the only metadata source; `onchain` is the read-only
+     * EventView used by the detail page for schedule, deposit, capacity and status.
+     */
+    async details({ key }) {
+      let normalized;
+      try {
+        normalized = normalizeEventKey(key);
+      } catch (error) {
+        return invalidKey(error);
+      }
+
+      let publication;
+      try {
+        publication = await store.getPublication(normalized);
+      } catch {
+        return respond(503, { error: "metadata_store_unavailable" });
+      }
+      if (!publication) {
+        return respond(404, { error: "not_published" });
+      }
+
+      const local = await store.verify(publication);
+      if (!local.matches) {
+        return respond(409, {
+          error: "metadata_hash_mismatch",
+          stored: publication.metadata_sha256,
+          recomputed: local.actual ?? null,
+        });
+      }
+
+      let onChain;
+      try {
+        onChain = await getOnChainEvent(normalized);
+      } catch {
+        return respond(503, { error: "chain_unavailable" });
+      }
+      if (!onChain) {
+        return respond(409, { error: "event_not_found_on_chain" });
+      }
+      if (!hashEquals(publication.metadata_sha256, onChain.metadata_hash)) {
+        return respond(409, {
+          error: "metadata_hash_mismatch",
+          stored: publication.metadata_sha256,
+          on_chain: onChain.metadata_hash ?? null,
+        });
+      }
+
+      return respond(200, {
+        verified: true,
+        ...publicationRecord(publication),
+        onchain: onChain,
+      });
+    },
+
+    /**
      * GET /api/events?status=published&limit&offset&category
      * Discovery only lists rows that still hash to their stored digest. On-chain
      * cross-checks happen on the detail route, where a single event is read.

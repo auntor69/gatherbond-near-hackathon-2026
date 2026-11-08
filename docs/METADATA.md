@@ -1,8 +1,9 @@
 # GatherBond — Event Metadata Layer (M3)
 
-Status: **implemented and locally tested. No Turso database exists, nothing is deployed,
-and no UI consumes this yet.** The database is optional: the escrow contract remains fully
-usable without it.
+Status: **implemented and locally tested. The Turso database has been created and the
+migration applied; the Next.js UI now consumes the public listing, publication and event
+passport routes. Nothing is deployed, no wallet connector is wired, and no on-chain event
+exists yet.** The database is optional: the escrow contract remains fully usable without it.
 
 ## 1. Source-of-truth boundary
 
@@ -89,9 +90,9 @@ Publication is a separate append-only log, `event_publications`:
 
 The highest version is authoritative. Because every transition is one INSERT, a failure
 cannot leave the event half-published; a retry either reports the same version (unchanged
-republish) or allocates the next one. The table is declared in
-`database/migrations/0001_event_metadata.sql` because **no Turso database exists yet**, so
-the human migration command remains a single file and does not need a second run.
+republish) or allocates the next one. The table remains in
+`database/migrations/0001_event_metadata.sql`; the migration was applied to the configured
+Turso database on 2026-11-08, so the operator command is unchanged.
 
 Local SQLite is the reference implementation (`server/metadata/sqlite.mjs`, Node's
 `node:sqlite`); production uses the same store over Turso/libSQL through
@@ -101,7 +102,8 @@ Local SQLite is the reference implementation (`server/metadata/sqlite.mjs`, Node
 
 `server/metadata/handlers.mjs` exports `createMetadataHandlers({ store, getOnChainEvent,
 authorize })`. The Next.js App Router route handlers in
-`frontend/app/api/events/route.js`, `frontend/app/api/events/[id]/metadata/route.js` and
+`frontend/app/api/events/route.js`, `frontend/app/api/events/[id]/route.js`,
+`frontend/app/api/events/[id]/metadata/route.js` and
 `frontend/app/api/events/[id]/publication/route.js` wrap these through
 `server/http/routes.mjs` (Web `Request`/`Response`). Nothing here reads environment
 variables, so `TURSO_AUTH_TOKEN` cannot reach a client bundle.
@@ -137,6 +139,7 @@ Publication endpoints:
 | `POST /api/events/:id/publication` | organizer session | `201` first publish, `200 unchanged` with the same version, `401`/`403`, `404` missing draft/event, `409` hash mismatch, `503` fail closed |
 | `DELETE /api/events/:id/publication` | organizer session | `200` tombstone with the new version and `pending` status; idempotent while already unpublished |
 | `GET /api/events/:id/publication` | public | `200` current verified snapshot (`version`, `metadata`, hashes, publisher/time), `404 not_published`, `409` mismatch, `503` fail closed |
+| `GET /api/events/:id` | public | `200` verified publication plus read-only `onchain` EventView (schedule, deposit, capacity, status), `404 not_published`, `409` mismatch, `503` fail closed |
 
 Publishing verifies the stored draft against both its stored digest and the on-chain
 `metadata_hash` before appending the snapshot. An identical republish of unchanged content
@@ -145,9 +148,10 @@ republishing afterwards produces the next version. All three operations use the 
 server-derived event key, never a client-supplied network/contract.
 
 The pre-existing `GET /api/events/:id/metadata` remains the draft/verification read required
-by the organizer flow and its contract tests; public event pages and discovery must use
-`GET /api/events/:id/publication` and `GET /api/events`, which never select drafts or
-superseded versions.
+by the organizer flow and its contract tests; public event pages and discovery use
+`GET /api/events/:id/publication`, `GET /api/events/:id` and `GET /api/events`, which never
+select drafts or superseded versions. The editorial Next.js pages call the public list and
+event-passport routes; sample event IDs are static client content and never call the chain.
 
 Partial failure follows MASTERPLAN §9.5: hash first, submit `create_event`, then save with
 the idempotent key and allow a user-triggered retry. A database failure never creates a
@@ -200,6 +204,7 @@ Local HTTP check (no credentials, no database):
 ```bash
 cd frontend && npx next build && npx next start -p 3105
 # GET /api/events                     -> 503 metadata_store_unavailable
+# GET /api/events/0                   -> 503 metadata_store_unavailable
 # GET /api/events/0/metadata          -> 503 metadata_store_unavailable
 # GET /api/events/0/publication       -> 503 metadata_store_unavailable
 # PUT /api/events/0/metadata          -> 401 unauthorized
@@ -230,14 +235,17 @@ Checked 2026-11-07:
 Sources: <https://turso.tech/pricing>, <https://docs.turso.tech/sdk/ts/reference>,
 <https://changelog.vercel.com/marketplace/tursocloud>.
 
-No database has been created; that requires human approval (MASTERPLAN M3 task 2).
+The database was created and `database/migrations/0001_event_metadata.sql` was applied on
+2026-11-08 with the user's credentials. `event_metadata` and `event_publications` exist;
+`event_publications` was empty at the time of writing. Credentials remain server-only in
+`frontend/.env.local`, which is ignored by Git.
 
 ## 6. Local verification
 
 ```bash
 python scripts/generate_metadata_vectors.py     # regenerate vectors
-node --test server/metadata/test/*.test.mjs     # 28 tests
-bash scripts/verify-local.sh                    # everything, including contract tests
+node --test server/metadata/test/*.test.mjs     # metadata handler/store tests
+bash scripts/verify-local.sh                    # full local suite, including Next e2e
 ```
 
 Covered: canonical bytes and 7 independent vectors, key normalization including u64 max,
@@ -252,9 +260,9 @@ nonce), and the live signed-login lifecycle over real HTTP.
 
 ## 7. Not done
 
-- Turso database creation and migration run (needs human approval and credentials).
-- The UI screens (M4): Discover, Create Event and My Commitments.
-- A public event-detail page consuming `GET /api/events/:id/publication`.
-- Saving metadata from the create-event flow (M4); the hash itself is already exercised by
-  the runbook.
-- No UI screens exist; the Next app currently contains only API routes.
+- Contract/frontend deployment and the first funded testnet event (human-gated).
+- Wallet connect, registration, ticket display/scanning, finalization and claims in the UI.
+- Saving metadata from a create-event flow; the server publication workflow exists, but the
+  organizer UI currently works from an existing event ID.
+- A public demo deployment and real published events; the current shelf uses labeled sample
+  content until Turso contains a verified publication.

@@ -310,3 +310,57 @@ test("publish fails closed for a draft that was never saved and for chain failur
     503,
   );
 });
+
+test("details returns the verified publication plus public on-chain terms", async () => {
+  const { handlers, chain, anchor } = await setup();
+  const hashed = await anchor();
+  await handlers.put({
+    actor: "organizer.testnet",
+    key: key(),
+    metadata: doc(),
+    create_tx_hash: TX_HASH,
+  });
+  await handlers.publish({ actor: "organizer.testnet", key: key() });
+
+  chain.set(JSON.stringify(key()), {
+    event_id: 0,
+    organizer: "organizer.testnet",
+    metadata_hash: hashed.array,
+    deposit: "1000000000000000000000000",
+    capacity: 3,
+    registered: 1,
+    checked_in: 0,
+    start_at: "1763000000000000000",
+    end_at: "1763003600000000000",
+    status: "Open",
+  });
+
+  const result = await handlers.details({ key: key() });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.verified, true);
+  assert.equal(result.body.version, 1);
+  assert.equal(result.body.metadata.title, "Demo night");
+  assert.equal(result.body.onchain.capacity, 3);
+  assert.equal(result.body.onchain.deposit, "1000000000000000000000000");
+  assert.equal(result.body.onchain.status, "Open");
+});
+
+test("details refuses an unpublished event and a mismatched on-chain hash", async () => {
+  const { handlers, chain, anchor } = await setup();
+  assert.equal((await handlers.details({ key: key() })).status, 404);
+
+  await anchor();
+  await handlers.put({
+    actor: "organizer.testnet",
+    key: key(),
+    metadata: doc(),
+    create_tx_hash: TX_HASH,
+  });
+  await handlers.publish({ actor: "organizer.testnet", key: key() });
+
+  const other = await hashMetadata(doc({ title: "Another event" }));
+  chain.set(JSON.stringify(key()), { metadata_hash: other.array });
+  const mismatch = await handlers.details({ key: key() });
+  assert.equal(mismatch.status, 409);
+  assert.equal(mismatch.body.error, "metadata_hash_mismatch");
+});

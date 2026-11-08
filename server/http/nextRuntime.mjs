@@ -9,14 +9,26 @@ import { createMetadataRuntime } from "../metadata/runtime.mjs";
 // working directory of `next build`/`next start`) so module evaluation during the build
 // never touches the filesystem. The loader only runs when Turso credentials exist.
 async function importLibsql() {
-  const [{ createRequire }, { pathToFileURL }, path] = await Promise.all([
+  const [{ createRequire }, path] = await Promise.all([
     import("node:module"),
-    import("node:url"),
     import("node:path"),
   ]);
-  const requireFromApp = createRequire(path.join(process.cwd(), "package.json"));
-  const resolved = requireFromApp.resolve("@libsql/client");
-  return import(pathToFileURL(resolved).href);
+  // Next may start with either the app directory or the workspace root as cwd depending
+  // on how it is launched. Try both manifests before failing closed.
+  const candidates = [process.cwd(), path.resolve(process.cwd(), "frontend")];
+  let lastError;
+  for (const directory of candidates) {
+    try {
+      const requireFromApp = createRequire(path.join(directory, "package.json"));
+      // @libsql/client exports a CJS build (`require` condition). Requiring it avoids
+      // Turbopack trying to analyze a runtime file-URL import in dev.
+      const loaded = requireFromApp("@libsql/client");
+      return loaded?.default?.createClient ? loaded.default : loaded;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 let pending;

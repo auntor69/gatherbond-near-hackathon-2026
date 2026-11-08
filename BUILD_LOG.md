@@ -815,3 +815,89 @@ bash scripts/deploy-contract.sh                 # prints the exact deploy comman
 
 The Discover / Create Event / My Commitments screens, consuming the publication snapshot
 for public event detail. No UI was started.
+
+## 2026-11-08 (session 9) — event passport, editorial UI, and live Turso read path
+
+**Status:** the public event passport and the editorial UI are implemented. Turso is
+live and migrated; discovery now exercises the real published-only read path (currently an
+empty shelf, so the UI shows clearly labeled sample events). No contract or frontend was
+deployed, no wallet was connected, and no on-chain event exists.
+
+### What changed
+
+- Added `GET /api/events/:id` in `server/metadata/handlers.mjs` and
+  `server/http/routes.mjs`, with a thin Next wrapper in
+  `frontend/app/api/events/[id]/route.js`. It returns the verified publication plus the
+  read-only `onchain` EventView (deposit, capacity, registrations, schedule, status);
+  drafts, tombstones and mismatched hashes remain unavailable.
+- Added the event-passport UI and the shared editorial system: cream paper, ink, lime,
+  oversized serif display type, ticket-stub cards, poster geometry and restrained CSS
+  motion. Pages: Discover (`/`), event passport (`/events/[id]`), organizer studio
+  (`/studio`) and My Commitments (`/commitments`).
+- The empty shelf uses four labeled sample events. They have no balances, transaction
+  hashes, deposits or check-ins. Live discovery remains empty until a verified publication
+  is written to Turso.
+- Applied `database/migrations/0001_event_metadata.sql` to the user's Turso database. Both
+  `event_metadata` and `event_publications` exist; the publication table had zero rows when
+  checked. Credentials remain only in git-ignored `frontend/.env.local`.
+- Fixed the server-only libSQL loader after Next dev reported `libsql_unavailable`: it now
+  requires the package's CJS export from either the app directory or the workspace root.
+  The same code answers 200 with the real Turso database after the fix.
+- Added a safe warning when the runtime selects the unavailable store; it logs only a
+  reason code such as `no_database_configured`, never a URL, token or secret.
+- Isolated the live HTTP e2e test from the developer's `.env.local` by explicitly clearing
+  `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` in the child process, so the test always uses
+  its temporary SQLite file.
+
+### Verified outputs
+
+```text
+npm run build (frontend)                         exit 0
+  /, /_not-found, /commitments, /studio          static
+  /api/auth/session, /api/events, /api/events/[id],
+  /api/events/[id]/metadata, /api/events/[id]/publication,
+  /events/[id]                                    dynamic
+
+bash scripts/verify-local.sh                     exit 0
+  contract format: clean
+  contract tests: 37 passed; 0 failed; 0 warnings
+  ticket-commitment parity: 8/8 vectors matched
+  metadata + auth + publication + HTTP tests: 89 passed; 0 failed
+  deploy handover: 16 methods; size 410817 bytes;
+    sha256 359fef6fd7b6e158e595d6a8c566d880229ae070608c34792ed776bf46c95db0;
+    code stake 4.10817 NEAR; nothing deployed
+  ALL LOCAL CHECKS PASSED
+```
+
+Live checks against the running Next app: `/api/events?limit=3` returned
+`{"items":[],"skipped":0,"next_offset":0}` from Turso; the public sample passport rendered
+at 431px with no horizontal overflow; the Food filter reduced the shelf to one event
+("Sunday Table"); desktop captures showed the hero, passport, commitments and studio
+layouts. No browser console errors were observed.
+
+### Decisions and limitations
+
+- The chosen visual direction is the cream/ink/lime editorial event-poster system, not the
+  earlier MASTERPLAN suggestion of deep charcoal/electric violet. This was selected in the
+  conversation and is now implemented consistently across the screens.
+- Sample content is always labeled. The UI never invents a balance, transaction hash,
+  ticket, check-in or published event.
+- The organizer studio is wired to the real verify/publish/unpublish routes, but the UI has
+  no wallet connector yet; publish attempts without a verified NEP-413 session fail closed
+  with 401, and the screen says so.
+- The event passport is public and reads contract terms only when `onchain` is returned.
+  With no contract configured, the detail route fails closed rather than guessing.
+- No contract deployment, funded account, signature, spend or external write was performed.
+
+### Remaining human gate (unchanged)
+
+1. Deploy the contract to NEAR Testnet with a funded account after reviewing
+   `docs/DEPLOY_RUNBOOK.md`.
+2. Create the first real event and publish its verified metadata.
+3. Connect a wallet for registration, ticket display, check-in and claims.
+4. Deploy the Next frontend and verify the live auth/callback origin.
+
+### Next
+
+Wire wallet connect and the attendee registration/ticket path; then create one real
+testnet event so discovery can replace the labeled sample shelf with live publications.

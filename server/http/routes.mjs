@@ -189,5 +189,19 @@ export function createMetadataRoutes({
         return jsonResponse(500, { error: "internal_error" });
       }
     },
+
+    /** GET /api/events/:id — verified publication plus public on-chain terms. */
+    async details(request, context) {
+      const eventId = await readEventId(context);
+      if (!eventId) {
+        return jsonResponse(400, { error: "invalid_key", detail: "missing event id" });
+      }
+      try {
+        const result = await handlers.details({ key: keyFor(eventId) });
+        return jsonResponse(result.status, result.body);
+      } catch {
+        return jsonResponse(500, { error: "internal_error" });
+      }
+    },
   };
 }

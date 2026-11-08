@@ -89,6 +89,10 @@ export async function createMetadataRuntime({
   importLibsql,
 } = {}) {
   const selection = await selectStoreImpl(env, { importLibsql });
+  if (selection.mode === "unavailable") {
+    const code = String(selection.reason ?? "unknown").split(":")[0];
+    console.warn(`[gatherbond] metadata store unavailable (${code})`);
+  }
 
   const networkId = env.NEAR_NETWORK_ID ?? env.NEXT_PUBLIC_NEAR_NETWORK_ID ?? "testnet";
   const configuredContract = env.CONTRACT_NAME ?? env.NEXT_PUBLIC_CONTRACT_NAME ?? null;
@@ -106,7 +110,9 @@ export async function createMetadataRuntime({
       throw new Error("contract_not_configured");
     }
     const event = await reader.getEvent(key.event_id);
-    return event ? { metadata_hash: event.metadata_hash } : null;
+    // Handlers only require metadata_hash, while the public detail route may expose the
+    // rest of the read-only EventView (schedule, deposit, capacity, status).
+    return event ?? null;
   };
 
   // Wallet session auth: a NEP-413 login issues an HMAC-signed HttpOnly cookie, and the
