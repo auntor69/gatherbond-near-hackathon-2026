@@ -48,6 +48,10 @@ export function getAuthRoutes() {
   return getRuntime().then((runtime) => runtime.authRoutes);
 }
 
+export function getRuntimeStatus() {
+  return getRuntime().then((runtime) => runtime.status);
+}
+
 /** Test-only: drop the cached runtime so environment changes take effect. */
 export function resetMetadataRoutesForTests() {
   pending = undefined;

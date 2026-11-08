@@ -16,7 +16,7 @@ import { createContractReader } from "../near/rpc.mjs";
 import { createMetadataRoutes } from "../http/routes.mjs";
 import { createAuthRoutes } from "../auth/routes.mjs";
 import { nonceStoreForSelection } from "../auth/nonceStore.mjs";
-import { readSessionCookie } from "../auth/session.mjs";
+import { isSessionSecretConfigured, readSessionCookie } from "../auth/session.mjs";
 import { createRateLimiters, readRateLimitConfig } from "../http/rateLimit.mjs";
 
 function unavailableStore(reason) {
@@ -160,6 +160,15 @@ export async function createMetadataRuntime({
   return {
     mode: selection.mode,
     reason: selection.reason ?? null,
+    status: {
+      database_mode: selection.mode,
+      // Expose only the reason code, never a credential-bearing error message.
+      database_reason: selection.reason
+        ? String(selection.reason).split(":")[0]
+        : null,
+      auth_configured: isSessionSecretConfigured(authConfig.secret),
+      contract_configured: Boolean(configuredContract),
+    },
     handlers,
     routes,
     authRoutes,
