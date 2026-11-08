@@ -4,7 +4,11 @@
 
 GatherBond is a proposed crypto-native event commitment protocol for NEAR. Organizers create events with refundable native NEAR deposits; attendees register through a smart contract, receive one-time QR tickets, and can claim refunds and community rewards after organizer-authorized attendance verification.
 
-> **Project status:** Planning / repository bootstrap. The MVP has not yet been implemented or deployed. Do not treat this README as evidence of working features.
+> **Project status:** Escrow contract, off-chain metadata layer, a server-only HTTP metadata
+> API with NEP-413 wallet sessions, rate limiting and a versioned organizer publication
+> workflow implemented and locally tested; **nothing is deployed** and no UI screens exist
+> yet. Do not treat this README as evidence of working features — see
+> [`BUILD_LOG.md`](./BUILD_LOG.md) for verified results.
 
 ## Project documents
 

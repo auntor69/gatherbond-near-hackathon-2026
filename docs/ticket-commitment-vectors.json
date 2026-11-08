@@ -1,0 +1,80 @@
+{
+  "format": "GatherBond ticket commitment v1",
+  "encoding": "SHA256(\"GatherBond:v1\" || u32le(len(network_id)) || network_id || u32le(len(contract_id)) || contract_id || u64le(event_id) || u32le(len(attendee)) || attendee || u32le(len(secret)) || secret); lengths are UTF-8 byte lengths",
+  "generated_by": "scripts/generate_ticket_vectors.py",
+  "note": "Known-answer vectors. Both contracts/src/lib.rs (ticket_commitment) and frontend/lib/ticketCommitment.mjs must reproduce every digest_hex exactly.",
+  "vectors": [
+    {
+      "name": "baseline_event_zero",
+      "network_id": "testnet",
+      "contract_id": "contract.testnet",
+      "event_id": "0",
+      "attendee": "alice.testnet",
+      "secret": "s3cret-ticket-0001",
+      "digest_hex": "7a7aa2c72fd1fd278c0967481287591314a35a14eed3f0e1b06c940f7f6815e0"
+    },
+    {
+      "name": "empty_secret",
+      "network_id": "testnet",
+      "contract_id": "contract.testnet",
+      "event_id": "0",
+      "attendee": "alice.testnet",
+      "secret": "",
+      "digest_hex": "d0fb028a430c9da88ac0e033adf1c9a8c9f830952c81fcae9e94de423bb11e50"
+    },
+    {
+      "name": "unicode_secret",
+      "network_id": "testnet",
+      "contract_id": "contract.testnet",
+      "event_id": "7",
+      "attendee": "bob.testnet",
+      "secret": "🎟️-ünïcode-秘密",
+      "digest_hex": "adeba1ed63765486f60a8220ff74363bebfc8a6c9c6c421a15caddac11c677e1"
+    },
+    {
+      "name": "leading_zeros_secret",
+      "network_id": "testnet",
+      "contract_id": "contract.testnet",
+      "event_id": "12",
+      "attendee": "carol.testnet",
+      "secret": "0000000000000001",
+      "digest_hex": "642c44fb8cfef908328d8e2620e4d9bfd3c6d54cfda6cb96f7ad133f55974dff"
+    },
+    {
+      "name": "event_id_above_2_53",
+      "network_id": "testnet",
+      "contract_id": "contract.testnet",
+      "event_id": "9007199254740993",
+      "attendee": "alice.testnet",
+      "secret": "s3cret-ticket-0001",
+      "digest_hex": "c3c091dd5dd573b64243efc2aa7493df349ace0b6de4e4690dbb23271eee7a39"
+    },
+    {
+      "name": "event_id_u64_max",
+      "network_id": "testnet",
+      "contract_id": "contract.testnet",
+      "event_id": "18446744073709551615",
+      "attendee": "dave.testnet",
+      "secret": "boundary",
+      "digest_hex": "42093bdd986689fd1975a504a07bdb2e5c5eb3716ce3a7a546cbabaee86fd5a3"
+    },
+    {
+      "name": "hash_of_hash_secret",
+      "network_id": "testnet",
+      "contract_id": "contract.testnet",
+      "event_id": "42",
+      "attendee": "alice.testnet",
+      "secret": "0813981b8c32763b78dad3aedfea4ed9d8de49ef81dc884e7a04210c54f62500",
+      "digest_hex": "3b01876f7168eb9c2ea409d00462c947f6a33a3f313820e7da2d6f839de599fd"
+    },
+    {
+      "name": "long_attendee_id",
+      "network_id": "testnet",
+      "contract_id": "contract.testnet",
+      "event_id": "3",
+      "attendee": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.testnet",
+      "secret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "digest_hex": "3326c99ea445f3b2e5099183417bda8acfd9f4826e0bcd6962c30935ad23bfe3"
+    }
+  ]
+}

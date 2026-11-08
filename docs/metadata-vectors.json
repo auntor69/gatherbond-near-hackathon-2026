@@ -1,0 +1,151 @@
+{
+  "format": "GatherBond event metadata v1",
+  "encoding": "SHA-256 over canonical JSON: sorted keys, no whitespace, UTF-8, tags in order; event_id is excluded and bound by the create_event transaction + row key",
+  "generated_by": "scripts/generate_metadata_vectors.py",
+  "vectors": [
+    {
+      "name": "baseline",
+      "input": {
+        "schema_version": 1,
+        "network_id": "testnet",
+        "contract_id": "contract.testnet",
+        "organizer_account_id": "organizer.testnet",
+        "title": "GatherBond demo night",
+        "description": "Commit to gather.",
+        "category": "community",
+        "venue": "Online",
+        "image_url": "https://example.com/poster.png",
+        "tags": [
+          "demo",
+          "testnet"
+        ],
+        "created_at": "2026-11-07T12:00:00Z"
+      },
+      "canonical_json": "{\"category\":\"community\",\"contract_id\":\"contract.testnet\",\"created_at\":\"2026-11-07T12:00:00Z\",\"description\":\"Commit to gather.\",\"image_url\":\"https://example.com/poster.png\",\"network_id\":\"testnet\",\"organizer_account_id\":\"organizer.testnet\",\"schema_version\":1,\"tags\":[\"demo\",\"testnet\"],\"title\":\"GatherBond demo night\",\"venue\":\"Online\"}",
+      "digest_hex": "e2a53eff3a1199a1d093094c0022e69ddcbef5f0d83581b0fb0f44311ebcd7a3"
+    },
+    {
+      "name": "unicode",
+      "input": {
+        "schema_version": 1,
+        "network_id": "testnet",
+        "contract_id": "contract.testnet",
+        "organizer_account_id": "organizer.testnet",
+        "title": "GatherBond 聚会 🎉",
+        "description": "Ünïcode and 日本語 — emoji 🎟️.",
+        "category": "community",
+        "venue": "Dhaka · বাংলাদেশ",
+        "image_url": "https://example.com/poster.png",
+        "tags": [
+          "社区",
+          "🎟️"
+        ],
+        "created_at": "2026-11-07T12:00:00Z"
+      },
+      "canonical_json": "{\"category\":\"community\",\"contract_id\":\"contract.testnet\",\"created_at\":\"2026-11-07T12:00:00Z\",\"description\":\"Ünïcode and 日本語 — emoji 🎟️.\",\"image_url\":\"https://example.com/poster.png\",\"network_id\":\"testnet\",\"organizer_account_id\":\"organizer.testnet\",\"schema_version\":1,\"tags\":[\"社区\",\"🎟️\"],\"title\":\"GatherBond 聚会 🎉\",\"venue\":\"Dhaka · বাংলাদেশ\"}",
+      "digest_hex": "9c8ce39e7251cf7ab8a1c8be108bc3c08adfd04aff6b8163badafb8755ebcfde"
+    },
+    {
+      "name": "minimal_display_fields",
+      "input": {
+        "schema_version": 1,
+        "network_id": "testnet",
+        "contract_id": "contract.testnet",
+        "organizer_account_id": "organizer.testnet",
+        "title": "GatherBond demo night",
+        "description": "",
+        "category": "meetup",
+        "venue": "",
+        "image_url": "",
+        "tags": [],
+        "created_at": "2026-11-07T12:00:00Z"
+      },
+      "canonical_json": "{\"category\":\"meetup\",\"contract_id\":\"contract.testnet\",\"created_at\":\"2026-11-07T12:00:00Z\",\"description\":\"\",\"image_url\":\"\",\"network_id\":\"testnet\",\"organizer_account_id\":\"organizer.testnet\",\"schema_version\":1,\"tags\":[],\"title\":\"GatherBond demo night\",\"venue\":\"\"}",
+      "digest_hex": "e7c5dbbf2e960cd20525823ad091d8a43a5f2a70d65fb4f083268f3a796fbcd3"
+    },
+    {
+      "name": "escaped_characters",
+      "input": {
+        "schema_version": 1,
+        "network_id": "testnet",
+        "contract_id": "contract.testnet",
+        "organizer_account_id": "organizer.testnet",
+        "title": "Quote \"test\"",
+        "description": "He said \"hello\"\nand left\\a path\tend",
+        "category": "community",
+        "venue": "Online",
+        "image_url": "https://example.com/poster.png",
+        "tags": [
+          "a\\b",
+          "c\"d"
+        ],
+        "created_at": "2026-11-07T12:00:00Z"
+      },
+      "canonical_json": "{\"category\":\"community\",\"contract_id\":\"contract.testnet\",\"created_at\":\"2026-11-07T12:00:00Z\",\"description\":\"He said \\\"hello\\\"\\nand left\\\\a path\\tend\",\"image_url\":\"https://example.com/poster.png\",\"network_id\":\"testnet\",\"organizer_account_id\":\"organizer.testnet\",\"schema_version\":1,\"tags\":[\"a\\\\b\",\"c\\\"d\"],\"title\":\"Quote \\\"test\\\"\",\"venue\":\"Online\"}",
+      "digest_hex": "88cee78e1dd603dfc56607b20a277090ab5f005c42d5eeda600e259936c50380"
+    },
+    {
+      "name": "tag_order_is_preserved",
+      "input": {
+        "schema_version": 1,
+        "network_id": "testnet",
+        "contract_id": "contract.testnet",
+        "organizer_account_id": "organizer.testnet",
+        "title": "GatherBond demo night",
+        "description": "Commit to gather.",
+        "category": "community",
+        "venue": "Online",
+        "image_url": "https://example.com/poster.png",
+        "tags": [
+          "zeta",
+          "alpha",
+          "middle"
+        ],
+        "created_at": "2026-11-07T12:00:00Z"
+      },
+      "canonical_json": "{\"category\":\"community\",\"contract_id\":\"contract.testnet\",\"created_at\":\"2026-11-07T12:00:00Z\",\"description\":\"Commit to gather.\",\"image_url\":\"https://example.com/poster.png\",\"network_id\":\"testnet\",\"organizer_account_id\":\"organizer.testnet\",\"schema_version\":1,\"tags\":[\"zeta\",\"alpha\",\"middle\"],\"title\":\"GatherBond demo night\",\"venue\":\"Online\"}",
+      "digest_hex": "015ce1ca6fdf9fa3e3cab67884f2070f23895964c4f8a584a8523c76bf053164"
+    },
+    {
+      "name": "bounds",
+      "input": {
+        "schema_version": 1,
+        "network_id": "testnet",
+        "contract_id": "contract.testnet",
+        "organizer_account_id": "organizer.testnet",
+        "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "description": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+        "category": "community",
+        "venue": "Online",
+        "image_url": "https://example.com/poster.png",
+        "tags": [
+          "tttttttttttttttttttttttttttttttt"
+        ],
+        "created_at": "2026-11-07T12:00:00Z"
+      },
+      "canonical_json": "{\"category\":\"community\",\"contract_id\":\"contract.testnet\",\"created_at\":\"2026-11-07T12:00:00Z\",\"description\":\"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\",\"image_url\":\"https://example.com/poster.png\",\"network_id\":\"testnet\",\"organizer_account_id\":\"organizer.testnet\",\"schema_version\":1,\"tags\":[\"tttttttttttttttttttttttttttttttt\"],\"title\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"venue\":\"Online\"}",
+      "digest_hex": "0a6d0a0759a849182c32a9c1b6d4d441470b9c65321cccf5d872ebd214a8add7"
+    },
+    {
+      "name": "subaccounts",
+      "input": {
+        "schema_version": 1,
+        "network_id": "testnet",
+        "contract_id": "app.gatherbond.testnet",
+        "organizer_account_id": "org.gatherbond.testnet",
+        "title": "GatherBond demo night",
+        "description": "Commit to gather.",
+        "category": "community",
+        "venue": "Online",
+        "image_url": "https://example.com/poster.png",
+        "tags": [
+          "demo",
+          "testnet"
+        ],
+        "created_at": "2026-11-07T12:00:00Z"
+      },
+      "canonical_json": "{\"category\":\"community\",\"contract_id\":\"app.gatherbond.testnet\",\"created_at\":\"2026-11-07T12:00:00Z\",\"description\":\"Commit to gather.\",\"image_url\":\"https://example.com/poster.png\",\"network_id\":\"testnet\",\"organizer_account_id\":\"org.gatherbond.testnet\",\"schema_version\":1,\"tags\":[\"demo\",\"testnet\"],\"title\":\"GatherBond demo night\",\"venue\":\"Online\"}",
+      "digest_hex": "83ab8918e6aaa9696b8e89e5b5f0dd21e9574b08b032c273b6edff1636e75714"
+    }
+  ]
+}
