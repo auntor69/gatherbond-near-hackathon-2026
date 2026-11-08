@@ -19,6 +19,7 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/**": [
       "node_modules/@libsql/**/*",
+      "node_modules/ws/**/*",
       "node_modules/js-base64/**/*",
       "node_modules/promise-limit/**/*",
     ],
