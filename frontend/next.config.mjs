@@ -19,9 +19,6 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/**": [
       "node_modules/@libsql/**/*",
-      "node_modules/libsql/**/*",
-      "node_modules/@neon-rs/**/*",
-      "node_modules/detect-libc/**/*",
       "node_modules/js-base64/**/*",
       "node_modules/promise-limit/**/*",
     ],

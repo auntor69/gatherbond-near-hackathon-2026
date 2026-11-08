@@ -20,9 +20,11 @@ async function importLibsql() {
   for (const directory of candidates) {
     try {
       const requireFromApp = createRequire(path.join(directory, "package.json"));
-      // @libsql/client exports a CJS build (`require` condition). Requiring it avoids
-      // Turbopack trying to analyze a runtime file-URL import in dev.
-      const loaded = requireFromApp("@libsql/client");
+      // Use the HTTP client, not the native Node/SQLite client. Turso's libsql:// URL is
+      // translated to HTTPS Hrana requests, which works in a Vercel function without a
+      // platform-specific native binding. The CJS export also avoids a runtime file-URL
+      // import that Turbopack cannot analyze in dev.
+      const loaded = requireFromApp("@libsql/client/http");
       return loaded?.default?.createClient ? loaded.default : loaded;
     } catch (error) {
       lastError = error;
