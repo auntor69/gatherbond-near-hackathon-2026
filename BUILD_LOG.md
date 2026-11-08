@@ -975,3 +975,47 @@ manifest are verified; the wallet approval step is still a human gate.
 
 Deploy the contract, complete one funded wallet sign-in and registration, and replace the
 labeled sample shelf with the first verified on-chain publication.
+
+## 2026-11-08 (session 11) — Vercel serverless trace fix for Turso
+
+**Status:** the live frontend at <https://gatherbond.vercel.app> accepted a wallet
+signature and verified the account's access key, then failed at the nonce write. The
+server returned `auth_store_unavailable`, and `GET /api/events` returned
+`metadata_store_unavailable`, even with the session secret configured.
+
+### Root cause
+
+The metadata runtime loads `@libsql/client` with a runtime `createRequire` so the shared
+server layer stays outside the frontend dependency graph. Next's static file tracer cannot
+see that require, and the generated `.nft.json` for the API routes contained **zero**
+libSQL files. The local server works because `frontend/node_modules` is present; a Vercel
+function can boot without it, so every Turso request fails closed.
+
+### What changed
+
+- `frontend/next.config.mjs` now declares `outputFileTracingIncludes` for `/api/**` with
+  the libSQL client, its transitive runtime packages and the platform binding packages.
+- No authentication rule, database schema, contract code or test assertion was changed or
+  weakened.
+
+### Verified outputs
+
+```text
+npm run build (frontend)                       exit 0; compiled successfully
+/api/events route .nft.json                   342 files; 229 libSQL-related files
+  before the fix                              113 files; 0 libSQL-related files
+```
+
+The corrected bundle still needs a Vercel Production deployment. The live environment must
+have `GATHERBOND_SESSION_SECRET`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and
+`CONTRACT_NAME` set; then the route should stop returning `metadata_store_unavailable` and
+the wallet nonce can be persisted.
+
+### Remaining human gate
+
+1. Add or correct the production environment variables in Vercel (Production scope).
+2. Redeploy the corrected build.
+3. Verify `GET /api/events` no longer returns `metadata_store_unavailable`, then retry the
+   wallet sign-in on the live origin.
+4. Deploy the contract and complete a funded registration before claiming the event flow
+   is end to end.

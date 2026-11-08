@@ -4,7 +4,7 @@
 
 GatherBond is a crypto-native event commitment protocol for NEAR. Organizers create events with refundable native NEAR deposits; attendees register through a smart contract, receive one-time QR tickets, and can claim refunds and community rewards after organizer-authorized attendance verification.
 
-> **Project status:** the escrow contract, metadata layer, NEP-413 server sessions, rate limiting, versioned publication workflow and the editorial Next.js UI are implemented and locally tested. The Turso database has been created and migrated. The UI now includes a real NEAR Connect wallet session flow using NEP-413. **No contract or frontend is deployed, registration/deposit and on-chain events are not available yet, and no real funds are used.** This is a testnet-only prototype.
+> **Project status:** the escrow contract, metadata layer, NEP-413 server sessions, rate limiting, versioned publication workflow and the editorial Next.js UI are implemented and locally tested. The Turso database has been created and migrated. The UI now includes a real NEAR Connect wallet session flow using NEP-413. The frontend is live at <https://gatherbond.vercel.app>, but its production environment still needs the server-only Turso, session and contract variables. **No contract is deployed, registration/deposit and on-chain events are not available yet, and no real funds are used.** This is a testnet-only prototype.
 
 ## What exists now
 
@@ -12,7 +12,7 @@ GatherBond is a crypto-native event commitment protocol for NEAR. Organizers cre
 - **Metadata API:** canonical SHA-256 documents, bounded published listings, a draft read, a public event passport (`GET /api/events/:id`), and append-only publish/unpublish versions. Turso stores display metadata only.
 - **Wallet sessions:** NEP-413 signature verification, an HttpOnly HMAC session cookie, one-time nonces and per-account/per-client rate limits on the server. The browser connector is wired through `@hot-labs/near-connect`; it connects without adding a contract key, requests the signed login message, and shows the account only after the server verifies it.
 - **UI:** editorial Discover, event passport, organizer studio and My Commitments screens, with wallet connect/sign-out in the header and studio. The empty shelf uses clearly labeled sample events; it never invents balances, transactions or check-ins.
-- **No deployment:** a testnet contract deploy, funded wallet registration/deposit and real check-in/settlement remain human-gated.
+- **Deployment:** the frontend is live at <https://gatherbond.vercel.app>; the testnet contract deploy, production server environment and funded-wallet registration/deposit remain human-gated.
 
 ## Run it locally
 
@@ -53,7 +53,7 @@ The NEAR contract is authoritative for organizer, deposit, capacity, timestamps,
 
 - Deploy the contract to NEAR Testnet and fund an account (needs human approval).
 - Wire wallet registration/deposit, ticket display/scanning, finalization and claims into the UI.
-- Create the first real on-chain event and a public deployed frontend.
+- Create the first real on-chain event and finish the production Vercel environment.
 - Replace the sample shelf with live published events.
 
 ## Project documents
