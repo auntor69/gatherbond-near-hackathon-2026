@@ -60,31 +60,31 @@ export default function HomePage() {
             <span className="poster-orbit" aria-hidden="true" />
             <span className="poster-orbit poster-orbit--inner" aria-hidden="true" />
 
-            <article className="poster-card" aria-label="Sample GatherBond event poster">
+            <article className="poster-card" aria-label="GatherBond protocol poster">
               <div className="poster-card-top">
-                <span>GATHERBOND / SAMPLE</span>
+                <span>GATHERBOND / PROTOCOL</span>
                 <span>TESTNET</span>
               </div>
               <div className="poster-art">
-                <span className="poster-art-kicker">A listening room</span>
-                <span className="poster-art-number">014</span>
+                <span className="poster-art-kicker">One room, one agreement</span>
+                <span className="poster-art-number">01</span>
                 <span className="poster-art-ring poster-art-ring--one" aria-hidden="true" />
                 <span className="poster-art-ring poster-art-ring--two" aria-hidden="true" />
                 <span className="poster-art-bottom">
-                  STUDIO NIGHT
+                  DEPOSIT
                   <br />
-                  21 NOV · BERLIN
+                  SHOW UP · SETTLE
                 </span>
               </div>
               <div className="poster-card-bottom">
                 <div>
-                  <strong>Studio Night</strong>
-                  <span>mara.testnet</span>
+                  <strong>Escrow, not promises</strong>
+                  <span>NEAR Testnet contract</span>
                 </div>
                 <div className="poster-stub">
-                  ADMIT
+                  REAL
                   <br />
-                  ONE
+                  ON-CHAIN
                 </div>
               </div>
             </article>
@@ -94,7 +94,7 @@ export default function HomePage() {
               <br />
               UP.
             </span>
-            <span className="poster-note">Sample poster · not an on-chain listing</span>
+            <span className="poster-note">Every listing is a verified contract event</span>
           </div>
         </div>
       </section>
@@ -170,8 +170,8 @@ export default function HomePage() {
               the metadata database never does, and a failed transfer restores the claim instead
               of making it disappear.
             </p>
-            <Link href="/events/demo-studio-night#commitment" className="text-link">
-              Walk through the mechanic
+            <Link href="/studio#create" className="text-link">
+              Create a real event
               <ArrowRight size={15} />
             </Link>
           </div>

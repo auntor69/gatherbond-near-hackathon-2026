@@ -14,6 +14,8 @@ import {
 } from "./icons";
 import { formatDate, shortHash } from "../lib/events";
 import { useWallet } from "./wallet-provider";
+import CreateEvent from "./create-event";
+import CheckIn from "./check-in";
 
 function Notice({ notice }) {
   if (!notice) {
@@ -249,11 +251,13 @@ export default function Studio() {
 
       <div className="shell studio-grid">
         <div className="studio-main">
+          <CreateEvent onCreated={(id) => setEventId(String(id))} />
+
           <section className="panel studio-panel">
             <div className="panel-head">
               <div>
                 <p className="eyebrow">Publication console</p>
-                <h2>Load an event</h2>
+                <h2>Load an existing event</h2>
               </div>
               <span className="network-pill">
                 <span className="network-dot" aria-hidden="true" />
@@ -408,6 +412,8 @@ export default function Studio() {
               </div>
             ) : null}
           </section>
+
+          <CheckIn />
 
           <section className="panel studio-guide">
             <div className="panel-head">

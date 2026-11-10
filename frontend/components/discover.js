@@ -5,8 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import EventArt from "./event-art";
 import EventCard from "./event-card";
-import { ArrowRight, ArrowUpRight, Check, Search, Spark } from "./icons";
-import { DEMO_EVENTS, eventWhenLabel, mapListing } from "../lib/events";
+import { ArrowRight, ArrowUpRight, Check, Search } from "./icons";
+import { eventWhenLabel, mapListing } from "../lib/events";
 
 function FeatureEvent({ event }) {
   return (
@@ -18,7 +18,6 @@ function FeatureEvent({ event }) {
       <div className="feature-body">
         <div className="feature-topline">
           <span className="feature-label">Featured room</span>
-          {event.demo ? <span className="demo-pill demo-pill--dark">Sample</span> : null}
         </div>
         <h3 className="feature-title">{event.title}</h3>
         <p className="feature-description">{event.description}</p>
@@ -89,9 +88,8 @@ export default function Discover() {
     };
   }, []);
 
-  const events = liveEvents.length > 0 ? liveEvents : DEMO_EVENTS;
+  const events = liveEvents;
   const loading = source === "loading";
-  const showingSample = !loading && liveEvents.length === 0;
 
   const categories = useMemo(
     () => ["All", ...Array.from(new Set(events.map((event) => event.category).filter(Boolean)))],
@@ -182,18 +180,9 @@ export default function Discover() {
           ) : null}
         </div>
 
-        {showingSample ? (
-          <div className="demo-banner" role="note">
-            <span className="demo-banner-icon">
-              <Spark size={20} />
-            </span>
-            <div>
-              <strong>Sample shelf.</strong>{" "}
-              {source === "unavailable"
-                ? "Discovery is temporarily offline, so these sample events show the intended experience."
-                : "No events are published on this deployment yet, so these sample events show the intended experience."}{" "}
-              They are not on-chain records and contain no balances or check-ins.
-            </div>
+        {source === "unavailable" ? (
+          <div className="data-note" role="alert">
+            Discovery is temporarily offline. No sample or cached events are being substituted.
           </div>
         ) : null}
 
@@ -206,11 +195,22 @@ export default function Discover() {
 
         {loading ? <SkeletonGrid /> : null}
 
-        {!loading && filtered.length === 0 ? (
+        {!loading && filtered.length === 0 && source === "empty" ? (
+          <div className="empty-state">
+            <span className="empty-state-mark">+</span>
+            <h3>No events are published yet.</h3>
+            <p>Connect an organizer wallet and create the first real event on the contract.</p>
+            <Link href="/studio#create" className="button button-dark">
+              Create the first event <ArrowRight size={15} />
+            </Link>
+          </div>
+        ) : null}
+
+        {!loading && filtered.length === 0 && source === "live" ? (
           <div className="empty-state">
             <span className="empty-state-mark">∅</span>
-            <h3>Nothing on this shelf.</h3>
-            <p>Try a different word, or open the whole room again.</p>
+            <h3>Nothing matches those filters.</h3>
+            <p>Try a different word, or clear the filters to see every published room.</p>
             <button type="button" className="button button-dark" onClick={clearFilters}>
               Clear filters
             </button>

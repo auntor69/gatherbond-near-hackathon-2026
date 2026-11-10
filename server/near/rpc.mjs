@@ -70,6 +70,30 @@ export function createContractReader({ rpcUrl, contractId, fetchImpl = globalThi
       return callView("get_event", { event_id: String(eventId) });
     },
 
+    /** Returns the next event id as a decimal string. */
+    async getEventCount() {
+      const value = await callView("get_event_count", {});
+      return value === null || value === undefined ? "0" : String(value);
+    },
+
+    /** Bounded reservations for an account, newest contract order preserved. */
+    async getReservationsForAccount(accountId, from = 0, limit = 20) {
+      return callView("get_reservations_for_account", {
+        account_id: accountId,
+        from: Number(from) || 0,
+        limit: Math.min(Number(limit) || 20, 20),
+      });
+    },
+
+    /** Bounded checked-in history for an account. */
+    async getAttendanceHistory(accountId, from = 0, limit = 20) {
+      return callView("get_attendance_history", {
+        account_id: accountId,
+        from: Number(from) || 0,
+        limit: Math.min(Number(limit) || 20, 20),
+      });
+    },
+
     /**
      * Returns { permission, block_height } for a key on an account, or null when the key
      * is not present. Errors other than UNKNOWN_ACCESS_KEY are surfaced so login can fail

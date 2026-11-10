@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import EventArt from "./event-art";
+import ReservePanel from "./reserve-panel";
 import { useWallet } from "./wallet-provider";
 import {
   ArrowRight,
@@ -13,13 +14,11 @@ import {
   Copy,
   MapPin,
   ShieldCheck,
-  Spark,
   Ticket,
   Wallet,
 } from "./icons";
 import {
   calendarFile,
-  demoEventById,
   eventWhenLabel,
   formatDate,
   formatNear,
@@ -54,18 +53,6 @@ function StatePanel({ kicker, title, copy, children }) {
   );
 }
 
-function SampleNote() {
-  return (
-    <div className="detail-note detail-note--sample" role="note">
-      <span className="detail-note-mark">SAMPLE</span>
-      <p>
-        This is sample content used to show the intended event page. It is not an on-chain
-        event, has no deposit, and cannot be registered for.
-      </p>
-    </div>
-  );
-}
-
 function VerifiedNote({ event }) {
   return (
     <div className="detail-note detail-note--verified" role="note">
@@ -87,19 +74,11 @@ function VerifiedNote({ event }) {
 }
 
 export default function EventDetail({ id }) {
-  const demo = demoEventById(id);
-  const [state, setState] = useState(
-    demo ? { status: "demo", event: demo } : { status: "loading", event: null },
-  );
+  const [state, setState] = useState({ status: "loading", event: null });
   const [shareLabel, setShareLabel] = useState("Share event");
   const wallet = useWallet();
 
   useEffect(() => {
-    if (demo) {
-      setState({ status: "demo", event: demo });
-      return undefined;
-    }
-
     let active = true;
     setState({ status: "loading", event: null });
 
@@ -137,7 +116,7 @@ export default function EventDetail({ id }) {
     return () => {
       active = false;
     };
-  }, [demo, id]);
+  }, [id]);
 
   if (state.status === "loading") {
     return (
@@ -192,13 +171,12 @@ export default function EventDetail({ id }) {
   const explorerBase =
     event.network === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";
   const contractUrl =
-    !event.demo && event.onchain && event.contractId
+    event.onchain && event.contractId
       ? `${explorerBase}/address/${encodeURIComponent(event.contractId)}`
       : null;
-  const txUrl =
-    !event.demo && event.createTxHash
-      ? `${explorerBase}/txns/${encodeURIComponent(event.createTxHash)}`
-      : null;
+  const txUrl = event.createTxHash
+    ? `${explorerBase}/txns/${encodeURIComponent(event.createTxHash)}`
+    : null;
 
   async function shareEvent() {
     try {
@@ -237,10 +215,9 @@ export default function EventDetail({ id }) {
     URL.revokeObjectURL(href);
   }
 
-  const depositLabel = event.demo ? "Not applicable" : formatNear(event.deposit) ?? "Set on-chain";
-  const capacityLabel = event.demo
-    ? "Not applicable"
-    : event.capacity === null || event.capacity === undefined
+  const depositLabel = formatNear(event.deposit) ?? "Set on-chain";
+  const capacityLabel =
+    event.capacity === null || event.capacity === undefined
       ? "From contract"
       : `${event.registered ?? 0} / ${event.capacity}`;
 
@@ -255,7 +232,7 @@ export default function EventDetail({ id }) {
 
           <div className="detail-heading-grid">
             <div className="detail-heading">
-              <p className="eyebrow">Event passport / {event.demo ? "Sample" : "NEAR Testnet"}</p>
+              <p className="eyebrow">Event passport / NEAR Testnet</p>
               <h1 className="detail-title">{event.title}</h1>
               <p className="detail-lede">
                 A {event.category.toLowerCase()} gathering at {event.venue}. One room, one
@@ -284,20 +261,15 @@ export default function EventDetail({ id }) {
                 <Copy size={16} />
                 {shareLabel}
               </button>
-              {event.demo ? (
-                <Link href="/studio" className="button button-lime">
-                  Try the studio
-                  <ArrowUpRight size={16} />
-                </Link>
-              ) : null}
+
             </div>
           </div>
 
           <div className="detail-stage">
             <EventArt event={event} className="detail-art" />
             <div className="detail-stamp">
-              <span>{event.demo ? "SAMPLE" : "PUBLICATION"}</span>
-              <strong>{event.demo ? "Not on-chain" : `v${event.version}`}</strong>
+              <span>PUBLICATION</span>
+              <strong>v{event.version}</strong>
             </div>
           </div>
         </div>
@@ -305,7 +277,8 @@ export default function EventDetail({ id }) {
 
       <div className="shell detail-layout">
         <article className="detail-main">
-          {event.demo ? <SampleNote /> : <VerifiedNote event={event} />}
+          <VerifiedNote event={event} />
+          <ReservePanel event={event} />
 
           <div className="detail-facts">
             <div className="fact">
@@ -372,12 +345,7 @@ export default function EventDetail({ id }) {
                 </p>
               </div>
             </div>
-            {event.demo ? (
-              <p className="mechanic-note">
-                Mechanic description only. This sample event has no deposit or settlement
-                activity.
-              </p>
-            ) : null}
+
           </section>
 
           <section className="terms-section">
@@ -428,8 +396,7 @@ export default function EventDetail({ id }) {
               </div>
             ) : (
               <p className="terms-empty">
-                This is sample content. When an event is published on NEAR Testnet, its
-                deposit, capacity and deadlines are read from the contract and shown here.
+                The contract did not return terms for this event. Nothing is being guessed.
               </p>
             )}
           </section>
@@ -441,17 +408,11 @@ export default function EventDetail({ id }) {
               </span>
               <div>
                 <p className="eyebrow">Metadata integrity</p>
-                <h2>{event.demo ? "No hash for sample content." : "Checked, not trusted."}</h2>
+                <h2>Checked, not trusted.</h2>
               </div>
             </div>
 
-            {event.demo ? (
-              <p>
-                Sample content has no canonical metadata hash or publication transaction. Real
-                event pages show the SHA-256 that was anchored on chain.
-              </p>
-            ) : (
-              <>
+            <>
                 <p>
                   The canonical metadata document was hashed before publication and checked
                   against the on-chain <code>metadata_hash</code> every time this page loads.
@@ -471,7 +432,6 @@ export default function EventDetail({ id }) {
                   ) : null}
                 </div>
               </>
-            )}
           </section>
         </article>
 
@@ -481,7 +441,7 @@ export default function EventDetail({ id }) {
               <Ticket size={16} />
               Event passport
             </span>
-            <span className="status-badge">{event.demo ? "Sample" : statusLabel(event.status)}</span>
+            <span className="status-badge">{statusLabel(event.status)}</span>
           </div>
 
           <div className="passport-body">
@@ -531,40 +491,16 @@ export default function EventDetail({ id }) {
 
             <div className="passport-perforation" aria-hidden="true" />
 
-            {event.demo ? (
-              <div className="passport-note">
-                <Spark size={17} />
-                <p>
-                  Sample passport. No deposit, balance or attendance is represented here.
-                </p>
-              </div>
-            ) : (
-              <div className="passport-note">
-                {wallet.phase === "signedIn" && wallet.accountId ? (
-                  <>
-                    <Check size={17} />
-                    <p>
-                      Verified wallet session for{" "}
-                      <strong>{shortAccount(wallet.accountId, 12, 6)}</strong>. Registration
-                      needs a deployed contract and a deposit transaction; neither is available
-                      in this build.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <Wallet size={17} />
-                    <p>
-                      Connect a NEAR Testnet wallet to sign in. Registration needs a deployed
-                      contract and a deposit transaction; this build never invents a balance or
-                      confirmed transaction.
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
+            <div className="passport-note">
+              <ShieldCheck size={17} />
+              <p>
+                Deposit, capacity, attendance and settlement are read from the contract. Use the
+                reserve panel to send the exact deposit; nothing is prefilled or simulated.
+              </p>
+            </div>
 
             <div className="passport-actions">
-              {!event.demo && wallet.phase !== "signedIn" ? (
+              {wallet.phase !== "signedIn" ? (
                 <button
                   type="button"
                   className="button button-lime button-full"

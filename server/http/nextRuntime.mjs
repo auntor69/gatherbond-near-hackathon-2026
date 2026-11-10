@@ -46,6 +46,11 @@ export function getMetadataRoutes() {
   return getRuntime().then((runtime) => runtime.routes);
 }
 
+/** Full server-only runtime for config, account reads and readiness checks. */
+export function getRuntimeContext() {
+  return getRuntime();
+}
+
 export function getAuthRoutes() {
   return getRuntime().then((runtime) => runtime.authRoutes);
 }

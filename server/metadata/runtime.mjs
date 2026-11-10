@@ -170,6 +170,10 @@ export async function createMetadataRuntime({
   return {
     mode: selection.mode,
     reason: selection.reason ?? null,
+    networkId,
+    contractId: configuredContract,
+    reader,
+    getActor,
     status: {
       database_mode: selection.mode,
       // Expose only a reason code and a redacted diagnostic, never credentials.
@@ -180,6 +184,8 @@ export async function createMetadataRuntime({
       database_error_detail: selection.errorDetail ?? null,
       auth_configured: isSessionSecretConfigured(authConfig.secret),
       contract_configured: Boolean(configuredContract),
+      contract_id: configuredContract,
+      network_id: networkId,
     },
     handlers,
     routes,

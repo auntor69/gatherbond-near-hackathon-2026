@@ -5,6 +5,7 @@
 // NEP-413 signature over the same message and nonce that are sent to the server.
 
 import { createWalletLoginBody, encodeNonce, loginMessageFor } from "./walletLogin.mjs";
+import { decodeOutcomeValue, outcomeHash } from "./contract";
 
 const TESTNET = "testnet";
 const CONNECTOR_OPTIONS = Object.freeze({
@@ -79,6 +80,52 @@ export async function connectNearWallet({ recipient }) {
     nonce,
     recipient,
   });
+}
+
+async function connectedWallet() {
+  const connector = await getConnector();
+  let wallet = await connector.wallet().catch(() => null);
+  if (!wallet) {
+    await connector.connect();
+    wallet = await connector.wallet();
+  }
+  return wallet;
+}
+
+/**
+ * Send a real contract call through the connected wallet. The caller supplies the exact
+ * deposit; no server key and no hidden signer is involved.
+ */
+export async function sendContractCall({
+  contractId,
+  methodName,
+  args = {},
+  deposit = "0",
+  gas = "100000000000000",
+}) {
+  if (typeof contractId !== "string" || contractId.length === 0) {
+    throw new Error("The contract is not configured on this deployment");
+  }
+  const wallet = await connectedWallet();
+  const result = await wallet.signAndSendTransaction({
+    receiverId: contractId,
+    actions: [
+      {
+        type: "FunctionCall",
+        params: {
+          methodName,
+          args,
+          gas: String(gas),
+          deposit: String(deposit),
+        },
+      },
+    ],
+  });
+  return {
+    result,
+    hash: outcomeHash(result),
+    value: decodeOutcomeValue(result),
+  };
 }
 
 /** Disconnect the connector if this page ever initialized it. */
