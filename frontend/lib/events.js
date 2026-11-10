@@ -142,7 +142,6 @@ export function mapListing(item) {
     status: "Published",
     onchain: null,
     accent: accentForCategory(metadata.category ?? ""),
-    demo: false,
   };
 }
 
@@ -171,7 +170,6 @@ export function mapDetail(body) {
     checkedIn: onchain?.checked_in ?? null,
     status: onchain?.status ?? "Published",
     onchain,
-    demo: false,
   };
 }
 

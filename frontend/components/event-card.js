@@ -16,11 +16,7 @@ export default function EventCard({ event }) {
         <div className="card-body">
           <div className="card-topline">
             <span className="card-category">{event.category}</span>
-            {event.demo ? (
-              <span className="demo-pill">Sample</span>
-            ) : (
-              <span className="card-network">NEAR</span>
-            )}
+            <span className="card-network">NEAR</span>
           </div>
 
           <h3 className="card-title">{event.title}</h3>
