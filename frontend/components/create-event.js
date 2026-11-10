@@ -11,6 +11,8 @@ import {
   contractError,
   defaultSchedule,
   parseNear,
+  scheduleError,
+  toLocalInput,
   toNanoseconds,
 } from "../lib/contract";
 
@@ -24,8 +26,11 @@ const INITIAL = {
   deposit: "1",
   capacity: "20",
   storage: "0.1",
-  ...defaultSchedule(),
 };
+
+function freshForm() {
+  return { ...INITIAL, ...defaultSchedule() };
+}
 
 function Field({ label, children, help }) {
   return (
@@ -39,7 +44,7 @@ function Field({ label, children, help }) {
 
 export default function CreateEvent({ onCreated }) {
   const wallet = useWallet();
-  const [form, setForm] = useState(INITIAL);
+  const [form, setForm] = useState(freshForm);
   const [config, setConfig] = useState(null);
   const [configError, setConfigError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -76,6 +81,11 @@ export default function CreateEvent({ onCreated }) {
     }
     if (!config?.contract_id) {
       setError("This deployment has no contract configured, so it cannot create a real event.");
+      return;
+    }
+    const invalidSchedule = scheduleError(form);
+    if (invalidSchedule) {
+      setError(`${invalidSchedule} Nothing was sent.`);
       return;
     }
 
@@ -166,6 +176,8 @@ export default function CreateEvent({ onCreated }) {
       setBusy(false);
     }
   }
+
+  const nowLocal = toLocalInput(new Date());
 
   return (
     <section className="panel create-panel" id="create">
@@ -292,6 +304,8 @@ export default function CreateEvent({ onCreated }) {
               type="datetime-local"
               value={form.registration_deadline}
               onChange={(event) => update("registration_deadline", event.target.value)}
+              min={nowLocal}
+              max={form.start_at || undefined}
               required
             />
           </Field>
@@ -300,6 +314,7 @@ export default function CreateEvent({ onCreated }) {
               type="datetime-local"
               value={form.start_at}
               onChange={(event) => update("start_at", event.target.value)}
+              min={nowLocal}
               required
             />
           </Field>
@@ -308,6 +323,7 @@ export default function CreateEvent({ onCreated }) {
               type="datetime-local"
               value={form.end_at}
               onChange={(event) => update("end_at", event.target.value)}
+              min={form.start_at || nowLocal}
               required
             />
           </Field>
@@ -319,6 +335,8 @@ export default function CreateEvent({ onCreated }) {
               type="datetime-local"
               value={form.checkin_open}
               onChange={(event) => update("checkin_open", event.target.value)}
+              min={form.start_at || nowLocal}
+              max={form.end_at || undefined}
               required
             />
           </Field>
@@ -327,6 +345,8 @@ export default function CreateEvent({ onCreated }) {
               type="datetime-local"
               value={form.checkin_close}
               onChange={(event) => update("checkin_close", event.target.value)}
+              min={form.checkin_open || form.start_at || nowLocal}
+              max={form.end_at || undefined}
               required
             />
           </Field>

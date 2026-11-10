@@ -44,6 +44,40 @@ export function toLocalInput(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+export function scheduleError(form) {
+  const fields = ["registration_deadline", "start_at", "end_at", "checkin_open", "checkin_close"];
+  const times = {};
+  for (const field of fields) {
+    const value = Date.parse(form?.[field]);
+    if (!Number.isFinite(value)) {
+      return "Choose a valid registration deadline, start, end and check-in window.";
+    }
+    times[field] = value;
+  }
+  if (times.start_at <= Date.now()) {
+    return "The event start must be in the future.";
+  }
+  if (times.end_at <= times.start_at) {
+    return "The event end must be after the start.";
+  }
+  if (times.registration_deadline <= Date.now()) {
+    return "Registration must close in the future.";
+  }
+  if (times.registration_deadline > times.start_at) {
+    return "Registration must close no later than the event start.";
+  }
+  if (times.checkin_open < times.start_at) {
+    return "Check-in cannot open before the event starts.";
+  }
+  if (times.checkin_close <= times.checkin_open) {
+    return "Check-in must close after it opens.";
+  }
+  if (times.checkin_close > times.end_at) {
+    return "Check-in must close no later than the event ends.";
+  }
+  return null;
+}
+
 export function defaultSchedule() {
   const now = Date.now();
   const minute = 60_000;
