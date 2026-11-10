@@ -306,8 +306,9 @@ export default function CreateEvent({ onCreated }) {
 
         <p className="schedule-note">
           <strong>Event window:</strong> the event runs from <strong>event starts</strong> to
-          <strong>event ends</strong>. Registration closes before it begins, and check-in must
-          happen inside that window.
+          <strong>event ends</strong>. Registration closes before it begins. Check-in opens
+          after registration closes — it can open before the event starts — and must close by
+          the event end.
         </p>
 
         <div className="form-grid form-grid--two">
@@ -338,7 +339,7 @@ export default function CreateEvent({ onCreated }) {
               required
             />
           </Field>
-          <Field label="Check-in opens" help="Earliest the organizer can check in tickets. On or after the event starts.">
+          <Field label="Check-in opens" help="Earliest the organizer can check in tickets. After registration closes, even before the event starts.">
             <input
               type="datetime-local"
               value={form.checkin_open}

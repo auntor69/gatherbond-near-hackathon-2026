@@ -215,7 +215,7 @@ export default function HomePage() {
             <div>
               <span>02 / ATTEND</span>
               <strong>Ticket consumed</strong>
-              <p>Organizer-authorized check-in inside the event window.</p>
+              <p>Organizer-authorized check-in after registration closes.</p>
             </div>
             <div>
               <span>03 / CLAIM</span>

@@ -243,7 +243,7 @@ The secret will be revealed as an input to the organizer's check-in transaction.
 ### 5.4 Check-in
 
 - Only the event's organizer account can call `check_in`.
-- Current chain timestamp must fall inside the event's check-in window.
+- Current chain timestamp must fall inside the event's check-in window, which may open after registration closes and before the event starts.
 - Reservation must exist and belong to the claimed attendee.
 - Ticket hash must match.
 - Ticket must not have been consumed previously.
@@ -381,7 +381,7 @@ Required internal callback/resolver:
 - Event title, description, metadata size and other input lengths are bounded.
 - Capacity is positive and capped at a sensible MVP maximum.
 - Deposit is above zero and within safe limits.
-- Timestamps are ordered: `start < end`, registration deadline is before/at the allowed start boundary, check-in window is inside the event's permitted time window, and all timestamps are future-valid on creation.
+- Timestamps are ordered: `start < end`, registration deadline is before/at the allowed start boundary, check-in opens at or after registration closes and closes no later than the event end (it may open before the event starts), and all timestamps are future-valid on creation.
 - Event creation is organizer-owned and event IDs cannot collide.
 - Registration is disabled after deadline/cancellation/finalization.
 - Duplicate registration is rejected.

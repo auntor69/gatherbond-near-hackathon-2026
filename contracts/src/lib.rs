@@ -270,8 +270,8 @@ impl GatherBond {
             "Registration deadline must be in the future and no later than the start"
         );
         require!(
-            ck_open >= start_at && ck_open < ck_close && ck_close <= end_at,
-            "Check-in window must be inside the event"
+            ck_open >= reg_deadline && ck_open < ck_close && ck_close <= end_at,
+            "Check-in must open after registration closes and close by the event end"
         );
 
         let contribution = env::attached_deposit().as_yoctonear();
@@ -417,7 +417,7 @@ impl GatherBond {
     }
 
     /// Organizer-only one-time check-in. Verifies the ticket secret against the stored
-    /// commitment inside the event's check-in window.
+    /// commitment inside the check-in window, which may open before the event starts.
     pub fn check_in(
         &mut self,
         event_id: U64,
@@ -1109,7 +1109,7 @@ mod tests {
     const START: u64 = T0 + 3_600;
     const END: u64 = T0 + 7_200;
     const REG_DEADLINE: u64 = T0 + 1_800;
-    const CHECKIN_OPEN: u64 = START;
+    const CHECKIN_OPEN: u64 = REG_DEADLINE;
     const CHECKIN_CLOSE: u64 = END;
 
     fn ns(secs: u64) -> u64 {
@@ -1319,7 +1319,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Check-in window must be inside the event")]
+    #[should_panic(expected = "Check-in must open after registration closes")]
     fn test_create_event_rejects_invalid_checkin_window() {
         let (mut contract, chain) = init();
         chain.enter(&organizer(), EVENT_STORAGE);
@@ -1331,6 +1331,42 @@ mod tests {
             U64::from(ns(REG_DEADLINE)),
             U64::from(ns(END)),
             U64::from(ns(END) + 1),
+            [7u8; 32],
+        );
+    }
+
+    #[test]
+    fn test_create_event_accepts_checkin_before_start() {
+        let (mut contract, chain) = init();
+        chain.enter(&organizer(), EVENT_STORAGE);
+        contract.create_event(
+            U128::from(DEPOSIT),
+            CAPACITY,
+            U64::from(ns(START)),
+            U64::from(ns(END)),
+            U64::from(ns(REG_DEADLINE)),
+            U64::from(ns(REG_DEADLINE)),
+            U64::from(ns(START)),
+            [7u8; 32],
+        );
+        let event = contract.get_event(U64::from(0)).unwrap();
+        assert_eq!(event.checkin_open.0, ns(REG_DEADLINE));
+        assert_eq!(event.checkin_close.0, ns(START));
+    }
+
+    #[test]
+    #[should_panic(expected = "Check-in must open after registration closes")]
+    fn test_create_event_rejects_checkin_before_registration_closes() {
+        let (mut contract, chain) = init();
+        chain.enter(&organizer(), EVENT_STORAGE);
+        contract.create_event(
+            U128::from(DEPOSIT),
+            CAPACITY,
+            U64::from(ns(START)),
+            U64::from(ns(END)),
+            U64::from(ns(REG_DEADLINE)),
+            U64::from(ns(REG_DEADLINE) - 1),
+            U64::from(ns(START)),
             [7u8; 32],
         );
     }
@@ -1450,6 +1486,20 @@ mod tests {
         let reservation = contract.get_reservation(U64::from(id), alice()).unwrap();
         assert!(reservation.checked_in);
         assert_eq!(reservation.checked_in_at.0, ns(START) + 10);
+        assert_eq!(contract.events.get(&id).unwrap().checked_in, 1);
+    }
+
+    #[test]
+    fn test_check_in_allows_early_arrival() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        chain.now = ns(REG_DEADLINE) + 1;
+        check_in(&mut contract, &mut chain, &alice(), id);
+
+        let reservation = contract.get_reservation(U64::from(id), alice()).unwrap();
+        assert!(reservation.checked_in);
+        assert_eq!(reservation.checked_in_at.0, ns(REG_DEADLINE) + 1);
         assert_eq!(contract.events.get(&id).unwrap().checked_in, 1);
     }
 

@@ -108,7 +108,7 @@ TIMES=$(node -e '
 const now = BigInt(Math.floor(Date.now() / 1000));
 const ns = (d) => String((now + BigInt(d)) * 1000000000n);
 console.log(JSON.stringify({ start_at: ns(180), end_at: ns(420),
-  registration_deadline: ns(120), checkin_open: ns(180), checkin_close: ns(420) }));
+  registration_deadline: ns(120), checkin_open: ns(120), checkin_close: ns(420) }));
 ')
 META=$(CONTRACT_ID="$CONTRACT_ID" ORGANIZER_ID="$ORGANIZER_ID" node scripts/metadata-tool.mjs demo)
 ARGS=$(TIMES="$TIMES" META="$META" node -e '
@@ -170,7 +170,7 @@ Observable: `get_reservation(0, "alice.testnet")` → `checked_in: false`, `clai
 
 ### 4.3 Check in two attendees (organizer, inside the window)
 
-After `checkin_open` and before `checkin_close`:
+After `checkin_open` and before `checkin_close`. Check-in may open before the event starts, once registration has closed:
 
 ```bash
 near contract call-function as-transaction "$CONTRACT_ID" check_in \

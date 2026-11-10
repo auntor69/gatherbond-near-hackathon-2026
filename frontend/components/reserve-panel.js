@@ -209,7 +209,7 @@ export default function ReservePanel({ event, onReserved }) {
 
       <p className="reserve-footnote">
         No card. No platform balance. The wallet signs one <code>register</code> transaction with
-        the exact deposit. The organizer checks the one-time ticket in during the event window.
+        the exact deposit. The organizer checks the one-time ticket in after registration closes.
       </p>
       <Link href="/commitments" className="text-link">
         Open my commitments

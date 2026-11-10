@@ -23,7 +23,7 @@ Open <https://gatherbond.vercel.app>.
 1. Connect a NEAR Testnet wallet and sign the NEP-413 message.
 2. Open **Organizer studio** and use **Create a real event**. The form sends `create_event`, stores the canonical metadata and publishes it.
 3. Open the event page and reserve with the exact deposit.
-4. Copy the ticket code from **My commitments**; the organizer pastes it into **Check in & settle** during the check-in window.
+4. Copy the ticket code from **My commitments**; the organizer pastes it into **Check in & settle** after registration closes. Check-in may open before the event starts and must close by the event end.
 5. After the event ends, finalize it and claim the settlement from **My commitments**.
 
 Every transaction is signed by the wallet. There are no server-held signing keys and no simulated balances.

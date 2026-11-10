@@ -1088,3 +1088,34 @@ live /api/contract/event-count                 count 0
 1. Connect an organizer wallet on the live site and create the first event.
 2. Complete a funded Testnet registration, check-in, finalization and claim.
 3. Add QR rendering/scanning and commission a contract audit before any mainnet use.
+
+## 2026-11-10 (session 13) — check-in may open before the event
+
+**Rule change:** check-in is no longer required to start at the event start. It may open any
+time at or after `registration_deadline`, including before the event begins, so organizers
+can process attendees who arrive early. It must still close after it opens and no later
+than `end_at`.
+
+### Contract
+
+- `create_event` now requires: `checkin_open >= registration_deadline`,
+  `checkin_open < checkin_close`, and `checkin_close <= end_at`.
+- `check_in` continues to require the current chain time to be inside that window.
+- Added tests for early check-in creation, rejection before registration closes, and an
+  attendee checking in before the event starts.
+- Deployed with `without-init-call` to preserve state (there were zero events).
+- Deploy transaction: `4PsmakUvRKUgyLfuE28JtyYerXUxDopKx18n3ridoMH9`
+- New code hash: `AfLQpJXSMdG2RcUrKu198QHD17Y7bk2fPFtNzDWUH1c8`
+- Post-deploy: `get_network_id` = `testnet`; `get_event_count` = `"0"`.
+
+### Verification
+
+```text
+bash scripts/verify-local.sh                 exit 0
+  40 contract tests passed (including early check-in)
+  8/8 ticket-commitment vectors matched
+  94 metadata/auth/HTTP tests passed
+  WASM: 410850 bytes, sha256 8f8b33632e1d80b1868020e1945c4d69be0c5449c97fe4ad51f17eaeadf26ac5
+npm run build --prefix frontend              exit 0
+frontend schedule check: early check-in accepted; before registration rejected
+```

@@ -66,8 +66,8 @@ export function scheduleError(form) {
   if (times.registration_deadline > times.start_at) {
     return "Registration must close no later than the event start.";
   }
-  if (times.checkin_open < times.start_at) {
-    return "Check-in cannot open before the event starts.";
+  if (times.checkin_open < times.registration_deadline) {
+    return "Check-in cannot open before registration closes.";
   }
   if (times.checkin_close <= times.checkin_open) {
     return "Check-in must close after it opens.";
@@ -81,13 +81,14 @@ export function scheduleError(form) {
 export function defaultSchedule() {
   const now = Date.now();
   const minute = 60_000;
+  const registrationDeadline = new Date(now + 45 * minute);
   const start = new Date(now + 60 * minute);
   const end = new Date(now + 180 * minute);
   return {
-    registration_deadline: toLocalInput(new Date(now + 45 * minute)),
+    registration_deadline: toLocalInput(registrationDeadline),
     start_at: toLocalInput(start),
     end_at: toLocalInput(end),
-    checkin_open: toLocalInput(start),
+    checkin_open: toLocalInput(registrationDeadline),
     checkin_close: toLocalInput(end),
   };
 }
