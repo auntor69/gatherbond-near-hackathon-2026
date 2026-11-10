@@ -25,7 +25,14 @@ export function formatNearAmount(yocto) {
     const value = BigInt(String(yocto));
     const whole = value / YOCTO_PER_NEAR;
     const fraction = (value % YOCTO_PER_NEAR).toString().padStart(24, "0").replace(/0+$/, "");
-    return `${whole}${fraction ? `.${fraction.slice(0, 4)}` : ""} NEAR`;
+    if (!fraction) {
+      return `${whole} NEAR`;
+    }
+    const display = fraction.slice(0, 4).padEnd(4, "0");
+    if (whole === 0n && display === "0000") {
+      return "<0.0001 NEAR";
+    }
+    return `${whole}.${display} NEAR`;
   } catch {
     return "—";
   }

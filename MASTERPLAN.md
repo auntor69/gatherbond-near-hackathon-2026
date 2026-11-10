@@ -1,9 +1,9 @@
 # GatherBond — Master Plan
 
-> **Product:** Crypto-backed commitments for real-world events  
+> **Product:** Commitment-first event platform for real-world communities  
 > **Hackathon:** NEAR HACKATHON 2026 — Build Beyond Boundaries  
-> **Current status:** Planning / repository bootstrap  
-> **Plan last updated:** 2026-11-06  
+> **Current status:** Testnet v1 live; hackathon proof features implemented and locally verified  
+> **Plan last updated:** 2026-11-10  
 > **Network target:** NEAR Testnet only  
 > **Primary hackathon track candidate:** Social Money (`social`)  
 > **Secondary track candidate:** Open Innovation (`open`), only if the final implementation genuinely fits
@@ -95,6 +95,18 @@ Event organizers often face registrations from people who do not attend. Empty s
 | Budget | Target $0; small incidental spend only with human approval |
 | Mainnet | Out of scope |
 
+### 1.7 Current product direction (2026-11-10)
+
+GatherBond is a **standalone commitment-first event platform**. The event page, commitment, check-in, Flake Fund and show-up proof live on GatherBond. It is not a plugin, link or add-on for another event product.
+
+- **Mission:** Make every yes count.
+- **Vision:** A world where a yes is a promise.
+- **Category:** Attendance assurance for real-world communities.
+- **Product promise:** Show up. Get it back. Split the flake fund.
+- **Business model:** One public plan at **$19/month** per organizer, first event free. No cut of refundable deposits and no cut of no-show penalties. Paid ticketing, sponsor pools and white-label deals are later sales-led additions, not public pricing tiers.
+- **Beachhead:** Recurring, capacity-constrained communities — run clubs, social fitness, workshops, classes and coworking.
+- **Hackathon proof scope:** Flake Fund preview, public recap plus attendee receipt, and an organizer proof dashboard. No contract-economics changes before submission.
+
 ---
 
 ## 2. Hackathon constraints and submission obligations
@@ -152,7 +164,11 @@ Do not build NEAR Intents into the MVP. Native NEAR testnet escrow is the core c
 - DAO governance or complex multisig administration.
 - Native iOS/Android application.
 - AI chatbot, AI event planner, or autonomous wallet agent.
-- Subscription plans, platform fees, or commercial billing.
+- Commercial billing or subscription enforcement inside the hackathon MVP; the post-hackathon model is one $19/month plan.
+- Operating as a plugin, link or integration layer inside another event product.
+- A platform or organizer cut of refundable deposits or no-show penalties.
+- Sponsor-pool pricing, white-label/API pricing, or multiple commercial tiers before 100 paying organizers.
+- Token, points, or chain-incentive mechanics.
 - Complex identity verification or KYC.
 - GPS-based proof of attendance.
 - Arbitrary external token deposits; native NEAR only.
@@ -853,6 +869,29 @@ Acceptance:
 - Public repository and public demo post are live before the deadline.
 - User has reviewed final submission payload and approved it.
 
+### M9 — Hackathon proof features (2026-11-10) — complete, locally verified
+
+**Goal:** Make the unique mechanic legible before, during and after an event without changing the contract economics.
+
+Tasks:
+
+1. Add a **Flake Fund preview** to the event page using live contract counts and an explicitly labelled 20% no-show illustration.
+2. Add a **public recap page** that reads finalized contract state and an **attendee receipt** after claim.
+3. Add an **organizer proof dashboard** showing registered, checked in, no-shows, show-up rate, deposit and pool.
+4. Add pure unit tests for the Flake Fund math, including rounding and zero-count edge cases.
+5. Keep the current deposit-only contract authoritative; no ticket-price, sponsor or platform-fee fields before the deadline.
+
+Acceptance:
+
+- Every displayed number is derived from contract state or clearly labelled as an illustration.
+- A finalized event produces an actual recap with no-shows, pool, per-attendee share and total returned.
+- A checked-in attendee sees a receipt with deposit, flake share and total after claim.
+- An organizer can load an event ID in the studio and see its proof without inventing data.
+- The Flake Fund unit tests pass and are included in the local verification script.
+- Mobile layouts do not overflow; empty, open, cancelled and finalized states all render honestly.
+
+**Verified 2026-11-10:** `scripts/verify-local.sh` passed all six steps (40 contract tests, 8/8 parity vectors, 10 Flake Fund tests, 94 metadata/auth/HTTP tests, deploy handover). The production build includes `/events/[id]/recap`. A local contract-shaped browser fixture exercised finalized, open, cancelled and missing recap states, the event-detail Flake Fund, the studio proof panel, a claimed show-up receipt and a cancelled refund receipt. The open/cancelled recap initially displayed invented no-show counts and a 0% show-up rate; both now render `—` until finalization. A 390 px viewport had no horizontal overflow on the recap, event detail, studio or commitments pages. A real funded testnet pilot remains the next proof.
+
 ---
 
 ## 14. Required tests
@@ -1029,13 +1068,10 @@ GatherBond MVP is done only when all of the following are true:
 
 Do these in order; do not jump ahead:
 
-1. Create the private GitHub repository.
-2. Upload the official, unchanged `HACKATHON.md`.
-3. Upload this `MASTERPLAN.md`.
-4. Add the initial `README.md` and `BUILD_LOG.md`.
-5. Ask the coding agent to read all four documents and perform **Milestone 0 only**.
-6. Review its environment/compatibility report.
-7. Approve or adjust the Milestone 1 testnet proof-of-concept.
-8. Do not begin full UI development until real deposit and refund have been proven.
+1. Keep the official `HACKATHON.md` unchanged.
+2. Run one real testnet pilot with a small group and record the actual deposits, check-ins, no-shows and claims.
+3. Update `README.md` and `BUILD_LOG.md` with the pilot transaction links.
+4. Rehearse the 2-minute demo and the judge Q&A, especially the NEAR-only, non-crypto-user and fraud questions.
+5. Submit early; do not add contract-economics features after the feature freeze.
 
 **Human approval is required for repository publishing, pushes, deployment, wallet signatures, spending, mainnet actions, X posts and final hackathon submission.**

@@ -6,6 +6,24 @@ GatherBond is a crypto-native event commitment protocol for NEAR. Organizers cre
 
 > **Project status:** the escrow contract is deployed to NEAR Testnet at **`cynopom.testnet`**. The live frontend at <https://gatherbond.vercel.app> now creates real on-chain events, accepts exact-deposit registrations, issues one-time tickets, checks attendees in, finalizes events and submits claims. Turso stores only verified display metadata. This is testnet-only; no mainnet funds are used. The contract currently has zero events, so the first event must be created by an organizer through the live studio.
 
+## Product direction
+
+**Mission:** make every yes count. **Vision:** a world where a yes is a promise.
+
+GatherBond is a standalone commitment-first event platform. The event page, deposit, check-in, Flake Fund and show-up proof live on GatherBond; it is not a plugin or link inside another event product. The public business model is one plan: **$19/month per organizer, first event free, no cut of deposits and no cut of no-shows**.
+
+## Hackathon proof increment (verified 2026-11-10)
+
+The final hackathon scope is deliberately small:
+
+- **Flake Fund preview** on the event page, derived from live contract counts with a clearly labelled 20% no-show illustration.
+- **Public recap + attendee receipt** after settlement, showing the actual flakes, pool, per-attendee share and total returned.
+- **Organizer proof dashboard** in the studio, showing registered, checked in, no-shows, show-up rate and settlement state.
+
+No contract-economics changes are part of this increment. The deposit-only contract remains authoritative.
+
+All three states were exercised in a local browser against contract-shaped event data: a finalized room, an open room, a cancelled room and a missing event. The recap only shows no-shows and show-up rate after finalization; open and cancelled rooms show `—` instead of inventing a result. Open events label pool numbers as projections. The event detail, studio proof and attendee receipts (finalized claim and cancelled refund) render from the same verified API. A 390 px viewport had no horizontal overflow on the recap, event detail, studio or commitments pages. This is local verification, not a substitute for the real testnet pilot still listed below.
+
 ## What exists now
 
 - **Escrow contract (`cynopom.testnet`):** event creation, exact-deposit registration, ticket commitments, organizer check-in, cancellation, permissionless finalization, pull claims, treasury accounting, pagination and failed-transfer recovery.
@@ -47,13 +65,15 @@ npm run build --prefix frontend                 # production Next build
 bash scripts/verify-local.sh                    # contract + parity + metadata + auth + HTTP e2e
 ```
 
-The last verified local run passed:
+The last verified local run passed all six steps:
 
 ```text
-37 contract tests
+40 contract tests
 8/8 ticket-commitment vectors
-94 Node metadata/auth/HTTP tests
-deploy handover: 16 methods, 410,817-byte WASM
+10 Flake Fund math tests
+94 Node metadata/auth/HTTP tests (including live Next + SQLite end-to-end)
+production Next build: /events/[id]/recap present
+deploy handover: 16 methods, 410,850-byte WASM
 ```
 
 ## Truth boundary
@@ -64,7 +84,7 @@ Ticket secrets are stored in the attendee's browser, not on chain and not in a U
 
 ## Remaining work
 
-- Create the first real event and complete a funded-wallet registration/check-in/settlement run on Testnet.
+- Create the first real event and complete a funded-wallet registration/check-in/settlement run on Testnet. The proof UI is verified locally against contract-shaped data; no real pilot has been recorded yet.
 - Add QR rendering/scanning for the ticket code (the current one-time code is copy/paste friendly).
 - Contract audit and production hardening before any mainnet consideration.
 

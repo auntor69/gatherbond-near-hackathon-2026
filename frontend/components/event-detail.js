@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import EventArt from "./event-art";
+import FlakeFund from "./flake-fund";
 import ReservePanel from "./reserve-panel";
 import { useWallet } from "./wallet-provider";
 import {
@@ -261,7 +262,15 @@ export default function EventDetail({ id }) {
                 <Copy size={16} />
                 {shareLabel}
               </button>
-
+              {event.status !== "Open" ? (
+                <Link
+                  href={`/events/${encodeURIComponent(event.id)}/recap`}
+                  className="button button-ghost"
+                >
+                  <ArrowUpRight size={16} />
+                  View room proof
+                </Link>
+              ) : null}
             </div>
           </div>
 
@@ -279,6 +288,7 @@ export default function EventDetail({ id }) {
         <article className="detail-main">
           <VerifiedNote event={event} />
           <ReservePanel event={event} />
+          <FlakeFund event={event} />
 
           <div className="detail-facts">
             <div className="fact">
@@ -525,6 +535,13 @@ export default function EventDetail({ id }) {
                 <Check size={16} />
                 How the bond works
               </a>
+              <Link
+                href={`/events/${encodeURIComponent(event.id)}/recap`}
+                className="button button-ghost button-full"
+              >
+                <ArrowUpRight size={16} />
+                View room proof
+              </Link>
               <Link href="/commitments" className="passport-subtle-link">
                 Open my commitments
                 <ArrowRight size={14} />

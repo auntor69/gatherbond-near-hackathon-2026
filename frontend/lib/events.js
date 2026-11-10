@@ -168,6 +168,9 @@ export function mapDetail(body) {
     capacity: onchain?.capacity ?? null,
     registered: onchain?.registered ?? null,
     checkedIn: onchain?.checked_in ?? null,
+    rewardPerAttendee: onchain?.reward_per_attendee ?? null,
+    rewardPool: onchain?.reward_pool ?? null,
+    refundPool: onchain?.refund_pool ?? null,
     status: onchain?.status ?? "Published",
     onchain,
   };

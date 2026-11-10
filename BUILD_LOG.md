@@ -1118,4 +1118,74 @@ bash scripts/verify-local.sh                 exit 0
   WASM: 410850 bytes, sha256 8f8b33632e1d80b1868020e1945c4d69be0c5449c97fe4ad51f17eaeadf26ac5
 npm run build --prefix frontend              exit 0
 frontend schedule check: early check-in accepted; before registration rejected
+
+## 2026-11-10 (session 14) — standalone product direction and hackathon proof scope
+
+**Status:** Scope locked. Documentation updated before implementation. The three proof
+features are in progress and are not claimed as verified until the final test run below.
+
+### Direction changes recorded
+
+- GatherBond is a standalone commitment-first event platform, not a plugin or link inside
+  another event product. The event page, deposit, check-in, Flake Fund and show-up proof are
+  owned by GatherBond.
+- Mission: **Make every yes count.** Vision: **A world where a yes is a promise.**
+- Public business model is one plan: **$19/month per organizer**, first event free, no cut of
+  refundable deposits and no cut of no-show penalties. Paid ticketing, sponsor pools and
+  white-label deals are later sales-led additions, not public tiers.
+- Hackathon scope is limited to three features plus a real pilot: Flake Fund preview, public
+  recap plus attendee receipt, and organizer proof dashboard. No contract-economics changes.
+
+### Documents updated
+
+- `MASTERPLAN.md`: product direction, non-goals, M9 proof-feature milestone and current actions.
+- `README.md`: standalone positioning, one-plan business model and proof increment.
+- `BUILD_LOG.md`: this session record.
+- `local/HACKATHON_PRIVATE_QNA.md`: private Q&A, demo script and submission checklist, excluded
+  through `.git/info/exclude`; never committed.
+
+### Implementation and verified results
+
+Implemented:
+
+- `frontend/lib/flakeFund.js` — pure BigInt settlement math for finalized events, plus an
+explicitly labelled projection for open events.
+- `frontend/components/flake-fund.js` — event-detail and recap Flake Fund card.
+- `frontend/app/events/[id]/recap/page.js` and `frontend/components/event-recap.js` — public
+recap for finalized, open, cancelled, missing and unavailable states.
+- `frontend/components/settlement-receipt.js` — attendee show-up and cancellation receipts,
+wired into `commitments.js`.
+- `frontend/components/room-proof.js` — organizer proof panel in `studio.js`.
+- `frontend/lib/events.js` — maps reward/refund contract fields.
+
+Verified 2026-11-10:
+
+```text
+bash scripts/verify-local.sh                 exit 0 (6/6 steps)
+  40 contract tests passed
+  8/8 ticket-commitment vectors matched
+  10 Flake Fund math tests passed
+  94 metadata/auth/HTTP tests passed
+  deploy handover: 16 methods; 410850-byte WASM
+npm run build --prefix frontend              exit 0
+  /events/[id]/recap present
+```
+
+Browser verification used a local-only contract-shaped fixture in `local/` (excluded from
+Git), not product data:
+
+- finalized recap: 10 registered, 7 showed up, 3 flaked, 3 NEAR pool, 0.4285 NEAR extra,
+  remainder shown as `<0.0001 NEAR` instead of `0.0000`;
+- open recap: no-shows and show-up rate show `—` with “After finalization”; pool is labelled
+  projected;
+- cancelled recap: no-shows and show-up rate show `—`; full-refund copy is correct;
+- missing event: honest 404 recap state;
+- event-detail Flake Fund: finalized actual and open projection both render;
+- studio proof panel: finalized actual values render from the same API;
+- commitments: claimed show-up receipt (1.4285 NEAR total) and cancelled refund receipt
+  (1 NEAR) render; the open reservation renders no receipt;
+- 390 px viewport: no horizontal overflow on recap, event detail, studio or commitments.
+
+A real funded testnet pilot is still pending. No fake on-chain event, balance or check-in was
+created for the live app; the fixture only ran on loopback for UI verification.
 ```

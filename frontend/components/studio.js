@@ -16,6 +16,7 @@ import { formatDate, shortHash } from "../lib/events";
 import { useWallet } from "./wallet-provider";
 import CreateEvent from "./create-event";
 import CheckIn from "./check-in";
+import RoomProof from "./room-proof";
 
 function Notice({ notice }) {
   if (!notice) {
@@ -412,6 +413,8 @@ export default function Studio() {
               </div>
             ) : null}
           </section>
+
+          <RoomProof eventId={cleanId} />
 
           <CheckIn />
 

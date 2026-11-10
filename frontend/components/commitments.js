@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import SettlementReceipt from "./settlement-receipt";
 import TicketCard from "./ticket-card";
 import { ArrowRight, Check, ShieldCheck, Ticket, Wallet } from "./icons";
 import { useWallet } from "./wallet-provider";
@@ -314,6 +315,13 @@ export default function Commitments() {
                       </p>
                     )}
 
+                    <SettlementReceipt
+                      event={event}
+                      reservation={reservation}
+                      eventId={item.eventId}
+                      title={item.title}
+                    />
+
                     <div className="action-row">
                       {canClaim ? (
                         <button
@@ -339,6 +347,11 @@ export default function Commitments() {
                       <Link href={`/events/${item.eventId}`} className="text-link">
                         Open event <ArrowRight size={14} />
                       </Link>
+                      {event && event.status !== "Open" ? (
+                        <Link href={`/events/${item.eventId}/recap`} className="text-link">
+                          Open recap <ArrowRight size={14} />
+                        </Link>
+                      ) : null}
                     </div>
                   </article>
                 );
