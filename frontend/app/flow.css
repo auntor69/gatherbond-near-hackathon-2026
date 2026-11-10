@@ -37,6 +37,20 @@
   box-shadow: 0 0 0 3px rgba(217, 255, 99, 0.55);
 }
 
+.schedule-note {
+  margin: 2px 0 14px;
+  padding: 11px 14px;
+  border-left: 3px solid var(--ink);
+  background: var(--lime-soft);
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.schedule-note strong {
+  font-weight: 700;
+}
+
 .event-form {
   margin-bottom: 18px;
 }

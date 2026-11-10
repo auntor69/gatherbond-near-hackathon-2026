@@ -304,16 +304,14 @@ export default function CreateEvent({ onCreated }) {
           </Field>
         </div>
 
-        <div className="form-grid form-grid--three">
-          <Field label="Registration closes">
-            <input
-              type="datetime-local"
-              value={form.registration_deadline}
-              onChange={(event) => update("registration_deadline", event.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Starts">
+        <p className="schedule-note">
+          <strong>Event window:</strong> the event runs from <strong>event starts</strong> to
+          <strong>event ends</strong>. Registration closes before it begins, and check-in must
+          happen inside that window.
+        </p>
+
+        <div className="form-grid form-grid--two">
+          <Field label="Event starts" help="When the gathering begins.">
             <input
               type="datetime-local"
               value={form.start_at}
@@ -321,7 +319,7 @@ export default function CreateEvent({ onCreated }) {
               required
             />
           </Field>
-          <Field label="Ends">
+          <Field label="Event ends" help="When the gathering finishes.">
             <input
               type="datetime-local"
               value={form.end_at}
@@ -331,8 +329,16 @@ export default function CreateEvent({ onCreated }) {
           </Field>
         </div>
 
-        <div className="form-grid form-grid--two">
-          <Field label="Check-in opens">
+        <div className="form-grid form-grid--three">
+          <Field label="Registration closes" help="Last moment attendees can reserve. Before the event starts.">
+            <input
+              type="datetime-local"
+              value={form.registration_deadline}
+              onChange={(event) => update("registration_deadline", event.target.value)}
+              required
+            />
+          </Field>
+          <Field label="Check-in opens" help="Earliest the organizer can check in tickets. On or after the event starts.">
             <input
               type="datetime-local"
               value={form.checkin_open}
@@ -340,7 +346,7 @@ export default function CreateEvent({ onCreated }) {
               required
             />
           </Field>
-          <Field label="Check-in closes">
+          <Field label="Check-in closes" help="Latest check-in time. On or before the event ends.">
             <input
               type="datetime-local"
               value={form.checkin_close}
