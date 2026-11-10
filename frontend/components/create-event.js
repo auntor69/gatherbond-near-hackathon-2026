@@ -116,6 +116,7 @@ export default function CreateEvent({ onCreated }) {
         args,
         deposit: parseNear(form.storage),
         gas: "100000000000000",
+        expectedAccount: wallet.accountId,
       });
 
       let eventId = call.value;

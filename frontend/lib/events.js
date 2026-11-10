@@ -22,69 +22,6 @@ const NUMBER_FORMAT = new Intl.NumberFormat("en", {
   maximumFractionDigits: 2,
 });
 
-/**
- * Sample content is allowed on an empty discovery page by MASTERPLAN §8.3, but it must be
- * labeled and must not present fake balances, transactions or check-ins as real.
- */
-export const DEMO_EVENTS = [
-  {
-    id: "demo-studio-night",
-    title: "Studio Night 014",
-    description:
-      "A listening room for unfinished tracks, half-built posters and the people making them. Bring something you are not ready to call finished.",
-    category: "Music",
-    venue: "The Foundry · Berlin",
-    startAt: "2026-11-21T19:30:00Z",
-    endAt: "2026-11-21T23:00:00Z",
-    organizer: "mara.testnet",
-    tags: ["listening", "design", "late"],
-    accent: "lime",
-    demo: true,
-  },
-  {
-    id: "demo-sunday-table",
-    title: "Sunday Table",
-    description:
-      "Twelve seats, one long table, and a menu built from whatever the market had left. Come hungry, leave with a new number in your phone.",
-    category: "Food",
-    venue: "Kreuzberg Community Kitchen · Berlin",
-    startAt: "2026-11-15T12:00:00Z",
-    endAt: "2026-11-15T15:30:00Z",
-    organizer: "table.testnet",
-    tags: ["supper", "neighbours"],
-    accent: "coral",
-    demo: true,
-  },
-  {
-    id: "demo-build-in-public",
-    title: "Build in Public",
-    description:
-      "A working session for people shipping on NEAR. Bring a branch, a blocker or a half-formed idea. We demo at the end, not the beginning.",
-    category: "Workshop",
-    venue: "Online · NEAR Testnet",
-    startAt: "2026-11-18T17:00:00Z",
-    endAt: "2026-11-18T19:00:00Z",
-    organizer: "gatherbond.testnet",
-    tags: ["build", "near", "open"],
-    accent: "violet",
-    demo: true,
-  },
-  {
-    id: "demo-night-run",
-    title: "Night Run Club",
-    description:
-      "Five kilometres at conversation pace, then soup. No pace groups, no leaderboard, no one gets left behind in the dark.",
-    category: "Community",
-    venue: "Tempelhofer Feld · Berlin",
-    startAt: "2026-11-12T18:45:00Z",
-    endAt: "2026-11-12T20:15:00Z",
-    organizer: "run.testnet",
-    tags: ["movement", "city"],
-    accent: "blue",
-    demo: true,
-  },
-];
-
 const CATEGORY_ACCENTS = ["lime", "coral", "violet", "blue"];
 
 export function accentForCategory(category = "") {
@@ -179,10 +116,6 @@ export function shortAccount(value, head = 8, tail = 5) {
     return value;
   }
   return `${value.slice(0, head)}…${value.slice(-tail)}`;
-}
-
-export function demoEventById(id) {
-  return DEMO_EVENTS.find((event) => event.id === id) ?? null;
 }
 
 export function mapListing(item) {

@@ -107,6 +107,7 @@ export default function ReservePanel({ event, onReserved }) {
         },
         deposit: String(event.deposit),
         gas: "100000000000000",
+        expectedAccount: wallet.accountId,
       });
 
       const next = {

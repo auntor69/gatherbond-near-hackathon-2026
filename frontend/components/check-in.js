@@ -62,6 +62,7 @@ export default function CheckIn() {
           args: { event_id: id, attendee: ticket.attendee, secret: ticket.secret },
           deposit: "0",
           gas: "100000000000000",
+          expectedAccount: wallet.accountId,
         });
         setNotice({ tone: "success", text: `Checked in ${ticket.attendee} for event ${id}.` });
       } else if (action === "finalize") {
@@ -71,6 +72,7 @@ export default function CheckIn() {
           args: { event_id: id },
           deposit: "0",
           gas: "100000000000000",
+          expectedAccount: wallet.accountId,
         });
         setNotice({ tone: "success", text: `Event ${id} finalized. Attendees can now claim.` });
       } else if (action === "cancel") {
@@ -80,6 +82,7 @@ export default function CheckIn() {
           args: { event_id: id },
           deposit: "0",
           gas: "100000000000000",
+          expectedAccount: wallet.accountId,
         });
         setNotice({ tone: "success", text: `Event ${id} cancelled. Every reservation is refundable.` });
       }

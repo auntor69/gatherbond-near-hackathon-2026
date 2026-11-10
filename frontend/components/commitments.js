@@ -131,6 +131,7 @@ export default function Commitments() {
         args: { event_id: item.eventId },
         deposit: "0",
         gas: action === "claim" ? "150000000000000" : "100000000000000",
+        expectedAccount: wallet.accountId,
       });
       setNotice({
         tone: "success",

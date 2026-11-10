@@ -1034,3 +1034,57 @@ store; a full live wallet approval still needs to be retried with a funded Testn
 1. Retry the wallet sign-in on the live origin after the deployment finishes.
 2. Deploy the contract and complete a funded registration before claiming the event flow
    is end to end.
+
+## 2026-11-10 (session 12) — real lifecycle and live testnet contract
+
+**Status:** the escrow contract is deployed to NEAR Testnet at `cynopom.testnet`, and the
+live app now exposes the real create → reserve → ticket → check-in → finalize → claim
+flow. The sample shelf and sample ticket were removed. The contract has zero events, so
+the first real event is still created by an organizer wallet through the live studio.
+
+### Deployed contract
+
+- Account: `cynopom.testnet`
+- Deploy transaction: `2L2FSxqBKwCoAGMwLPRchVNsqBtDTZe8PrW9QQtMgJLD`
+- Code hash: `4cL4DwiJTZeANDo2P33VsoCwELwtXwpjaj9DPyh3BeSb`
+- Init: `new({ treasury: "cynopom.testnet", network_id: "testnet" })`
+- Post-deploy RPC: `get_network_id` returned `testnet`; `get_event_count` returned `"0"`.
+- Live `/api/config`: `{"network_id":"testnet","contract_id":"cynopom.testnet","contract_configured":true}`.
+- Live `/api/contract/event-count`: `{"count":"0"}`.
+
+### Real application paths
+
+- `frontend/components/create-event.js`: wallet-signed `create_event`, then authenticated
+  metadata PUT and publication POST.
+- `frontend/components/reserve-panel.js`: wallet-signed `register` with the exact deposit
+  and a browser-generated ticket secret; only the commitment is sent on chain.
+- `frontend/components/ticket-card.js`: one-time ticket code with copy support.
+- `frontend/components/check-in.js`: organizer `check_in`, `finalize_event`, `cancel_event`.
+- `frontend/components/commitments.js`: authenticated `/api/me/commitments` reads
+  `get_reservations_for_account`, shows claim state, and submits `claim_settlement`.
+- `frontend/app/api/config/route.js`, `/api/contract/event-count` and
+  `/api/me/commitments`: public config, read-only count and session-bound reservation reads.
+- `frontend/lib/nearWallet.js`: real `signAndSendTransaction`, selecting only wallets that
+  support signing and requiring the transaction account to match the verified session.
+- Discovery no longer falls back to sample events; empty means empty.
+
+### Verified outputs
+
+```text
+npm run build (frontend)                       exit 0
+routes: /api/config, /api/contract/event-count, /api/me/commitments, /api/events, ...
+bash scripts/verify-local.sh                   exit 0
+  37 contract tests passed
+  8/8 ticket-commitment vectors matched
+  94 metadata/auth/HTTP tests passed
+  deploy handover: 16 methods; 410817-byte WASM
+live /api/health                               database turso, read ok, auth/contract true
+live /api/config                               contract cynopom.testnet
+live /api/contract/event-count                 count 0
+```
+
+### Remaining human gate
+
+1. Connect an organizer wallet on the live site and create the first event.
+2. Complete a funded Testnet registration, check-in, finalization and claim.
+3. Add QR rendering/scanning and commission a contract audit before any mainnet use.

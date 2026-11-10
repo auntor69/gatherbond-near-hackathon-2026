@@ -12,7 +12,7 @@ const CONNECTOR_OPTIONS = Object.freeze({
   network: TESTNET,
   autoConnect: false,
   footerBranding: null,
-  features: { signMessage: true, testnet: true },
+  features: { signMessage: true, signAndSendTransaction: true, testnet: true },
 });
 
 let connectorPromise = null;
@@ -102,11 +102,18 @@ export async function sendContractCall({
   args = {},
   deposit = "0",
   gas = "100000000000000",
+  expectedAccount = null,
 }) {
   if (typeof contractId !== "string" || contractId.length === 0) {
     throw new Error("The contract is not configured on this deployment");
   }
   const wallet = await connectedWallet();
+  if (expectedAccount) {
+    const accounts = await wallet.getAccounts({ network: TESTNET });
+    if (!accounts?.some((account) => account.accountId === expectedAccount)) {
+      throw new Error("Connect the same wallet account that signed in to GatherBond.");
+    }
+  }
   const result = await wallet.signAndSendTransaction({
     receiverId: contractId,
     actions: [
