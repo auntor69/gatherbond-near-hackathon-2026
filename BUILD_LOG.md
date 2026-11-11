@@ -1335,7 +1335,8 @@ recovery with funded Testnet wallets before claiming the live flow.
 ## 2026-11-11 (session 2) — Testnet upgrade, live recovery, and acceptance
 
 **Status:** the live Testnet contract has been upgraded and a real single-account acceptance
-run passed. The frontend release is pending the main-branch push. No mainnet funds were used.
+run passed. The frontend was deployed from `main` (commit `78896e9`), and the live `/studio`
+JS bundle contains the Gate Mode UI. No mainnet funds were used.
 
 ### Deployed
 
@@ -1363,6 +1364,9 @@ run passed. The frontend release is pending the main-branch push. No mainnet fun
   transaction `HQeYhW36gZgMJ1qn7A1AYLcK8EVkJL8AsKp4NYy1C9kD`.
 - Final state: event 2 `Finalized`, 1 registered, 1 checked in, claim `Claimed`, refund and
   reward pools `0`. The remaining liability is event 0's 0.1 NEAR reservation.
+- Event 1, the unused first acceptance attempt with zero registrations, was finalized after
+  its end so it is not left as a stale open event: transaction
+  `2rF7LJ4fKpQnnc8euYWwfD7KF7Z1CBGDwPjG4mFATfn4`. Its refund and reward pools are `0`.
 
 ### Defect found and fixed
 
@@ -1391,5 +1395,6 @@ live acceptance                        create → register → rotate → old re
 
 - The acceptance used one account and an unpublished event; it did not exercise the
   two-browser UI, a published metadata record, or a physical camera.
-- Push the frontend to `main`, verify the deployed UI, then run a funded multi-account
-  Testnet pilot before calling the user-facing flow live.
+- The frontend deployment is verified by its live JS bundle; a live wallet-driven UI run was
+  not performed.
+- Run a funded multi-account Testnet pilot before calling the user-facing flow complete.

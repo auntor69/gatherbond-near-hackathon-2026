@@ -6,7 +6,7 @@ GatherBond is a crypto-native event commitment protocol for NEAR. Organizers cre
 
 > **Project status:** the escrow contract is deployed to NEAR Testnet at **`cynopom.testnet`**. The live frontend at <https://gatherbond.vercel.app> now creates real on-chain events, accepts exact-deposit registrations, issues one-time tickets, checks attendees in, finalizes events and submits claims. Turso stores only verified display metadata. This is testnet-only; no mainnet funds are used. The contract is testnet-only, so create events through the live studio.
 
-> **Check-in upgrade status:** the live Testnet contract now has `rotate_ticket_commitment`; the 17-method upgrade preserved existing events. QR tickets, Gate Mode and wallet recovery are implemented; the frontend release follows the main-branch push.
+> **Check-in upgrade status:** the live Testnet contract now has `rotate_ticket_commitment`; the 17-method upgrade preserved existing events. QR tickets, Gate Mode and wallet recovery are implemented, and the updated frontend at <https://gatherbond.vercel.app> contains the Gate Mode bundle.
 
 ## Product direction
 
@@ -33,7 +33,7 @@ All three states were exercised in a local browser against contract-shaped event
 - **Lost-browser recovery:** an open reservation can be restored from **My commitments** or the event page with the same wallet. The organizer-only `rotate_ticket_commitment` transaction replaces the commitment, immediately invalidating the old QR/code. It refuses after check-in, after the check-in window, or on a cancelled, finalized or locked event. Deposit and claim rights are unchanged.
 - **Verified locally:** 50 contract tests, 37 display/QR tests, 94 metadata/auth/HTTP tests, a 17-method deploy handover and the production Next build. A loopback fixture verified ticket QR rendering/download, Gate Mode decoding a real ticket QR through its active camera pipeline, duplicate-reservation prevention on the event page, recovery states, and no horizontal overflow at 390 px.
 
-The live Testnet contract was upgraded on 2026-11-11 without re-running `new`; event 0 was preserved. The real single-account acceptance run is recorded in `BUILD_LOG.md`; the deployed frontend is still pending the main-branch release.
+The live Testnet contract was upgraded on 2026-11-11 without re-running `new`; event 0 was preserved. The real single-account acceptance run is recorded in `BUILD_LOG.md`, and the updated frontend is deployed with the Gate Mode bundle verified.
 
 ## What exists now
 
@@ -95,7 +95,7 @@ Ticket secrets are stored in the attendee's browser, not on chain and not in a U
 
 ## Remaining work
 
-- Deploy the updated frontend from `main`; verify QR check-in and two-browser recovery in the deployed app.
+- Verify QR check-in and two-browser recovery in the deployed app with funded wallets.
 - Run a funded multi-account Testnet pilot. The current live acceptance used one account and an unpublished event, so the two-browser and published-metadata paths still need a real pilot.
 - Contract audit and production hardening before any mainnet consideration.
 
