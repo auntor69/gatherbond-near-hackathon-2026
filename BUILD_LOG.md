@@ -1188,4 +1188,68 @@ Git), not product data:
 
 A real funded testnet pilot is still pending. No fake on-chain event, balance or check-in was
 created for the live app; the fixture only ran on loopback for UI verification.
+
+## 2026-11-11 (session 15) — proof edge-condition audit
+
+**Status:** no contract or deployment change. The proof UI and its pure money/display math
+were re-audited against the contract's claim rule. A finalized no-show could still see a
+claim button even though `claim_settlement` pays that reservation nothing; the button, claim
+fact and status label are now consistent with the contract.
+
+### Fixed
+
+- `frontend/components/commitments.js`: only a cancelled reservation or a checked-in
+  finalized reservation can claim. Finalized no-shows show `No-show · no refund`, and the
+  claim fact says `No refund`; no claim button is rendered.
+- `frontend/lib/flakeFund.js`: settlement status now wins over an empty room, so a cancelled
+  or finalized event with zero reservations is no longer presented as an open room waiting
+  for its first attendee. Show-up-rate formatting is clamped to 0–100%.
+- `frontend/components/flake-fund.js`, `event-recap.js` and `room-proof.js`: added honest
+  zero-reservation, all-no-show and all-showed-up states. An all-showed-up event no longer
+  claims that “the flakes funded the room”; an all-no-show event sends the pool to treasury
+  without inventing an attendee reward.
+- Cancelled events with zero reservations now say there is nothing to refund and show no
+  per-attendee refund value.
+
+### Added tests
+
+- New `frontend/lib/contract.test.mjs`: `parseNear`, `formatNearAmount`, `scheduleError`,
+  `defaultSchedule` and `toNanoseconds`, including malformed amounts, over-precision,
+  zero/negative values, every invalid schedule ordering and the registration-equals-start
+  boundary.
+- `frontend/lib/flakeFund.test.mjs`: zero-registration finalized/cancelled events, checked-in
+  count clamping, one attendee, all no-shows, projection rounding and bps boundaries,
+  invalid/negative rates, unknown status, zero deposit and malformed counters. Total: 30
+  Flake Fund + contract tests.
+- `scripts/verify-local.sh` step 4 now runs both test files. The local-only fixture in
+  `local/` (never committed) was expanded to ten events covering finalized, all-no-show,
+  one-attendee, claimable, pending, open, waiting, empty, zero-registration-finalized and
+  zero-registration-cancelled states.
+
+### Verified outputs
+
+```text
+bash scripts/verify-local.sh                 exit 0 (6/6 steps)
+  40 contract tests passed
+  8/8 ticket-commitment vectors matched
+  30 Flake Fund + contract display/schedule tests passed
+  94 metadata/auth/HTTP tests passed
+  deploy handover: 16 methods; 410850-byte WASM
+npm run build --prefix frontend              exit 0
+  /events/[id]/recap present
 ```
+
+Browser verification used the loopback-only contract-shaped fixture, not product data:
+
+- commitments: seven reservation rows; event 3 (finalized no-show) shows `No-show · no
+  refund` and no claim button; event 9 (checked-in, unclaimed) still shows `Claim
+  settlement`; event 4 (claim pending) shows no button; cancelled event 2 still claims.
+- recaps: finalized all-no-show, single-attendee/all-showed-up, open waiting, open empty,
+  finalized zero-reservation and cancelled zero-reservation states all render honest copy;
+  show-up rate is `—` when there are no reservations.
+- studio proof: finalized actual state; invalid ID (`abc`) and missing ID (`999`) show honest
+  empty/missing states rather than guessed data.
+- 390 px viewport: no horizontal overflow on recap, event detail, studio or commitments.
+
+A real funded testnet pilot is still pending. No fake on-chain event, balance, check-in or
+claim was created for the live app; the fixture only ran on loopback for UI verification.

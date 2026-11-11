@@ -44,7 +44,7 @@ export function formatShowUpRate(rate) {
   if (!Number.isFinite(rate) || rate <= 0) {
     return "0%";
   }
-  return `${Math.round(rate * 100)}%`;
+  return `${Math.round(Math.min(1, rate) * 100)}%`;
 }
 
 /**
@@ -86,10 +86,9 @@ export function flakeFundSummary({
     oneFlakeReward: ZERO,
   };
 
-  if (registeredCount === 0 || depositYocto === ZERO) {
-    return { ...base, state: "empty" };
-  }
-
+  // Settlement status wins over an empty room. A cancelled event with no
+  // reservations is still cancelled; it must not be presented as an open room
+  // that is merely waiting for its first attendee.
   if (normalizedStatus === "Cancelled") {
     return {
       ...base,
@@ -116,6 +115,10 @@ export function flakeFundSummary({
       totalReturned: totalRefund + totalRewards,
       remainder,
     };
+  }
+
+  if (registeredCount === 0 || depositYocto === ZERO) {
+    return { ...base, state: "empty" };
   }
 
   if (registeredCount < 2) {

@@ -39,7 +39,7 @@ function statusCopy(item) {
   if (reservation.claim === "Claimed") return "Settlement claimed";
   if (reservation.claim === "Pending") return "Transfer in flight";
   if (event.status === "Finalized") {
-    return reservation.checked_in ? "Checked in · claim available" : "Event finalized";
+    return reservation.checked_in ? "Checked in · claim available" : "No-show · no refund";
   }
   if (event.status === "Cancelled") return "Cancelled · refund available";
   if (reservation.checked_in) return "Checked in";
@@ -277,8 +277,9 @@ export default function Commitments() {
                 const ended = event?.end_at && Date.now() >= Date.parse(nanosDate(event.end_at));
                 const canClaim =
                   event &&
-                  (event.status === "Finalized" || event.status === "Cancelled") &&
-                  reservation.claim === "Unclaimed";
+                  reservation.claim === "Unclaimed" &&
+                  (event.status === "Cancelled" ||
+                    (event.status === "Finalized" && reservation.checked_in));
                 return (
                   <article className="commitment-card" key={item.eventId}>
                     <div className="commitment-card-head">
@@ -296,7 +297,11 @@ export default function Commitments() {
                       </div>
                       <div>
                         <span>Claim</span>
-                        <strong>{CLAIM_LABEL[reservation.claim] ?? reservation.claim ?? "—"}</strong>
+                        <strong>
+                          {event?.status === "Finalized" && !reservation.checked_in
+                            ? "No refund"
+                            : CLAIM_LABEL[reservation.claim] ?? reservation.claim ?? "—"}
+                        </strong>
                       </div>
                       <div>
                         <span>Checked in</span>
