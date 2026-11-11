@@ -1457,3 +1457,21 @@ production build           npm run build --prefix frontend (exit 0), 14 routes
   browser-driven deposit, check-in and claim are not wired yet.
 - Single-account Testnet acceptance only; no multi-account published pilot.
 - Rate limiting is process-local, so separate instances count separately.
+
+### Live deployment (verified 2026-11-11)
+
+- Release commit `0c9ebaf` pushed to `main`; the Vercel Git integration rebuilt the
+  production frontend from that commit.
+- `https://gatherbond.vercel.app/` serves the new release: `<title>GatherBond — Make plans.
+  Keep them.</title>`, the `pass-card` markup is present, and the stylesheet is served from
+  `/_next/static/immutable/chunks/*.css` (200).
+- Routes `/`, `/studio`, `/commitments`, `/events/0`, `/events/0/recap` all answer `200`;
+  an unknown path answers `404` with the app's own not-found page.
+- `/api/health` reports `database_mode: turso`, `database_read: ok`, `auth_configured: true`,
+  `contract_configured: true`, `contract_id: cynopom.testnet`.
+- `/api/contract/event-count` returns `{"count":"3"}` and `/api/events?limit=2` returns the
+  published event `Sunday Table` with metadata hash
+  `e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc`.
+- Fonts are served from `/fonts/*.woff2` (200). Live rendering was verified from the served
+  HTML, CSS and API responses; no interactive wallet session was performed against
+  production.
