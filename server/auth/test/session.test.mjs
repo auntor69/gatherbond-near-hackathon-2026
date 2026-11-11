@@ -43,7 +43,11 @@ test("expired, tampered and foreign-secret tokens are rejected", () => {
   assert.equal(expired.valid, false);
   assert.equal(expired.reason, "expired");
 
-  const tampered = `${token.slice(0, -1)}${token.endsWith("A") ? "B" : "A"}`;
+  // Flip the first signature character. Flipping the final base64url character can be a
+  // no-op because its unused padding bits may decode to the same 32-byte signature.
+  const [version, encoded, signature] = token.split(".");
+  const tamperedSignature = `${signature[0] === "A" ? "B" : "A"}${signature.slice(1)}`;
+  const tampered = `${version}.${encoded}.${tamperedSignature}`;
   assert.equal(verifySessionToken({ token: tampered, secret: SECRET, now: NOW }).reason, "invalid");
 
   const foreign = verifySessionToken({ token, secret: `${SECRET}-other`, now: NOW });

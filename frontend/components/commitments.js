@@ -162,10 +162,8 @@ export default function Commitments() {
               <em>Showing up is the point.</em>
             </h1>
             <p className="commitments-lede">
-              These rows come from <code>get_reservations_for_account</code> on the configured
-              NEAR Testnet contract. Nothing is invented locally: if the contract has no
-              reservation for this account, this page is empty. If the browser has lost the
-              ticket secret, the same wallet can rotate it back into a usable ticket.
+              Every row is read from <code>get_reservations_for_account</code> on NEAR Testnet.
+              Lost your ticket browser? Rotate it with the same wallet.
             </p>
             <div className="hero-actions">
               <Link href="/#discover" className="button button-dark">
@@ -192,10 +190,7 @@ export default function Commitments() {
               <span>On-chain reservations</span>
               <strong>{state === "ready" ? items.length : "—"}</strong>
             </div>
-            <p>
-              Ticket secrets stay in this browser, but they are no longer a dead end. The same
-              wallet can rotate the onchain commitment and invalidate the old ticket.
-            </p>
+            <p>Ticket secrets stay in this browser. If they are lost, rotate the onchain commitment and invalidate the old ticket.</p>
           </aside>
         </div>
       </section>
@@ -216,10 +211,7 @@ export default function Commitments() {
               </span>
               <p className="eyebrow">Wallet required</p>
               <h2>Connect to read your commitments.</h2>
-              <p>
-                Reservations are read for the account proved by your NEP-413 session. No account
-                id is accepted from the URL or a form.
-              </p>
+              <p>Reservations are read for the wallet proved by your NEP-413 session. No account id comes from the URL.</p>
             </div>
           ) : null}
 
@@ -260,10 +252,7 @@ export default function Commitments() {
               </span>
               <p className="eyebrow">The honest empty state</p>
               <h2>No commitments yet.</h2>
-              <p>
-                Reserve a seat on an event page. The exact deposit is sent to the contract, and the
-                reservation appears here after the transaction is confirmed.
-              </p>
+              <p>Reserve a seat on an event page. It appears here after the transaction is confirmed.</p>
               <Link href="/#discover" className="button button-dark">
                 Browse the shelf
                 <ArrowRight size={16} />
@@ -407,10 +396,7 @@ export default function Commitments() {
               <ShieldCheck size={20} />
               <h3>No invented balances</h3>
             </div>
-            <p>
-              This page reads the contract for the signed-in account. A failed RPC call is shown as
-              a failure, never replaced with a plausible row.
-            </p>
+            <p>The page reads the contract for the signed-in account. A failed RPC is a failure, never a plausible row.</p>
             <div className="commitments-rule" />
             <div className="commitments-aside-row">
               <Check size={15} />

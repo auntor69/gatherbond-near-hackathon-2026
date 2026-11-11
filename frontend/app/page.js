@@ -1,15 +1,14 @@
 import Link from "next/link";
 
 import Discover from "../components/discover";
-import { ArrowRight, Check, ShieldCheck, Ticket } from "../components/icons";
+import { ArrowRight, ArrowUpRight, Check, ShieldCheck, Ticket } from "../components/icons";
 
 const TICKER = [
-  "DEPOSIT",
-  "SHOW UP",
-  "GET IT BACK",
-  "SHARE THE NO-SHOW POOL",
-  "ONE-TIME CHECK-IN",
-  "ON-CHAIN ATTENDANCE",
+  "MAKE PLANS",
+  "KEEP THEM",
+  "REFUNDABLE BONDS",
+  "REAL ROOMS",
+  "NEAR TESTNET",
 ];
 
 export default function HomePage() {
@@ -18,22 +17,20 @@ export default function HomePage() {
       <section className="hero">
         <div className="shell hero-grid">
           <div className="hero-copy">
-            <p className="eyebrow">NEAR Testnet / event commitments</p>
+            <p className="eyebrow">NEAR Testnet / Event commitments</p>
             <h1>
-              Make plans
+              Make plans.
               <br />
-              that <em>actually</em>
-              <br />
-              happen.
+              <em>Keep them.</em>
             </h1>
             <p className="hero-lede">
-              GatherBond turns a yes into a refundable deposit on NEAR. Show up, get it back,
-              and share the pool left by the people who did not. No-shows fund the room.
+              A refundable bond for real-world gatherings. Reserve with NEAR, show up, and get
+              it back. No-shows fund the room.
             </p>
             <div className="hero-actions">
               <Link href="#discover" className="button button-dark">
                 Find an event
-                <ArrowRight size={17} />
+                <ArrowRight size={16} />
               </Link>
               <Link href="/studio" className="button button-ghost">
                 Host something
@@ -41,47 +38,47 @@ export default function HomePage() {
             </div>
             <ul className="hero-proof">
               <li>
-                <Check size={14} />
+                <Check size={13} />
                 Refundable deposits
               </li>
               <li>
-                <Ticket size={14} />
+                <Ticket size={13} />
                 One-time check-in
               </li>
               <li>
-                <ShieldCheck size={14} />
+                <ShieldCheck size={13} />
                 Auditable settlement
               </li>
             </ul>
             <p className="hero-disclaimer">Testnet prototype · no real funds</p>
           </div>
 
-          <div className="poster-stage">
-            <span className="poster-orbit" aria-hidden="true" />
-            <span className="poster-orbit poster-orbit--inner" aria-hidden="true" />
+          <div className="hero-stage">
+            <span className="pass-orbit" aria-hidden="true" />
+            <span className="pass-orbit pass-orbit--inner" aria-hidden="true" />
 
-            <article className="poster-card" aria-label="GatherBond protocol poster">
-              <div className="poster-card-top">
-                <span>GATHERBOND / PROTOCOL</span>
-                <span>TESTNET</span>
+            <article className="pass-card" aria-label="GatherBond commitment pass">
+              <div className="pass-card-top">
+                <span>GatherBond / Commitment pass</span>
+                <span>Testnet</span>
               </div>
-              <div className="poster-art">
-                <span className="poster-art-kicker">One room, one agreement</span>
-                <span className="poster-art-number">01</span>
-                <span className="poster-art-ring poster-art-ring--one" aria-hidden="true" />
-                <span className="poster-art-ring poster-art-ring--two" aria-hidden="true" />
-                <span className="poster-art-bottom">
+              <div className="pass-art">
+                <span className="pass-art-kicker">One room. One agreement.</span>
+                <span className="pass-art-number">01</span>
+                <span className="pass-art-ring pass-art-ring--one" aria-hidden="true" />
+                <span className="pass-art-ring pass-art-ring--two" aria-hidden="true" />
+                <span className="pass-art-footer">
                   DEPOSIT
                   <br />
                   SHOW UP · SETTLE
                 </span>
               </div>
-              <div className="poster-card-bottom">
+              <div className="pass-card-bottom">
                 <div>
-                  <strong>Escrow, not promises</strong>
+                  <strong>Escrow, not promises.</strong>
                   <span>NEAR Testnet contract</span>
                 </div>
-                <div className="poster-stub">
+                <div className="pass-stub">
                   REAL
                   <br />
                   ON-CHAIN
@@ -89,12 +86,12 @@ export default function HomePage() {
               </div>
             </article>
 
-            <span className="poster-sticker" aria-hidden="true">
+            <span className="pass-sticker" aria-hidden="true">
               SHOW
               <br />
               UP.
             </span>
-            <span className="poster-note">Every listing is a verified contract event</span>
+            <span className="pass-note">Every listing is a verified contract event</span>
           </div>
         </div>
       </section>
@@ -120,7 +117,7 @@ export default function HomePage() {
         <div className="shell">
           <div className="section-head">
             <div>
-              <p className="eyebrow">03 — The mechanic</p>
+              <p className="eyebrow">03 / The mechanic</p>
               <h2 className="section-title">
                 Three moments.
                 <br />
@@ -128,8 +125,8 @@ export default function HomePage() {
               </h2>
             </div>
             <p className="section-copy">
-              The contract does not ask for trust. It asks for a deposit, a check-in and a
-              deadline. Everything else is a rule you can read before you commit.
+              A deposit, a check-in, a deadline. Everything else is a rule you can read before
+              you commit.
             </p>
           </div>
 
@@ -137,28 +134,19 @@ export default function HomePage() {
             <article className="step">
               <span className="step-number">01</span>
               <h3>Put something on the line.</h3>
-              <p>
-                The organizer publishes a deposit, capacity and a schedule. You reserve with the
-                exact native NEAR amount, not a card or a promise.
-              </p>
+              <p>Reserve with the exact NEAR deposit. No card, no promise, no platform balance.</p>
               <span className="step-tail">Reserve</span>
             </article>
             <article className="step">
               <span className="step-number">02</span>
               <h3>Show up in the window.</h3>
-              <p>
-                Your one-time ticket is checked in by the organizer during the published window.
-                Attendance is a contract fact, not a badge.
-              </p>
+              <p>Your one-time ticket is checked in by the organizer. Attendance becomes a fact.</p>
               <span className="step-tail">Check in</span>
             </article>
             <article className="step">
               <span className="step-number">03</span>
               <h3>Take the room with you.</h3>
-              <p>
-                Checked-in guests claim their deposit plus a share of the no-show pool. The
-                remainder goes to the configured treasury, not a black box.
-              </p>
+              <p>Claim your deposit plus a share of the pool the no-shows left behind.</p>
               <span className="step-tail">Settle</span>
             </article>
           </div>
@@ -167,67 +155,36 @@ export default function HomePage() {
             <span className="how-note-mark">≠</span>
             <p>
               <strong>Refundable is a rule, not a vibe.</strong> The contract holds the deposit,
-              the metadata database never does, and a failed transfer restores the claim instead
-              of making it disappear.
+              the metadata database never does, and the organizer never touches the room.
             </p>
             <Link href="/studio#create" className="text-link">
               Create a real event
-              <ArrowRight size={15} />
+              <ArrowRight size={14} />
             </Link>
           </div>
         </div>
       </section>
 
-      <section className="manifesto">
-        <div className="shell">
-          <div className="manifesto-grid">
-            <div>
-              <p className="eyebrow">Why a bond</p>
-              <h2>
-                Presence has a price.
-                <br />
-                <em>Absence pays.</em>
-              </h2>
-            </div>
-            <div className="manifesto-copy">
-              <p>
-                A free RSVP costs nothing to break. That is why the room is full on paper and
-                quiet in real life. GatherBond gives the yes a little weight, then gives it back
-                when you do the thing you said you would.
-              </p>
-              <p>
-                It is not a penalty. It is a shared agreement with a visible edge: the people who
-                stay home fund the people who show up.
-              </p>
-              <Link href="/studio" className="text-link text-link--light">
-                See how a room is published
-                <ArrowRight size={15} />
-              </Link>
-            </div>
+      <section className="home-cta">
+        <div className="shell home-cta-grid">
+          <div>
+            <p className="eyebrow">For organizers</p>
+            <h2>
+              Host the room
+              <br />
+              <em>you keep talking about.</em>
+            </h2>
           </div>
-
-          <div className="flow-strip">
-            <div>
-              <span>01 / RESERVE</span>
-              <strong>Deposit locked</strong>
-              <p>Exact amount. Native NEAR. Refundable under the published rules.</p>
-            </div>
-            <div>
-              <span>02 / ATTEND</span>
-              <strong>Ticket consumed</strong>
-              <p>Organizer-authorized check-in after registration closes.</p>
-            </div>
-            <div>
-              <span>03 / CLAIM</span>
-              <strong>Presence rewarded</strong>
-              <p>Deposit plus a share of the no-show pool, paid by pull claim.</p>
-            </div>
+          <div className="home-cta-copy">
+            <p>
+              Publish a verified room on NEAR. Set the bond. Let the contract keep the room
+              honest.
+            </p>
+            <Link href="/studio#create" className="button button-dark">
+              Open organizer studio
+              <ArrowUpRight size={15} />
+            </Link>
           </div>
-
-          <p className="manifesto-footnote">
-            NEAR Testnet only · the financial rules live in the contract · metadata is display,
-            never authority
-          </p>
         </div>
       </section>
     </main>

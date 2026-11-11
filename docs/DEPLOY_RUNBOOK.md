@@ -1,6 +1,9 @@
 # GatherBond — Testnet Deploy & Acceptance Runbook
 
-Status: **contract live on Testnet; single-account acceptance passed**. The contract was upgraded without re-running `new`, so existing events are preserved. The commands below are the handover for a funded testnet account; every write requires a signature.
+Status: **contract live on Testnet, frontend live on Vercel, single-account acceptance
+passed**. The contract was upgraded without re-running `new`, so existing events are
+preserved. The commands below are the handover for a funded testnet account; every write
+requires a signature. For shipping the web app, see §9.
 
 Scope: NEAR **testnet only**. There is no mainnet procedure in this project.
 
@@ -15,7 +18,7 @@ Scope: NEAR **testnet only**. There is no mainnet procedure in this project.
 | Item | Detail |
 | --- | --- |
 | NEAR CLI | near-cli-rs (the `near` binary). Verify with `near --version`. Older `near-cli` uses different flags; this runbook targets near-cli-rs. |
-| Contract account | A funded testnet account, e.g. `gatherbond-m2.testnet`, with ≥ 6 NEAR (code stake is ~4.11 NEAR; see §2). |
+| Contract account | A funded testnet account, e.g. `cynopom.testnet`, with ≥ 5 NEAR (code stake is ~4.15 NEAR; see §2). |
 | Treasury account | An account allowed to withdraw accrued treasury (rounding remainders/all-no-show pools). Can be the same as the organizer for the demo, but must be an account you control. |
 | Organizer / attendees | Three attendee accounts and one organizer account, each with testnet funds for a 1 NEAR deposit. |
 | Toolchain | Rust with `wasm32-unknown-unknown`, plus `AWS_LC_SYS_PREBUILT_NASM=1` and the VS CMake on `PATH` on Windows. `scripts/deploy-contract.sh` sets both. |
@@ -45,7 +48,7 @@ Storage arithmetic: NEAR charges `10^19` yoctoNEAR per stored byte, so
 code stake (NEAR) = wasm_bytes × 10^19 / 10^24 = wasm_bytes / 100_000
 ```
 
-With the current artifact (410,817 bytes) that is **4.10817 NEAR**, printed exactly by the
+With the current artifact (414,933 bytes) that is **4.14933 NEAR**, printed exactly by the
 script. On top of that:
 
 - per event: ~0.05 NEAR attached at `create_event` (minimum 0.01 NEAR) covers the event
@@ -283,7 +286,7 @@ treasury account can call `withdraw_treasury` with `{"amount":"10000000000000000
 | `Settlement in flight for this event` | A claim/withdraw for that event is still pending; retry after the callback. |
 | `Reserve too low to cover storage` | Fund the contract account (`fund_reserve` or a plain transfer) and retry. |
 | `Invalid ticket commitment` | The secret/attendee/event id does not match the registered commitment; recompute with the command in §4.2. |
-| Deploy fails for lack of balance | Fund the account: code stake ≈ 4.11 NEAR plus state headroom. |
+| Deploy fails for lack of balance | Fund the account: code stake ≈ 4.15 NEAR plus state headroom. |
 
 Gas: external calls use 100 Tgas in these commands; the contract forwards 15 Tgas to each
 payout callback and rejects claims that leave less than 30 Tgas after the call.
@@ -318,3 +321,59 @@ of this MVP.
   reservation claim `Claimed`, refund and reward pools `0`.
 - This was a single-account acceptance event with an unpublished metadata hash, not a
   multi-user published pilot.
+
+## 9. Frontend release (Vercel)
+
+Status: **live at <https://gatherbond.vercel.app>**. The web app deploys from GitHub; there
+is no CLI deploy in this project and no `.vercel/` directory to commit.
+
+### 9.1 Release steps
+
+1. Verify locally before pushing:
+
+   ```bash
+   bash scripts/verify-local.sh
+   npm run build --prefix frontend
+   ```
+
+2. Commit on `main` and push. Vercel's Git integration builds `frontend/` from the
+   repository root; a push to `main` is the production deploy trigger.
+3. Poll the production URL until the new markup is served, then check the API:
+
+   ```bash
+   curl -s https://gatherbond.vercel.app/api/health
+   curl -s https://gatherbond.vercel.app/api/contract/event-count
+   curl -s "https://gatherbond.vercel.app/api/events?limit=2"
+   ```
+
+### 9.2 Production environment variables
+
+Set these in the Vercel project (never in a committed file):
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_NEAR_NETWORK_ID` | yes | `testnet` |
+| `NEXT_PUBLIC_NEAR_NODE_URL` | yes | `https://rpc.testnet.near.org` |
+| `NEXT_PUBLIC_CONTRACT_NAME` | yes | `cynopom.testnet` |
+| `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` | yes | metadata store; server-only |
+| `GATHERBOND_SESSION_SECRET` | yes | NEP-413 sessions; login is 503 without it |
+| `GATHERBOND_SECURE_COOKIES` | yes | must be `1` on HTTPS |
+| `GATHERBOND_AUTH_RECIPIENT` | optional | defaults to the documented recipient |
+
+Never set `GATHERBOND_ALLOW_DEV_ACTOR` or `GATHERBOND_RATE_LIMIT_DISABLED` in a deployed
+environment: both are local-test escape hatches.
+
+### 9.3 Post-deploy checklist
+
+- `/` serves the current editorial home page (heading `Make plans. Keep them.`).
+- `/api/health` reports `database_mode: turso`, `auth_configured: true`,
+  `contract_configured: true`, `database_read: ok`.
+- `/api/contract/event-count` matches `get_event_count` on chain.
+- `/api/events` returns published events only, with verified metadata hashes.
+- An unknown route renders the app's own not-found page, not a Vercel default.
+- The session cookie is `HttpOnly`, `SameSite=Lax` and `Secure` on the live origin.
+
+### 9.4 Rollback
+
+Revert the offending commit on `main` and push; Vercel rebuilds the previous state. A
+contract upgrade is separate (§3.1) and is never triggered by a frontend deploy.

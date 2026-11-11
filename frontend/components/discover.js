@@ -126,7 +126,7 @@ export default function Discover() {
       <div className="shell">
         <div className="section-head discover-head">
           <div>
-            <p className="eyebrow">02 — The shelf</p>
+            <p className="eyebrow">02 / The shelf</p>
             <h2 className="section-title">
               Rooms worth
               <br />
@@ -134,8 +134,8 @@ export default function Discover() {
             </h2>
           </div>
           <p className="section-copy">
-            Find a gathering with a real commitment attached. Every live listing is verified
-            against the event contract before it is shown as published.
+            Find a room with a real commitment attached. Every listing is checked against the
+            event contract before it is shown.
           </p>
         </div>
 
@@ -147,7 +147,7 @@ export default function Discover() {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search events, cities, people"
+              placeholder="Search rooms, cities, people"
             />
           </label>
 
@@ -170,19 +170,19 @@ export default function Discover() {
           <span className="result-count" aria-live="polite">
             {loading
               ? "Checking the shelf…"
-              : `${filtered.length} ${filtered.length === 1 ? "event" : "events"}`}
+              : `${filtered.length} ${filtered.length === 1 ? "room" : "rooms"}`}
           </span>
           {source === "live" ? (
             <span className="live-note">
               <Check size={14} />
-              Verified publications
+              Contract-checked
             </span>
           ) : null}
         </div>
 
         {source === "unavailable" ? (
           <div className="data-note" role="alert">
-            Discovery is temporarily offline. No sample or cached events are being substituted.
+            Discovery is temporarily offline. No sample or cached events are substituted.
           </div>
         ) : null}
 
@@ -198,7 +198,7 @@ export default function Discover() {
         {!loading && filtered.length === 0 && source === "empty" ? (
           <div className="empty-state">
             <span className="empty-state-mark">+</span>
-            <h3>No events are published yet.</h3>
+            <h3>No rooms are published yet.</h3>
             <p>Connect an organizer wallet and create the first real event on the contract.</p>
             <Link href="/studio#create" className="button button-dark">
               Create the first event <ArrowRight size={15} />
@@ -210,7 +210,7 @@ export default function Discover() {
           <div className="empty-state">
             <span className="empty-state-mark">∅</span>
             <h3>Nothing matches those filters.</h3>
-            <p>Try a different word, or clear the filters to see every published room.</p>
+            <p>Try another word, or clear the filters to see every published room.</p>
             <button type="button" className="button button-dark" onClick={clearFilters}>
               Clear filters
             </button>
@@ -231,7 +231,7 @@ export default function Discover() {
           <p className="shelf-tail">
             One room is enough for now.{" "}
             <Link href="/studio" className="text-link">
-              Put another on the shelf <ArrowRight size={15} />
+              Add another <ArrowRight size={14} />
             </Link>
           </p>
         ) : null}

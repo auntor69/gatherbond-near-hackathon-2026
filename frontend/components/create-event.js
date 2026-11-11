@@ -199,9 +199,8 @@ export default function CreateEvent({ onCreated }) {
       </div>
 
       <p className="panel-intro">
-        This submits <code>create_event</code> to the configured NEAR Testnet contract, then
-        stores and publishes the canonical metadata. The storage contribution is non-refundable;
-        the attendee deposit is held in escrow by the contract.
+        Submits <code>create_event</code>, stores the canonical metadata and publishes it. The
+        storage contribution is non-refundable; attendee deposits stay in escrow.
       </p>
 
       {configError ? (
@@ -305,10 +304,8 @@ export default function CreateEvent({ onCreated }) {
         </div>
 
         <p className="schedule-note">
-          <strong>Event window:</strong> the event runs from <strong>event starts</strong> to
-          <strong>event ends</strong>. Registration closes before it begins. Check-in opens
-          after registration closes — it can open before the event starts — and must close by
-          the event end.
+          <strong>Schedule:</strong> registration closes before the start. Check-in opens after
+          registration closes and must close by the event end.
         </p>
 
         <div className="form-grid form-grid--two">
@@ -393,8 +390,8 @@ export default function CreateEvent({ onCreated }) {
           </div>
           <h3>Created, stored and published.</h3>
           <p className="result-venue">
-            The contract owns the deposit, capacity and schedule. The public page only shows the
-            verified metadata snapshot.
+            The contract owns the deposit, capacity and schedule. The public page shows only the
+            verified snapshot.
           </p>
           <div className="result-meta">
             <span>Version {created.version ?? 1}</span>

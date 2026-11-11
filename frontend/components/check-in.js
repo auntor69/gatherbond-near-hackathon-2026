@@ -123,10 +123,8 @@ export default function CheckIn({ defaultEventId = "0" }) {
       </div>
 
       <p className="panel-intro">
-        Organizer-only check-in consumes the attendee&apos;s one-time ticket. Gate Mode scans the
-        QR and submits one onchain transaction; manual paste remains available as a fallback.
-        Finalization is permissionless after the event ends; cancellation is organizer-only before
-        the start.
+        Check-in consumes the one-time ticket. Gate Mode scans and submits one on-chain
+        transaction; manual paste is the fallback.
       </p>
 
       <div className="gate-mode">

@@ -6,7 +6,6 @@ import { useState } from "react";
 import {
   ArrowUpRight,
   Check,
-  Copy,
   ShieldCheck,
   Spark,
   Ticket,
@@ -210,14 +209,14 @@ export default function Studio() {
 
   const sessionCopy =
     wallet.phase === "signedIn"
-      ? "The server verified a NEP-413 signature for this account and issued an HttpOnly session cookie. Publishing uses that actor; the browser never handles a Turso token."
+      ? "The server verified a NEP-413 signature for this account. Publishing uses that actor; the browser never handles a Turso token."
       : wallet.phase === "signedOut"
-        ? "Connect a NEAR Testnet wallet. It signs a NEP-413 message; no transaction or funds move. Publishing stays disabled until the server verifies the signature."
+        ? "Connect a NEAR Testnet wallet. It signs a NEP-413 message; no funds move."
         : wallet.phase === "unavailable"
-          ? "GATHERBOND_SESSION_SECRET is not configured on this deployment, so login and authenticated writes are disabled."
+          ? "GATHERBOND_SESSION_SECRET is not configured, so login and authenticated writes are disabled."
           : wallet.phase === "error"
-            ? "The session endpoint could not be reached. Reload the page or check that the server is running."
-            : "Checking whether a server-side session cookie is present.";
+            ? "The session endpoint could not be reached. Reload or check the server."
+            : "Checking the server-side session cookie.";
 
   return (
     <main className="page page--studio">
@@ -232,10 +231,7 @@ export default function Studio() {
             </h1>
           </div>
           <div className="page-hero-aside">
-            <p>
-              Load an event, verify the draft against the contract, and publish one immutable
-              snapshot at a time. A public page only ever sees the latest verified publication.
-            </p>
+            <p>Load an event, verify the draft, publish one immutable snapshot. The public page only sees the latest verified version.</p>
             <div className="page-hero-meta">
               <span>
                 <ShieldCheck size={15} />
@@ -417,42 +413,6 @@ export default function Studio() {
           <RoomProof eventId={cleanId} />
 
           <CheckIn defaultEventId={cleanId} />
-
-          <section className="panel studio-guide">
-            <div className="panel-head">
-              <div>
-                <p className="eyebrow">Publication rules</p>
-                <h2>One snapshot. No side doors.</h2>
-              </div>
-              <Copy size={22} />
-            </div>
-            <div className="guide-grid">
-              <div>
-                <span className="guide-number">01</span>
-                <h3>Drafts stay drafts.</h3>
-                <p>
-                  Discovery only selects the latest <code>publish</code> row. Drafts, tombstones
-                  and superseded versions never appear on the public shelf.
-                </p>
-              </div>
-              <div>
-                <span className="guide-number">02</span>
-                <h3>Unpublish is a tombstone.</h3>
-                <p>
-                  It closes the public snapshot without deleting the audit history. Republishing
-                  later creates the next monotonic version.
-                </p>
-              </div>
-              <div>
-                <span className="guide-number">03</span>
-                <h3>The contract keeps the truth.</h3>
-                <p>
-                  Deposit, capacity, attendance and settlement are read from NEAR. The metadata
-                  row can never prove payment or presence.
-                </p>
-              </div>
-            </div>
-          </section>
         </div>
 
         <aside className="studio-side">
@@ -529,10 +489,7 @@ export default function Studio() {
           <section className="studio-side-note">
             <Spark size={20} />
             <h3>Not a mock console.</h3>
-            <p>
-              These controls call the routes in this repository. A failed auth, mismatched hash
-              or offline store is shown as a failure, not replaced with fake success.
-            </p>
+            <p>Failed auth, a mismatched hash or an offline store is shown as a failure, never replaced with fake success.</p>
             <Link href="/commitments" className="text-link">
               See the attendee side
               <ArrowUpRight size={14} />

@@ -1398,3 +1398,62 @@ live acceptance                        create → register → rotate → old re
 - The frontend deployment is verified by its live JS bundle; a live wallet-driven UI run was
   not performed.
 - Run a funded multi-account Testnet pilot before calling the user-facing flow complete.
+
+## 2026-11-11 — Production release and repository documentation
+
+**Status:** UI release committed and pushed; the production frontend rebuilds from `main`
+through the Vercel Git integration. Contract, Turso metadata and NEP-413 sessions unchanged
+by this session.
+
+### UI release (Nocturne)
+
+- Replaced the generic gradient/tailwind-marketing look with one editorial system:
+  bone/ink surfaces, ember and cobalt as the only accents, Instrument Sans for UI and
+  Instrument Serif for display, an 8-pt rhythm, hairline rules and a compact header/footer.
+- Motion is limited to entrance reveals on the hero, a passport lift on hover and the
+  live-status pulse; no scroll-jacking, no animated gradients, no glow on every surface.
+- Every route (`/`, `/events/[id]`, `/events/[id]/recap`, `/studio`, `/commitments`,
+  not-found) was measured at 390, 768, 1024 and 1440 CSS px: zero horizontal overflow, no
+  text outside the viewport, no clipped controls.
+
+### Defects found and fixed during the audit
+
+- 390 px event pages hid the event title: `.detail-title` inherited the paper colour on a
+  paper card and sat under the sticky passport. Fixed with an explicit ink colour and its
+  own stacking layer; `Sunday Table` now measures 286 px of text inside a 293 px box.
+- Recap stat values rendered paper-on-paper (`rgb(241,237,228)` on `rgb(241,237,228)`).
+  `.recap-stat` now uses `var(--ink)`, so the numbers measure `rgb(14,16,14)`.
+- Discovery filters did not wrap between 768 and 980 px; chips, footer links and the back
+  link gained ≥ 40 px touch targets.
+- Removed dead `.guide-grid` rules and the unused reveal markup they targeted.
+- `server/auth/test/session.test.mjs` tampered the wrong signature character, which made a
+  session-tampering test pass for the wrong reason; it now flips the first byte.
+
+### Documentation
+
+- `README.md` rewritten: live surfaces, architecture diagram, API table, environment table,
+  contract surface, security posture, design system and honest limitations.
+- `docs/DOCUMENTATION.md` added — the complete system reference (product, architecture,
+  contract economics and invariants, canonical metadata, auth, HTTP API, frontend, data
+  model, local development, testing, deployment, security, troubleshooting, limitations).
+- `CONTRIBUTING.md` and `SECURITY.md` added; `.env.example`, `docs/METADATA.md`,
+  `docs/DEPLOY_RUNBOOK.md` and this plan were updated to the live deployment.
+
+### Verification (all green, re-run after the final edits)
+
+```text
+local suite                scripts/verify-local.sh -> ALL LOCAL CHECKS PASSED (exit 0)
+contract tests             50 passed
+ticket commitment vectors  8/8
+frontend math/QR tests     37 passed
+metadata/auth/HTTP tests   94 passed
+deploy handover            17 methods, 414,933-byte WASM, 4.14933 NEAR code stake
+production build           npm run build --prefix frontend (exit 0), 14 routes
+```
+
+### Limits
+
+- The live wallet flow still stops at discovery, event pages and organizer metadata;
+  browser-driven deposit, check-in and claim are not wired yet.
+- Single-account Testnet acceptance only; no multi-account published pilot.
+- Rate limiting is process-local, so separate instances count separately.

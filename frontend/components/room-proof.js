@@ -123,8 +123,8 @@ export default function RoomProof({ eventId }) {
       </div>
 
       <p className="panel-intro">
-        Aggregate attendance and settlement for event <code>#{id || "—"}</code>. This panel reads
-        the same public event proof as the recap page; it never invents a balance or a check-in.
+        Aggregate attendance and settlement for event <code>#{id || "—"}</code>, read from the
+        same public proof as the recap.
       </p>
 
       {!validId ? (

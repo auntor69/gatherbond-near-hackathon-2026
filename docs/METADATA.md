@@ -1,9 +1,11 @@
 # GatherBond — Event Metadata Layer (M3)
 
-Status: **implemented and locally tested. The Turso database has been created and the
-migration applied; the Next.js UI now consumes the public listing, publication and event
-passport routes. A real NEAR Connect NEP-413 wallet session is wired into the UI; on-chain
-registration/deposit is not. Nothing is deployed and no on-chain event exists yet.** The
+Status: **implemented, locally tested and running in production.** The Turso database is
+created and migrated, the Next.js UI consumes the public listing, publication and event
+passport routes, and a real NEAR Connect NEP-413 wallet session is wired into the UI. The
+contract (`cynopom.testnet`) and the frontend (<https://gatherbond.vercel.app>) are
+deployed; three on-chain events exist, one of them published with verified metadata.
+On-chain registration and deposit from the browser are still pending (see §7). The
 database is optional: the escrow contract remains fully usable without it.
 
 ## 1. Source-of-truth boundary
@@ -265,9 +267,16 @@ nonce), and the live signed-login lifecycle over real HTTP.
 
 ## 7. Not done
 
-- Contract/frontend deployment and the first funded testnet event (human-gated).
-- Wallet registration/deposit, ticket display/scanning, finalization and claims in the UI.
+- Wallet-driven registration/deposit, ticket display/scanning, finalization and claims in
+  the UI. The contract supports the full lifecycle and the runbook exercises it with the
+  NEAR CLI; the browser flow stops at discovery, event pages and organizer metadata.
 - Saving metadata from a create-event flow; the server publication workflow exists, but the
   organizer UI currently works from an existing event ID.
-- A public demo deployment and real published events; the current shelf uses labeled sample
-  content until Turso contains a verified publication.
+- A multi-account published pilot across two browsers. The live Testnet acceptance used one
+  account and an unpublished hash.
+
+Deployed on 2026-11-11: contract `cynopom.testnet` (WASM SHA-256
+`8b8817aa9da9f0a0784a9059f59e3c2640c26c9228648b2196a306e78c54e1f0`), frontend on Vercel,
+Turso metadata live behind `/api/events`. Discovery shows the published on-chain event and
+keeps its labeled sample shelf for the remaining empty slots; sample cards never carry
+financial activity.

@@ -1,11 +1,11 @@
 # GatherBond — Master Plan
 
-> **Product:** Commitment-first event platform for real-world communities  
-> **Hackathon:** NEAR HACKATHON 2026 — Build Beyond Boundaries  
-> **Current status:** Testnet v1 live; hackathon proof features implemented and locally verified  
-> **Plan last updated:** 2026-11-10  
-> **Network target:** NEAR Testnet only  
-> **Primary hackathon track candidate:** Social Money (`social`)  
+> **Product:** Commitment-first event platform for real-world communities\
+> **Hackathon:** NEAR HACKATHON 2026 — Build Beyond Boundaries\
+> **Current status:** Testnet v1 and the production frontend are live; hackathon proof features implemented and verified\
+> **Plan last updated:** 2026-11-11\
+> **Network target:** NEAR Testnet only\
+> **Primary hackathon track candidate:** Social Money (`social`)\
 > **Secondary track candidate:** Open Innovation (`open`), only if the final implementation genuinely fits
 
 ---
@@ -95,7 +95,7 @@ Event organizers often face registrations from people who do not attend. Empty s
 | Budget | Target $0; small incidental spend only with human approval |
 | Mainnet | Out of scope |
 
-### 1.7 Current product direction (2026-11-10)
+### 1.7 Current product direction (2026-11-11)
 
 GatherBond is a **standalone commitment-first event platform**. The event page, commitment, check-in, Flake Fund and show-up proof live on GatherBond. It is not a plugin, link or add-on for another event product.
 

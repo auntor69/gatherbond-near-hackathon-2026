@@ -61,10 +61,7 @@ function VerifiedNote({ event }) {
         <ShieldCheck size={15} />
         VERIFIED
       </span>
-      <p>
-        The display metadata below was re-hashed and matched to the hash stored in the NEAR
-        contract. Financial and timing terms are read from the contract, not from the database.
-      </p>
+      <p>Display metadata is re-hashed against the contract on every load. Financial terms never come from the database.</p>
       {event.hash ? (
         <code className="detail-note-hash" title={event.hash}>
           {shortHash(event.hash, 12, 8)}
@@ -128,7 +125,7 @@ export default function EventDetail({ id }) {
           </span>
           <p className="eyebrow">Event passport</p>
           <h1>Reading the room.</h1>
-          <p>Checking the publication, its metadata hash and the contract terms.</p>
+          <p>Checking the publication, its hash and the contract terms.</p>
         </div>
       </main>
     );
@@ -236,8 +233,8 @@ export default function EventDetail({ id }) {
               <p className="eyebrow">Event passport / NEAR Testnet</p>
               <h1 className="detail-title">{event.title}</h1>
               <p className="detail-lede">
-                A {event.category.toLowerCase()} gathering at {event.venue}. One room, one
-                agreement, one reason to actually turn up.
+                A {String(event.category ?? "Community").toLowerCase()} room at {event.venue}.
+                One agreement: show up, get your bond back.
               </p>
               <div className="detail-meta">
                 <span>
@@ -324,35 +321,23 @@ export default function EventDetail({ id }) {
             <div className="commitment-head">
               <p className="eyebrow">The bond</p>
               <h2>Three moments. One honest agreement.</h2>
-              <p>
-                GatherBond makes the cost of a no-show visible without turning the event into a
-                transaction. The deposit is yours when you do the thing you said you would do.
-              </p>
+              <p>A deposit makes the yes real. Do the thing you said you would do, and the deposit comes back.</p>
             </div>
             <div className="bond-steps">
               <div className="bond-step">
                 <span>01</span>
                 <h3>Reserve</h3>
-                <p>
-                  Send the exact event deposit to the contract on NEAR Testnet. No platform
-                  account, no card on file.
-                </p>
+                <p>Send the exact deposit to the contract. No platform account, no card.</p>
               </div>
               <div className="bond-step">
                 <span>02</span>
                 <h3>Show up</h3>
-                <p>
-                  The organizer checks in your one-time ticket during the published window.
-                  Attendance is recorded on chain.
-                </p>
+                <p>The organizer checks in your one-time ticket. Attendance is recorded on chain.</p>
               </div>
               <div className="bond-step">
                 <span>03</span>
                 <h3>Settle</h3>
-                <p>
-                  Checked-in guests claim their deposit plus a share of the no-show pool.
-                  No-shows fund the room.
-                </p>
+                <p>Claim your deposit plus a share of the no-show pool.</p>
               </div>
             </div>
 
@@ -423,10 +408,7 @@ export default function EventDetail({ id }) {
             </div>
 
             <>
-                <p>
-                  The canonical metadata document was hashed before publication and checked
-                  against the on-chain <code>metadata_hash</code> every time this page loads.
-                </p>
+                <p>The canonical metadata is re-hashed against the on-chain <code>metadata_hash</code> on every load.</p>
                 <div className="hash-block">
                   <span>Metadata SHA-256</span>
                   <code>{event.hash}</code>
@@ -503,10 +485,7 @@ export default function EventDetail({ id }) {
 
             <div className="passport-note">
               <ShieldCheck size={17} />
-              <p>
-                Deposit, capacity, attendance and settlement are read from the contract. Use the
-                reserve panel to send the exact deposit; nothing is prefilled or simulated.
-              </p>
+              <p>Deposit, capacity, attendance and settlement are read from the contract. Nothing is simulated.</p>
             </div>
 
             <div className="passport-actions">

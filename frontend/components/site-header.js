@@ -6,8 +6,8 @@ import WalletButton from "./wallet-button";
 const NAV_ITEMS = [
   { href: "/#discover", label: "Discover" },
   { href: "/#how", label: "How it works" },
-  { href: "/studio", label: "Organizer studio" },
-  { href: "/commitments", label: "My commitments" },
+  { href: "/studio", label: "Studio" },
+  { href: "/commitments", label: "Commitments" },
 ];
 
 export default function SiteHeader() {
@@ -17,6 +17,7 @@ export default function SiteHeader() {
         <Link href="/" className="brand" aria-label="GatherBond home">
           <span className="brand-mark">GB</span>
           <span className="brand-word">GatherBond</span>
+          <span className="brand-edition">Testnet</span>
         </Link>
 
         <nav className="desktop-nav" aria-label="Primary navigation">
@@ -35,7 +36,7 @@ export default function SiteHeader() {
           <WalletButton />
           <Link href="/studio" className="header-cta">
             Host an event
-            <ArrowUpRight size={15} />
+            <ArrowUpRight size={14} />
           </Link>
         </div>
 
@@ -47,7 +48,7 @@ export default function SiteHeader() {
             {NAV_ITEMS.map((item) => (
               <Link key={item.href} href={item.href} className="mobile-nav-link">
                 {item.label}
-                <ArrowUpRight size={16} />
+                <ArrowUpRight size={15} />
               </Link>
             ))}
             <div className="mobile-wallet">

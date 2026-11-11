@@ -7,6 +7,9 @@ const workspaceRoot = path.resolve(import.meta.dirname, "..");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // The browser preview is served from 127.0.0.1 while Next reports localhost.
+  // Allow that loopback origin so HMR and client hydration work in local preview.
+  allowedDevOrigins: ["127.0.0.1"],
   outputFileTracingRoot: workspaceRoot,
   turbopack: {
     root: workspaceRoot,

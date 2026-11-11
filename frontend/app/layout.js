@@ -1,5 +1,6 @@
 import "./globals.css";
 import "./flow.css";
+import "./nocturne.css";
 
 import SiteFooter from "../components/site-footer";
 import SiteHeader from "../components/site-header";
@@ -7,18 +8,18 @@ import { WalletProvider } from "../components/wallet-provider";
 
 export const metadata = {
   title: {
-    default: "GatherBond — Commit to gather",
+    default: "GatherBond — Make plans. Keep them.",
     template: "%s · GatherBond",
   },
   description:
-    "Refundable deposits for real-world events on NEAR. Show up, get your deposit back, and share the no-show pool.",
+    "Refundable commitments for real-world gatherings on NEAR. Show up, get your bond back, and share the no-show pool.",
   applicationName: "GatherBond",
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f3efe6",
+  themeColor: "#f1ede4",
 };
 
 export default function RootLayout({ children }) {
