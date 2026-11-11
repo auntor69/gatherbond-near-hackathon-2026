@@ -4,7 +4,9 @@
 
 GatherBond is a crypto-native event commitment protocol for NEAR. Organizers create events with refundable native NEAR deposits; attendees register through the escrow contract, receive one-time ticket codes, and can claim their deposit plus a share of the no-show pool after organizer-authorized attendance verification.
 
-> **Project status:** the escrow contract is deployed to NEAR Testnet at **`cynopom.testnet`**. The live frontend at <https://gatherbond.vercel.app> now creates real on-chain events, accepts exact-deposit registrations, issues one-time tickets, checks attendees in, finalizes events and submits claims. Turso stores only verified display metadata. This is testnet-only; no mainnet funds are used. The contract currently has zero events, so the first event must be created by an organizer through the live studio.
+> **Project status:** the escrow contract is deployed to NEAR Testnet at **`cynopom.testnet`**. The live frontend at <https://gatherbond.vercel.app> now creates real on-chain events, accepts exact-deposit registrations, issues one-time tickets, checks attendees in, finalizes events and submits claims. Turso stores only verified display metadata. This is testnet-only; no mainnet funds are used. The contract is testnet-only, so create events through the live studio.
+
+> **Check-in upgrade status:** the live Testnet contract now has `rotate_ticket_commitment`; the 17-method upgrade preserved existing events. QR tickets, Gate Mode and wallet recovery are implemented; the frontend release follows the main-branch push.
 
 ## Product direction
 
@@ -23,6 +25,15 @@ The final hackathon scope is deliberately small:
 No contract-economics changes are part of this increment. The deposit-only contract remains authoritative.
 
 All three states were exercised in a local browser against contract-shaped event data: a finalized room, an open room, a cancelled room and a missing event. The recap only shows no-shows and show-up rate after finalization; open and cancelled rooms show `—` instead of inventing a result. Open events label pool numbers as projections. The event detail, studio proof and attendee receipts (finalized claim and cancelled refund) render from the same verified API. A 390 px viewport had no horizontal overflow on the recap, event detail, studio or commitments pages. This is local verification, not a substitute for the real testnet pilot still listed below.
+
+## QR check-in and ticket recovery (verified 2026-11-11)
+
+- **QR ticket:** the attendee ticket card renders the one-time `GB1.` code as a QR, with a downloadable PNG and the original copyable code as fallback.
+- **Gate Mode:** the organizer check-in panel opens the camera, uses `BarcodeDetector` with a `jsQR` fallback, auto-submits a decoded ticket and keeps manual paste available. The QR is only transport; the check-in transaction is still on chain.
+- **Lost-browser recovery:** an open reservation can be restored from **My commitments** or the event page with the same wallet. The organizer-only `rotate_ticket_commitment` transaction replaces the commitment, immediately invalidating the old QR/code. It refuses after check-in, after the check-in window, or on a cancelled, finalized or locked event. Deposit and claim rights are unchanged.
+- **Verified locally:** 50 contract tests, 37 display/QR tests, 94 metadata/auth/HTTP tests, a 17-method deploy handover and the production Next build. A loopback fixture verified ticket QR rendering/download, Gate Mode decoding a real ticket QR through its active camera pipeline, duplicate-reservation prevention on the event page, recovery states, and no horizontal overflow at 390 px.
+
+The live Testnet contract was upgraded on 2026-11-11 without re-running `new`; event 0 was preserved. The real single-account acceptance run is recorded in `BUILD_LOG.md`; the deployed frontend is still pending the main-branch release.
 
 ## What exists now
 
@@ -68,24 +79,24 @@ bash scripts/verify-local.sh                    # contract + parity + metadata +
 The last verified local run passed all six steps:
 
 ```text
-40 contract tests
+50 contract tests
 8/8 ticket-commitment vectors
-30 Flake Fund + contract display/schedule math tests
+37 Flake Fund + contract display/schedule math + QR round-trip tests
 94 Node metadata/auth/HTTP tests (including live Next + SQLite end-to-end)
 production Next build: /events/[id]/recap present
-deploy handover: 16 methods, 410,850-byte WASM
+deploy handover: 17 methods, 414,933-byte WASM
 ```
 
 ## Truth boundary
 
 The NEAR contract is authoritative for organizer, deposit, capacity, timestamps, reservations, ticket commitments, attendance, cancellation/finalization, escrow and claims. Turso stores descriptive metadata and its hash; it can never prove payment or presence. Event pages re-hash the metadata and cross-check the contract before showing a verified publication.
 
-Ticket secrets are stored in the attendee's browser, not on chain and not in a URL. The contract stores only the SHA-256 commitment. Losing the browser means losing the ticket code, although the reservation and claim right remain on chain.
+Ticket secrets are stored in the attendee's browser, not on chain and not in a URL. The contract stores only the SHA-256 commitment. While the reservation is open, the same wallet can rotate the commitment and invalidate the old QR/code, restoring access from another browser. After check-in or after the check-in window closes, no restore is possible; the reservation and claim right remain on chain.
 
 ## Remaining work
 
-- Create the first real event and complete a funded-wallet registration/check-in/settlement run on Testnet. The proof UI is verified locally against contract-shaped data; no real pilot has been recorded yet.
-- Add QR rendering/scanning for the ticket code (the current one-time code is copy/paste friendly).
+- Deploy the updated frontend from `main`; verify QR check-in and two-browser recovery in the deployed app.
+- Run a funded multi-account Testnet pilot. The current live acceptance used one account and an unpublished event, so the two-browser and published-metadata paths still need a real pilot.
 - Contract audit and production hardening before any mainnet consideration.
 
 ## Project documents

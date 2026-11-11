@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import TicketCard from "./ticket-card";
+import TicketRecovery from "./ticket-recovery";
 import { ArrowRight, Check, Spark, Ticket, Wallet } from "./icons";
 import { useWallet } from "./wallet-provider";
 import { sendContractCall } from "../lib/nearWallet";
@@ -31,6 +32,8 @@ export default function ReservePanel({ event, onReserved }) {
   const wallet = useWallet();
   const [config, setConfig] = useState(null);
   const [ticket, setTicket] = useState(null);
+  const [reservation, setReservation] = useState(null);
+  const [reservationLoading, setReservationLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
 
@@ -51,6 +54,38 @@ export default function ReservePanel({ event, onReserved }) {
   }, []);
 
   useEffect(() => {
+    if (!wallet.accountId || !contractId) {
+      setReservation(null);
+      setReservationLoading(false);
+      return;
+    }
+    let active = true;
+    setReservationLoading(true);
+    fetch("/api/me/commitments", { cache: "no-store" })
+      .then((response) => response.json().then((body) => ({ response, body })))
+      .then(({ response, body }) => {
+        if (!active) return;
+        if (!response.ok) {
+          setReservation(null);
+          return;
+        }
+        const item = (Array.isArray(body.items) ? body.items : []).find(
+          (entry) => String(entry.reservation?.event_id) === String(event.id),
+        );
+        setReservation(item?.reservation ?? null);
+      })
+      .catch(() => {
+        if (active) setReservation(null);
+      })
+      .finally(() => {
+        if (active) setReservationLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [wallet.accountId, contractId, event.id]);
+
+  useEffect(() => {
     if (!wallet.accountId || !contractId) return;
     setTicket(
       loadTicket({
@@ -64,12 +99,23 @@ export default function ReservePanel({ event, onReserved }) {
 
   const registrationClosed =
     event.registrationDeadline && Date.now() >= Date.parse(event.registrationDeadline);
+  const checkinClosed = event.checkinClose && Date.now() > Date.parse(event.checkinClose);
   const full = event.capacity !== null && event.registered >= event.capacity;
   const open = !event.status || event.status === "Open";
+  const canRecover = open && !reservation?.checked_in && !checkinClosed;
+  const recoveryNote = reservation?.checked_in
+    ? "This wallet is already checked in. No ticket is needed; claim the settlement after finalization."
+    : !open
+      ? "This event is closed. Ticket recovery is no longer available."
+      : checkinClosed
+        ? "The onchain check-in window has closed. This reservation can no longer be checked in."
+        : "The reservation is onchain and belongs to this wallet. Restore a new secret; the old QR/code stops working immediately.";
   const canReserve =
     open &&
     !registrationClosed &&
     !full &&
+    !reservation &&
+    !reservationLoading &&
     wallet.phase === "signedIn" &&
     Boolean(contractId) &&
     Boolean(event.deposit);
@@ -127,6 +173,7 @@ export default function ReservePanel({ event, onReserved }) {
       next.code = encodeTicket(next);
       saveTicket(next);
       setTicket(next);
+      setReservation({ event_id: String(event.id), checked_in: false });
       setNotice({
         tone: "success",
         text: `Reserved with ${formatNearAmount(event.deposit)}. Your one-time ticket is below.`,
@@ -152,11 +199,47 @@ export default function ReservePanel({ event, onReserved }) {
             On chain
           </span>
         </div>
-        <TicketCard ticket={ticket} compact />
+        <TicketCard ticket={ticket} compact checkedIn={Boolean(reservation?.checked_in)} />
         <p className="reserve-footnote">
-          The ticket code is stored in this browser. It is not in the URL and the contract never
-          stores the secret itself.
+          The QR/code is stored in this browser. It is not in the URL and the contract never stores
+          the secret itself. If this browser is lost, use My commitments to restore the ticket with
+          the same wallet.
         </p>
+      </section>
+    );
+  }
+
+  if (reservation) {
+    return (
+      <section className="reserve-panel" id="reserve">
+        <div className="reserve-head">
+          <div>
+            <p className="eyebrow">Your reservation is onchain</p>
+            <h2>{reservation.checked_in ? "Already checked in." : "The ticket needs a restore."}</h2>
+          </div>
+          <span className="status-badge status-badge--live">
+            <Check size={13} />
+            {reservation.checked_in ? "Checked in" : "Reserved"}
+          </span>
+        </div>
+        <TicketRecovery
+          config={config}
+          eventId={event.id}
+          accountId={wallet.accountId}
+          title={event.title}
+          deposit={reservation.deposit}
+          canRecover={canRecover}
+          note={recoveryNote}
+          onRecovered={(next) => setTicket(next)}
+        />
+        <p className="reserve-footnote">
+          Recovery is a real <code>rotate_ticket_commitment</code> transaction signed by this
+          wallet. It changes only the ticket secret; the deposit and reservation stay onchain.
+        </p>
+        <Link href="/commitments" className="text-link">
+          Open my commitments
+          <ArrowRight size={14} />
+        </Link>
       </section>
     );
   }
@@ -183,6 +266,11 @@ export default function ReservePanel({ event, onReserved }) {
         <p className="reserve-closed">The registration deadline has passed.</p>
       ) : full ? (
         <p className="reserve-closed">This room is full.</p>
+      ) : reservationLoading ? (
+        <button type="button" className="button button-lime button-full" disabled>
+          <Ticket size={16} />
+          Checking your reservation…
+        </button>
       ) : wallet.phase !== "signedIn" ? (
         <button
           type="button"

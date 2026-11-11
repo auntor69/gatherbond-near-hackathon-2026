@@ -1253,3 +1253,143 @@ Browser verification used the loopback-only contract-shaped fixture, not product
 
 A real funded testnet pilot is still pending. No fake on-chain event, balance, check-in or
 claim was created for the live app; the fixture only ran on loopback for UI verification.
+
+## 2026-11-11 — QR check-in, Gate Mode, and lost-browser ticket recovery
+
+**Status:** implemented and verified locally. The contract source now supports ticket
+rotation, the frontend renders and scans QR tickets, and an open reservation can be
+recovered with the same wallet from another browser. The live Testnet contract has **not**
+been redeployed, so none of the new on-chain recovery path is live yet.
+
+### Contract
+
+- Added owner-only `rotate_ticket_commitment(event_id, ticket_commitment)` after
+  `check_in`. It replaces the stored commitment only when the event is `Open` and unlocked,
+  the reservation exists and is not checked in, and `block_timestamp <= checkin_close`.
+  It does not touch deposits, attendance, settlement accounting or claim rights.
+- Added 10 tests: successful replacement, old-secret rejection, recovery before check-in
+  opens, missing reservation, non-owner, checked-in ticket, closed window, finalized event,
+  cancelled event, settlement lock, plus accounting preservation. Contract total: 50.
+- `scripts/deploy-contract.sh` now verifies 17 required methods, including rotation.
+
+### Frontend
+
+- `frontend/lib/ticketRecovery.js` generates a new secret, computes the commitment, submits
+  `rotate_ticket_commitment`, and saves the new ticket locally. The old QR/code stops
+  matching immediately.
+- `frontend/components/ticket-qr.js`, `qr-gate.js` and `ticket-recovery.js` add QR rendering,
+  downloadable PNG tickets, camera Gate Mode with `BarcodeDetector` plus `jsQR` fallback,
+  scan-next, manual paste fallback, and a shared recovery panel.
+- `ticket-card.js`, `commitments.js`, `reserve-panel.js`, `check-in.js` and `studio.js` wire
+  the ticket into commitments, event pages and organizer check-in. The event page never
+  offers a duplicate reservation when the wallet already owns one; it offers recovery
+  instead.
+- Added `qrcode` and `jsqr`; the QR test renders a real ticket, rasterizes it, and requires
+  `jsQR` to decode the exact code.
+
+### Browser verification (loopback fixture only)
+
+- `/commitments`: 7 onchain reservations rendered. Open events 1 and 5 show “Ticket missing
+  from this browser” with **Restore with this wallet**; closed events 0/2/3/4/9 correctly
+  show “No ticket to restore here.”
+- A fixture ticket rendered one QR image with `naturalWidth`/`naturalHeight` 300 and a
+  196-character `GB1.` code; **Download ticket** reached “Downloaded.”
+- `/events/5`: “The ticket needs a restore,” recovery action present, and no duplicate
+  “Reserve” button.
+- `/studio`: Gate Mode started a live 1280×720 camera stream. Feeding the real fixture
+  ticket through the active camera pipeline produced **“Ticket scanned”**, exposed
+  **Scan next ticket**, and surfaced the expected different-event-id notice. The manual
+  paste remains available.
+- 390 px viewport: studio, event 5 and commitments had no horizontal overflow
+  (`scrollWidth 373`, `innerWidth 390`).
+
+### Verified outputs
+
+```text
+bash scripts/verify-local.sh                 exit 0 (6/6 steps)
+  50 contract tests passed
+  8/8 ticket-commitment vectors matched
+  36 Flake Fund + contract display/schedule + QR tests passed
+  94 metadata/auth/HTTP tests passed
+  deploy handover: 17 methods; 414933-byte WASM
+    sha256 8b8817aa9da9f0a0784a9059f59e3c2640c26c9228648b2196a306e78c54e1f0
+    code stake 4.14933 NEAR
+npm run build --prefix frontend              exit 0
+  all app/api and event routes present
+```
+
+### Limits
+
+- No funded wallet, live on-chain check-in or real Testnet recovery was executed. The live
+  contract still lacks `rotate_ticket_commitment` until the deploy handover is run and the
+  new WASM is deployed.
+- The browser camera test used the active camera pipeline with a fixture ticket image; it
+  did not point a physical camera at a printed QR.
+- No fake ticket, balance, check-in or recovery success was created in the live app.
+
+### Next action
+
+Deploy the 17-method contract and updated frontend, then verify QR check-in and two-browser
+recovery with funded Testnet wallets before claiming the live flow.
+
+## 2026-11-11 (session 2) — Testnet upgrade, live recovery, and acceptance
+
+**Status:** the live Testnet contract has been upgraded and a real single-account acceptance
+run passed. The frontend release is pending the main-branch push. No mainnet funds were used.
+
+### Deployed
+
+- No-init upgrade of `cynopom.testnet` with the 414,933-byte WASM
+  SHA-256 `8b8817aa9da9f0a0784a9059f59e3c2640c26c9228648b2196a306e78c54e1f0`: transaction
+  `6SaqtVQEgdckYhfRvuNZCfcrVWjEtBBYYTDhhnwQvX6D`.
+- The upgrade preserved state: `get_event_count` was `1` before and after the upgrade, and
+  event 0 retained its organizer, deposit, schedule, registration and `Open` status.
+- `rotate_ticket_commitment` now exists on the live code. A read-only probe reaches the
+  method and is blocked only by `predecessor_account_id`, as expected for a mutating view.
+
+### Real acceptance run
+
+- Created acceptance event 2 with a 1 NEAR deposit: transaction
+  `39mgXRTJkqErk4ZFp8ypY8BgpbV9FhKXkRY7Qs45scrY`.
+- Registered `cynopom.testnet` with the SHA-256 ticket commitment: transaction
+  `99DPJNqP9tUvCtT3hVAniHM6FFoyLD8HrbCXypH8Hoar`.
+- Rotated to a new secret: transaction
+  `DnA5ikVu6iPko34zQ9o4hAFQwLAiRty5KwN3Z9aRLxQw`. The old secret check-in then failed
+  (`8iNhvtG3tBgQF4SPyq9eDkHmCJeXhRZ8Ny5sbPrmcBFM`), proving the old QR was invalidated.
+- Checked in with the new secret: transaction
+  `63ncG3T3r37cqZGUHxfgBXGV21g6e4YrfeMvJ1dA64N5`.
+- Finalized after the event end: transaction
+  `5v4cA4CPU1Didkjyrm7HMTHz9p9RDKrMy5L11tkFVRTC`. Claimed the 1 NEAR deposit:
+  transaction `HQeYhW36gZgMJ1qn7A1AYLcK8EVkJL8AsKp4NYy1C9kD`.
+- Final state: event 2 `Finalized`, 1 registered, 1 checked in, claim `Claimed`, refund and
+  reward pools `0`. The remaining liability is event 0's 0.1 NEAR reservation.
+
+### Defect found and fixed
+
+- The runbook's `commitmentArray` helper returned the 102-byte canonical preimage, not the
+  32-byte SHA-256 digest the contract expects. The first acceptance registration therefore
+  failed with a Wasm trap. `commitmentArray` now returns the digest, the runbook awaits it,
+  and a regression test checks its length and digest bytes. The frontend already used
+  `ticketCommitmentHex`, so the product registration path was unaffected.
+- The deploy handover's near-cli-rs command order was invalid (`sign-as` after deploy, and
+  `sign-as` without an explicit deposit for zero-deposit calls). The script and runbook now
+  show the verified `with-init-call ... prepaid-gas ... attached-deposit ... network-config`
+  order and a separate no-init upgrade command.
+
+### Verification
+
+```text
+contract tests                         50 passed
+frontend math/QR tests                 37 passed (including commitment digest)
+metadata/auth/HTTP tests               94 passed
+deploy handover                        17 methods, 414,933-byte WASM
+live acceptance                        create → register → rotate → old reject →
+                                       new check-in → finalize → claim
+```
+
+### Limits and next action
+
+- The acceptance used one account and an unpublished event; it did not exercise the
+  two-browser UI, a published metadata record, or a physical camera.
+- Push the frontend to `main`, verify the deployed UI, then run a funded multi-account
+  Testnet pilot before calling the user-facing flow live.

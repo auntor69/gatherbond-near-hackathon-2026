@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import QrGate from "./qr-gate";
 import { Check, ShieldCheck, Ticket } from "./icons";
 import { useWallet } from "./wallet-provider";
 import { sendContractCall } from "../lib/nearWallet";
@@ -17,13 +18,20 @@ function Notice({ notice }) {
   );
 }
 
-export default function CheckIn() {
+export default function CheckIn({ defaultEventId = "0" }) {
   const wallet = useWallet();
-  const [eventId, setEventId] = useState("0");
+  const [eventId, setEventId] = useState(String(defaultEventId || "0"));
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(null);
   const [notice, setNotice] = useState(null);
   const [config, setConfig] = useState(null);
+  const [gateOpen, setGateOpen] = useState(false);
+  const [gateKey, setGateKey] = useState(0);
+
+  useEffect(() => {
+    const next = String(defaultEventId ?? "").trim();
+    if (/^\d+$/.test(next)) setEventId(next);
+  }, [defaultEventId]);
 
   async function configuration() {
     if (config?.contract_id) return config;
@@ -36,23 +44,23 @@ export default function CheckIn() {
     return body;
   }
 
-  async function run(action) {
+  async function run(action, rawCode = code) {
     setNotice(null);
     if (wallet.phase !== "signedIn") {
       setNotice({ tone: "error", text: "Connect the organizer wallet first." });
-      return;
+      return false;
     }
     const id = eventId.trim();
     if (!/^\d+$/.test(id)) {
       setNotice({ tone: "error", text: "Enter a numeric event id." });
-      return;
+      return false;
     }
 
     setBusy(action);
     try {
       const current = await configuration();
       if (action === "check_in") {
-        const ticket = decodeTicket(code);
+        const ticket = decodeTicket(rawCode);
         if (ticket.eventId !== id) {
           throw new Error("That ticket belongs to a different event id.");
         }
@@ -65,6 +73,8 @@ export default function CheckIn() {
           expectedAccount: wallet.accountId,
         });
         setNotice({ tone: "success", text: `Checked in ${ticket.attendee} for event ${id}.` });
+        if (gateOpen) setGateKey((currentKey) => currentKey + 1);
+        return true;
       } else if (action === "finalize") {
         await sendContractCall({
           contractId: current.contract_id,
@@ -75,6 +85,7 @@ export default function CheckIn() {
           expectedAccount: wallet.accountId,
         });
         setNotice({ tone: "success", text: `Event ${id} finalized. Attendees can now claim.` });
+        return true;
       } else if (action === "cancel") {
         await sendContractCall({
           contractId: current.contract_id,
@@ -85,12 +96,20 @@ export default function CheckIn() {
           expectedAccount: wallet.accountId,
         });
         setNotice({ tone: "success", text: `Event ${id} cancelled. Every reservation is refundable.` });
+        return true;
       }
+      return false;
     } catch (error) {
       setNotice({ tone: "error", text: contractError(error) });
+      return false;
     } finally {
       setBusy(null);
     }
+  }
+
+  function scanned(raw) {
+    setCode(raw);
+    run("check_in", raw);
   }
 
   return (
@@ -104,9 +123,44 @@ export default function CheckIn() {
       </div>
 
       <p className="panel-intro">
-        Organizer-only check-in consumes the attendee&apos;s one-time ticket. Finalization is
-        permissionless after the event ends; cancellation is organizer-only before the start.
+        Organizer-only check-in consumes the attendee&apos;s one-time ticket. Gate Mode scans the
+        QR and submits one onchain transaction; manual paste remains available as a fallback.
+        Finalization is permissionless after the event ends; cancellation is organizer-only before
+        the start.
       </p>
+
+      <div className="gate-mode">
+        <div className="gate-mode-head">
+          <div>
+            <span>Gate mode</span>
+            <strong>Scan → approve → onchain</strong>
+          </div>
+          <span className="status-badge status-badge--live">Fast path</span>
+        </div>
+        {gateOpen ? (
+          <QrGate
+            key={gateKey}
+            onDecode={scanned}
+            onClose={() => setGateOpen(false)}
+          />
+        ) : (
+          <>
+            <button
+              type="button"
+              className="button button-lime"
+              onClick={() => setGateOpen(true)}
+              disabled={busy !== null || wallet.phase !== "signedIn"}
+            >
+              <Ticket size={15} />
+              {wallet.phase === "signedIn" ? "Open QR scanner" : "Connect organizer wallet to scan"}
+            </button>
+            <p className="gate-mode-help">
+              Use a laptop webcam for the demo. The event id is prefilled from Studio; each valid
+              scan asks the organizer wallet to approve one real check-in transaction.
+            </p>
+          </>
+        )}
+      </div>
 
       <div className="studio-form">
         <label className="field">
@@ -120,12 +174,12 @@ export default function CheckIn() {
         </label>
 
         <label className="field">
-          <span>Ticket code</span>
+          <span>Ticket code / manual fallback</span>
           <textarea
             value={code}
             onChange={(event) => setCode(event.target.value)}
             rows={3}
-            placeholder="Paste the GB1 ticket code from the attendee's commitments page"
+            placeholder="Scan with Gate Mode, or paste the GB1 ticket code here"
           />
         </label>
 

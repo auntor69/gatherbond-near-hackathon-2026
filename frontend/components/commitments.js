@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import SettlementReceipt from "./settlement-receipt";
 import TicketCard from "./ticket-card";
+import TicketRecovery from "./ticket-recovery";
 import { ArrowRight, Check, ShieldCheck, Ticket, Wallet } from "./icons";
 import { useWallet } from "./wallet-provider";
 import { sendContractCall } from "../lib/nearWallet";
@@ -163,7 +164,8 @@ export default function Commitments() {
             <p className="commitments-lede">
               These rows come from <code>get_reservations_for_account</code> on the configured
               NEAR Testnet contract. Nothing is invented locally: if the contract has no
-              reservation for this account, this page is empty.
+              reservation for this account, this page is empty. If the browser has lost the
+              ticket secret, the same wallet can rotate it back into a usable ticket.
             </p>
             <div className="hero-actions">
               <Link href="/#discover" className="button button-dark">
@@ -191,8 +193,8 @@ export default function Commitments() {
               <strong>{state === "ready" ? items.length : "—"}</strong>
             </div>
             <p>
-              Ticket secrets stay in this browser. The contract stores only the commitment, so a
-              lost browser cannot be reconstructed from the chain.
+              Ticket secrets stay in this browser, but they are no longer a dead end. The same
+              wallet can rotate the onchain commitment and invalidate the old ticket.
             </p>
           </aside>
         </div>
@@ -275,11 +277,25 @@ export default function Commitments() {
                 const event = item.onchain;
                 const reservation = item.reservation;
                 const ended = event?.end_at && Date.now() >= Date.parse(nanosDate(event.end_at));
+                const checkinClosed = event?.checkin_close
+                  ? Date.now() > Date.parse(nanosDate(event.checkin_close))
+                  : false;
                 const canClaim =
                   event &&
                   reservation.claim === "Unclaimed" &&
                   (event.status === "Cancelled" ||
                     (event.status === "Finalized" && reservation.checked_in));
+                const canRestore =
+                  event?.status === "Open" && !reservation.checked_in && !checkinClosed;
+                const recoveryNote = !event
+                  ? "Contract state is unavailable, so recovery cannot be trusted right now."
+                  : reservation.checked_in
+                    ? "This reservation is already checked in. No ticket is needed; claim the settlement after finalization."
+                    : event.status !== "Open"
+                      ? "This event is closed. Ticket recovery is no longer available."
+                      : checkinClosed
+                        ? "The onchain check-in window has closed. This reservation can no longer be checked in."
+                        : undefined;
                 return (
                   <article className="commitment-card" key={item.eventId}>
                     <div className="commitment-card-head">
@@ -313,11 +329,33 @@ export default function Commitments() {
                       </div>
                     </div>
 
-                    {item.ticket ? <TicketCard ticket={item.ticket} compact /> : (
-                      <p className="commitment-warning">
-                        The ticket secret is not in this browser. The reservation is still on chain,
-                        but check-in needs the original ticket code.
-                      </p>
+                    {item.ticket ? (
+                      <TicketCard
+                        ticket={item.ticket}
+                        compact
+                        checkedIn={reservation.checked_in}
+                      />
+                    ) : (
+                      <TicketRecovery
+                        config={config}
+                        eventId={item.eventId}
+                        accountId={wallet.accountId}
+                        title={item.title}
+                        deposit={reservation.deposit}
+                        canRecover={Boolean(canRestore)}
+                        note={recoveryNote}
+                        onRecovered={(ticket) => {
+                          setItems((current) =>
+                            current.map((entry) =>
+                              entry.eventId === item.eventId ? { ...entry, ticket } : entry,
+                            ),
+                          );
+                          setNotice({
+                            tone: "success",
+                            text: `New ticket issued for event ${item.eventId}. The old QR/code is invalid.`,
+                          });
+                        }}
+                      />
                     )}
 
                     <SettlementReceipt
@@ -381,6 +419,10 @@ export default function Commitments() {
             <div className="commitments-aside-row">
               <Check size={15} />
               Ticket secret never in a URL
+            </div>
+            <div className="commitments-aside-row">
+              <Check size={15} />
+              Lost browser? Rotate with the same wallet
             </div>
             <div className="commitments-aside-row">
               <Check size={15} />

@@ -78,6 +78,7 @@ REQUIRED_METHODS=(
   create_event
   register
   check_in
+  rotate_ticket_commitment
   cancel_event
   finalize_event
   claim_settlement
@@ -114,8 +115,15 @@ cat <<EOF
 near contract deploy $CONTRACT_ACCOUNT \\
   use-file $WASM \\
   with-init-call new json-args '$INIT_ARGS' \\
-  attached-deposit '0 NEAR' prepaid-gas '100 Tgas' \\
-  sign-as $CONTRACT_ACCOUNT network-config $NETWORK_ID \\
+  prepaid-gas '100 Tgas' attached-deposit '0 NEAR' \\
+  network-config $NETWORK_ID sign-with-keychain send
+EOF
+echo
+echo "Upgrade an existing contract (preserves state; do NOT call new):"
+cat <<EOF
+near contract deploy $CONTRACT_ACCOUNT \\
+  use-file $WASM \\
+  without-init-call network-config $NETWORK_ID \\
   sign-with-keychain send
 EOF
 echo

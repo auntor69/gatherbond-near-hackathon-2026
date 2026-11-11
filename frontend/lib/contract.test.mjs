@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
+import { webcrypto } from "node:crypto";
 import test from "node:test";
 
+import { commitmentArray, ticketCommitmentHex } from "./ticketCommitment.mjs";
 import {
+  contractError,
   defaultSchedule,
+  decodeTicket,
+  encodeTicket,
   formatNearAmount,
+  newTicketSecret,
   parseNear,
   scheduleError,
   toNanoseconds,
@@ -146,4 +152,70 @@ test("toNanoseconds converts a valid instant and rejects invalid input", () => {
     (BigInt(Date.parse("2026-01-01T00:00:00.000Z")) * 1_000_000n).toString(),
   );
   assert.throws(() => toNanoseconds("not-a-date"), /valid date and time/i);
+});
+
+test("ticket codes round-trip without losing the event or attendee", () => {
+  const source = {
+    v: 1,
+    networkId: "testnet",
+    contractId: "cynopom.testnet",
+    eventId: "42",
+    attendee: "alice.testnet",
+    secret: "ticket-secret_ABC-123",
+  };
+  const code = encodeTicket(source);
+  assert.match(code, /^GB1\./);
+  assert.deepEqual(decodeTicket(code), source);
+});
+
+test("ticket decoding rejects a wrong prefix, malformed payload and incomplete fields", () => {
+  assert.throws(() => decodeTicket("GB2.abc"), /not a GatherBond ticket code/i);
+  assert.throws(() => decodeTicket("GB1.%%%"));
+
+  const incomplete = btoa(
+    JSON.stringify({
+      v: 1,
+      networkId: "testnet",
+      contractId: "cynopom.testnet",
+      eventId: "0",
+      attendee: "alice.testnet",
+    }),
+  );
+  assert.throws(() => decodeTicket(`GB1.${incomplete}`), /incomplete/i);
+});
+
+test("newTicketSecret is URL-safe, full-length and non-repeating", () => {
+  const first = newTicketSecret();
+  const second = newTicketSecret();
+  assert.match(first, /^[A-Za-z0-9_-]{43}$/);
+  assert.match(second, /^[A-Za-z0-9_-]{43}$/);
+  assert.notEqual(first, second);
+});
+
+test("commitmentArray returns the 32-byte digest, not the canonical preimage", async () => {
+  const input = {
+    networkId: "testnet",
+    contractId: "cynopom.testnet",
+    eventId: "2",
+    attendee: "cynopom.testnet",
+    secret: "test-secret",
+  };
+  const hex = await ticketCommitmentHex(input, webcrypto.subtle);
+  const array = await commitmentArray(input, webcrypto.subtle);
+  assert.equal(array.length, 32);
+  assert.equal(
+    array.map((byte) => byte.toString(16).padStart(2, "0")).join(""),
+    hex,
+  );
+});
+
+test("contractError surfaces ticket rotation failures without inventing success", () => {
+  assert.match(
+    contractError(new Error("No reservation for this attendee")),
+    /No reservation for this attendee\. Nothing was changed\./,
+  );
+  assert.match(
+    contractError(new Error("Settlement in flight for this event")),
+    /Settlement in flight for this event\. Nothing was changed\./,
+  );
 });

@@ -359,6 +359,213 @@
   line-height: 1.65;
 }
 
+.ticket-card-qr {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.ticket-card-qr .ticket-qr {
+  flex: 0 0 auto;
+}
+
+.ticket-qr {
+  display: block;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--white);
+}
+
+.ticket-qr--loading,
+.ticket-qr--error {
+  display: grid;
+  place-items: center;
+  width: 150px;
+  height: 150px;
+  padding: 14px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.ticket-card-qr > div {
+  min-width: 0;
+}
+
+.ticket-card-qr > div > span {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ticket-card-qr > div > p {
+  max-width: 44ch;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+.gate-mode {
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 95% 0, rgba(217, 255, 99, 0.32), transparent 38%),
+    var(--paper);
+}
+
+.gate-mode-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.gate-mode-head > div > span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gate-mode-head > div > strong {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--serif);
+  font-size: 1.55rem;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+.gate-mode-help {
+  max-width: 58ch;
+  margin-top: 11px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+.qr-gate {
+  margin-top: 4px;
+}
+
+.qr-gate-frame {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  max-height: 390px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #080806;
+}
+
+.qr-gate-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qr-gate-reticle {
+  position: absolute;
+  inset: 18%;
+  border: 2px solid var(--lime);
+  border-radius: 18px;
+  box-shadow: 0 0 0 999px rgba(19, 18, 15, 0.5);
+  pointer-events: none;
+}
+
+.qr-gate-state {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  max-width: calc(100% - 24px);
+  padding: 6px 9px;
+  border-radius: 5px;
+  background: var(--ink);
+  color: var(--lime);
+  font-family: var(--mono);
+  font-size: 0.57rem;
+  letter-spacing: 0.03em;
+}
+
+.qr-gate-help,
+.qr-gate-error {
+  margin-top: 10px;
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+.qr-gate-help {
+  color: var(--muted);
+}
+
+.qr-gate-error {
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 112, 87, 0.45);
+  border-radius: 7px;
+  background: rgba(255, 112, 87, 0.07);
+  color: var(--ink-soft);
+}
+
+.ticket-recovery {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 14px 0;
+  padding: 15px;
+  border: 1px solid rgba(255, 112, 87, 0.45);
+  border-radius: 11px;
+  background: rgba(255, 112, 87, 0.06);
+}
+
+.ticket-recovery-copy {
+  flex: 1 1 310px;
+}
+
+.ticket-recovery-copy strong {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.ticket-recovery-copy p {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+.ticket-recovery-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 100%;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  line-height: 1.5;
+}
+
+.ticket-recovery-notice--success {
+  color: var(--green);
+}
+
+.ticket-recovery-notice--error {
+  color: #a43c2a;
+}
+
 @media (max-width: 760px) {
   .form-grid,
   .form-grid--two,
@@ -378,5 +585,23 @@
   .commitment-card-head .status-badge {
     display: inline-block;
     margin-top: 12px;
+  }
+
+  .ticket-card-qr {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .gate-mode-head {
+    display: block;
+  }
+
+  .gate-mode-head .status-badge {
+    display: inline-block;
+    margin-top: 10px;
+  }
+
+  .qr-gate-frame {
+    aspect-ratio: 1 / 1;
   }
 }

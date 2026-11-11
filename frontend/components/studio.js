@@ -416,7 +416,7 @@ export default function Studio() {
 
           <RoomProof eventId={cleanId} />
 
-          <CheckIn />
+          <CheckIn defaultEventId={cleanId} />
 
           <section className="panel studio-guide">
             <div className="panel-head">

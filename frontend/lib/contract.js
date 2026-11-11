@@ -147,6 +147,7 @@ export function contractError(error) {
     "Invalid ticket for this attendee",
     "Ticket already used",
     "No reservation for this attendee",
+    "Settlement in flight for this event",
     "Event cannot be finalized before it ends",
     "Event is not finalized",
     "Reservation is not claimable",

@@ -481,6 +481,45 @@ impl GatherBond {
         Self::reservation_view(&reservation)
     }
 
+    /// Owner-authorized ticket recovery. The attendee replaces the commitment with a
+    /// fresh secret, invalidating any old ticket code. This is deliberately narrow:
+    /// it cannot change the deposit, attendance, settlement pools or claim state.
+    pub fn rotate_ticket_commitment(
+        &mut self,
+        event_id: U64,
+        ticket_commitment: [u8; 32],
+    ) -> ReservationView {
+        let attendee = env::predecessor_account_id();
+        let event_id = event_id.0;
+        let event = self.event_or_panic(event_id);
+
+        require!(event.status == EventStatus::Open, "Event is not open");
+        require!(!event.lock, "Settlement in flight for this event");
+        require!(
+            env::block_timestamp() <= event.checkin_close,
+            "Check-in window is closed"
+        );
+
+        let mut reservation = self
+            .reservations
+            .get(&(event_id, attendee.clone()))
+            .cloned()
+            .unwrap_or_else(|| env::panic_str("No reservation for this attendee"));
+        require!(!reservation.checked_in, "Ticket already used");
+
+        reservation.ticket_commitment = ticket_commitment;
+        self.reservations
+            .insert((event_id, attendee.clone()), reservation.clone());
+        self.reservations.flush();
+
+        near_sdk::log!(
+            "Rotated ticket commitment for {} on event {}; old ticket invalidated",
+            attendee,
+            event_id
+        );
+        Self::reservation_view(&reservation)
+    }
+
     /// Organizer-only cancellation before the event starts. Every registered attendee
     /// can then claim exactly their deposit back.
     pub fn cancel_event(&mut self, event_id: U64) {
@@ -1244,6 +1283,28 @@ mod tests {
         contract.check_in(U64::from(event_id), who.clone(), SECRET.to_string());
     }
 
+    fn check_in_with_secret(
+        contract: &mut GatherBond,
+        chain: &mut Chain,
+        who: &AccountId,
+        event_id: u64,
+        secret: &str,
+    ) {
+        chain.enter(&organizer(), zero());
+        contract.check_in(U64::from(event_id), who.clone(), secret.to_string());
+    }
+
+    fn rotate(
+        contract: &mut GatherBond,
+        chain: &mut Chain,
+        who: &AccountId,
+        event_id: u64,
+        secret: &str,
+    ) {
+        chain.enter(who, zero());
+        contract.rotate_ticket_commitment(U64::from(event_id), commitment(event_id, who, secret));
+    }
+
     fn finalize(contract: &mut GatherBond, chain: &mut Chain, event_id: u64) {
         chain.now = ns(END) + 1;
         chain.enter(&alice(), zero());
@@ -1544,6 +1605,178 @@ mod tests {
         register(&mut contract, &mut chain, &alice(), id);
         chain.enter(&organizer(), zero());
         contract.check_in(U64::from(id), alice(), SECRET.to_string());
+    }
+
+    #[test]
+    fn test_rotate_ticket_commitment_replaces_ticket() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        let before = contract.get_event(U64::from(id)).unwrap();
+        let liability = contract.get_total_liability().0;
+
+        chain.now = ns(REG_DEADLINE) + 1;
+        rotate(
+            &mut contract,
+            &mut chain,
+            &alice(),
+            id,
+            "recovered-ticket-0002",
+        );
+
+        let after = contract.get_event(U64::from(id)).unwrap();
+        assert_eq!(after.registered, before.registered);
+        assert_eq!(after.checked_in, before.checked_in);
+        assert_eq!(after.refund_pool, before.refund_pool);
+        assert_eq!(after.reward_pool, before.reward_pool);
+        assert_eq!(contract.get_total_liability().0, liability);
+
+        chain.now = ns(START) + 10;
+        check_in_with_secret(
+            &mut contract,
+            &mut chain,
+            &alice(),
+            id,
+            "recovered-ticket-0002",
+        );
+        assert!(
+            contract
+                .get_reservation(U64::from(id), alice())
+                .unwrap()
+                .checked_in
+        );
+        assert_eq!(contract.events.get(&id).unwrap().checked_in, 1);
+        assert_invariant(&contract, &chain);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid ticket")]
+    fn test_rotate_ticket_commitment_invalidates_old_secret() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        chain.now = ns(REG_DEADLINE) + 1;
+        rotate(
+            &mut contract,
+            &mut chain,
+            &alice(),
+            id,
+            "recovered-ticket-0002",
+        );
+
+        chain.now = ns(START) + 10;
+        check_in_with_secret(&mut contract, &mut chain, &alice(), id, SECRET);
+    }
+
+    #[test]
+    fn test_rotate_ticket_commitment_allowed_before_checkin_opens() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+
+        // Recovery must be possible before the door opens, not only during the window.
+        chain.now = ns(T0);
+        rotate(
+            &mut contract,
+            &mut chain,
+            &alice(),
+            id,
+            "recovered-early-0003",
+        );
+
+        chain.now = ns(START) + 10;
+        check_in_with_secret(
+            &mut contract,
+            &mut chain,
+            &alice(),
+            id,
+            "recovered-early-0003",
+        );
+        assert!(
+            contract
+                .get_reservation(U64::from(id), alice())
+                .unwrap()
+                .checked_in
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "No reservation for this attendee")]
+    fn test_rotate_ticket_commitment_requires_reservation() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        chain.now = ns(REG_DEADLINE) + 1;
+        rotate(&mut contract, &mut chain, &alice(), id, SECRET);
+    }
+
+    #[test]
+    #[should_panic(expected = "No reservation for this attendee")]
+    fn test_rotate_ticket_commitment_is_not_a_shared_ticket_override() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        chain.now = ns(REG_DEADLINE) + 1;
+        rotate(&mut contract, &mut chain, &bob(), id, SECRET);
+    }
+
+    #[test]
+    #[should_panic(expected = "Ticket already used")]
+    fn test_rotate_ticket_commitment_rejects_checked_in_ticket() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        chain.now = ns(START) + 10;
+        check_in(&mut contract, &mut chain, &alice(), id);
+        rotate(
+            &mut contract,
+            &mut chain,
+            &alice(),
+            id,
+            "late-rotation-0004",
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Check-in window is closed")]
+    fn test_rotate_ticket_commitment_rejects_after_window() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        chain.now = ns(END) + 1;
+        rotate(&mut contract, &mut chain, &alice(), id, "too-late-0005");
+    }
+
+    #[test]
+    #[should_panic(expected = "Event is not open")]
+    fn test_rotate_ticket_commitment_rejects_finalized_event() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        finalize(&mut contract, &mut chain, id);
+        rotate(&mut contract, &mut chain, &alice(), id, "finalized-0006");
+    }
+
+    #[test]
+    #[should_panic(expected = "Event is not open")]
+    fn test_rotate_ticket_commitment_rejects_cancelled_event() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        cancel(&mut contract, &mut chain, id);
+        rotate(&mut contract, &mut chain, &alice(), id, "cancelled-0007");
+    }
+
+    #[test]
+    #[should_panic(expected = "Settlement in flight")]
+    fn test_rotate_ticket_commitment_rejects_locked_event() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        let mut event = contract.events.get(&id).cloned().unwrap();
+        event.lock = true;
+        contract.events.insert(id, event);
+        chain.now = ns(REG_DEADLINE) + 1;
+        rotate(&mut contract, &mut chain, &alice(), id, "locked-0008");
     }
 
     #[test]

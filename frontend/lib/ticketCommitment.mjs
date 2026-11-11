@@ -81,11 +81,15 @@ export function commitmentBytes({ networkId, contractId, eventId, attendee, secr
 }
 
 /**
- * The commitment as a 32-element array, which is what the contract's JSON argument
- * `ticket_commitment: [u8; 32]` expects.
+ * The SHA-256 commitment as a 32-element array, which is what the contract's JSON
+ * argument `ticket_commitment: [u8; 32]` expects. This must be the digest, not the
+ * canonical preimage returned by `commitmentBytes`.
  */
-export function commitmentArray(input) {
-  return Array.from(commitmentBytes(input));
+export async function commitmentArray(input, subtle = globalThis.crypto?.subtle) {
+  const hex = await ticketCommitmentHex(input, subtle);
+  return Array.from({ length: 32 }, (_, index) =>
+    Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16),
+  );
 }
 
 /**

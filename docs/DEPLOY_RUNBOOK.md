@@ -1,8 +1,6 @@
 # GatherBond — Testnet Deploy & Acceptance Runbook
 
-Status: **draft for M1 acceptance**. Nothing in this repository has been deployed. The
-commands below are the handover for a human with a funded testnet account; every one of
-them requires a signature and is therefore never run by the agent.
+Status: **contract live on Testnet; single-account acceptance passed**. The contract was upgraded without re-running `new`, so existing events are preserved. The commands below are the handover for a funded testnet account; every write requires a signature.
 
 Scope: NEAR **testnet only**. There is no mainnet procedure in this project.
 
@@ -67,13 +65,24 @@ The script prints the exact command. With the variables set it is:
 near contract deploy "$CONTRACT_ID" \
   use-file contracts/target/wasm32-unknown-unknown/release/gatherbond_escrow.wasm \
   with-init-call new json-args "{\"treasury\":\"$TREASURY_ID\",\"network_id\":\"testnet\"}" \
-  attached-deposit '0 NEAR' prepaid-gas '100 Tgas' \
-  sign-as "$CONTRACT_ID" network-config testnet \
-  sign-with-keychain send
+  prepaid-gas '100 Tgas' attached-deposit '0 NEAR' \
+  network-config testnet sign-with-keychain send
 ```
 
 `new(treasury, network_id)` stores the treasury recipient and binds the ticket-commitment
 domain to the network name. Both values are immutable afterwards.
+
+### 3.1 Upgrade an existing contract
+
+To upgrade a contract that already holds events, do **not** call `new` again. Deploy only
+the code; the existing state is preserved:
+
+```bash
+near contract deploy "$CONTRACT_ID" \
+  use-file contracts/target/wasm32-unknown-unknown/release/gatherbond_escrow.wasm \
+  without-init-call network-config testnet \
+  sign-with-keychain send
+```
 
 Post-deploy checks:
 
@@ -142,7 +151,7 @@ commitment() {
   node --input-type=module -e '
     import { commitmentArray } from "./frontend/lib/ticketCommitment.mjs";
     const { NETWORK_ID, CONTRACT_ID, EVENT_ID, ATTENDEE, SECRET } = process.env;
-    console.log(JSON.stringify(commitmentArray({ networkId: NETWORK_ID,
+    console.log(JSON.stringify(await commitmentArray({ networkId: NETWORK_ID,
       contractId: CONTRACT_ID, eventId: EVENT_ID, attendee: ATTENDEE, secret: SECRET })));
   '
 }
@@ -176,6 +185,18 @@ After `checkin_open` and before `checkin_close`. Check-in may open before the ev
 near contract call-function as-transaction "$CONTRACT_ID" check_in \
   json-args '{"event_id":0,"attendee":"alice.testnet","secret":"demo-secret-alice"}' \
   prepaid-gas '100 Tgas' sign-as "$ORGANIZER_ID" \
+  network-config testnet sign-with-keychain send
+```
+
+If an attendee loses the browser holding their ticket, they can replace the ticket
+commitment themselves. The wallet must be the reservation owner, the event must still be
+open, the reservation must not already be checked in, and the check-in window must not
+have closed. The old QR/code becomes invalid immediately:
+
+```bash
+near contract call-function as-transaction "$CONTRACT_ID" rotate_ticket_commitment \
+  json-args '{"event_id":0,"ticket_commitment":[<32 commitment bytes>]}' \
+  prepaid-gas '100 Tgas' sign-as "$ALICE_ID" \
   network-config testnet sign-with-keychain send
 ```
 
@@ -277,5 +298,23 @@ sequence above succeeds, record in `BUILD_LOG.md`:
 - claim transaction hashes and resulting balances,
 - anything that deviated from this runbook.
 
-Until then the contract remains un-deployed and un-audited; organizer-authorized check-in
-is a disclosed trust assumption of this MVP.
+The contract remains unaudited; organizer-authorized check-in is a disclosed trust assumption
+of this MVP.
+
+## 8. Live Testnet record (2026-11-11)
+
+- `cynopom.testnet` upgraded without re-running `new`: transaction
+  `6SaqtVQEgdckYhfRvuNZCfcrVWjEtBBYYTDhhnwQvX6D`; WASM SHA-256
+  `8b8817aa9da9f0a0784a9059f59e3c2640c26c9228648b2196a306e78c54e1f0`.
+- State survived the upgrade: `get_event_count` remained `1` before and after; event 0
+  retained its organizer, deposit, schedule, reservation and `Open` status.
+- Acceptance event 2: create `39mgXRTJkqErk4ZFp8ypY8BgpbV9FhKXkRY7Qs45scrY`, register
+  `99DPJNqP9tUvCtT3hVAniHM6FFoyLD8HrbCXypH8Hoar`, rotate
+  `DnA5ikVu6iPko34zQ9o4hAFQwLAiRty5KwN3Z9aRLxQw`; the old-secret check-in failed
+  (`8iNhvtG3tBgQF4SPyq9eDkHmCJeXhRZ8Ny5sbPrmcBFM`) and the new-secret check-in succeeded
+  (`63ncG3T3r37cqZGUHxfgBXGV21g6e4YrfeMvJ1dA64N5`).
+- Finalize `5v4cA4CPU1Didkjyrm7HMTHz9p9RDKrMy5L11tkFVRTC`; claim
+  `HQeYhW36gZgMJ1qn7A1AYLcK8EVkJL8AsKp4NYy1C9kD`. Final state: event 2 `Finalized`,
+  reservation claim `Claimed`, refund and reward pools `0`.
+- This was a single-account acceptance event with an unpublished metadata hash, not a
+  multi-user published pilot.
