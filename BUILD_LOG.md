@@ -1611,3 +1611,74 @@ frontend tests            39 passed
 metadata/auth/HTTP tests  94 passed
 frontend build            npm run build --prefix frontend (exit 0)
 ```
+
+## 2026-11-12 — Rendered UI audit: footer, brand icons and the ruled schedule
+
+**Status:** audited against the running app at 1024 × 900 and 390 × 844 and against the
+production build output. The footer and icons already met the requirement; one code path
+still produced a different schedule and was repaired.
+
+### Footer — rendered content, not source intent
+
+At 1024 px the footer's entire text was:
+
+```text
+GB GatherBond © 2026 · TESTNET
+```
+
+At 390 px it was `GB GatherBond` (the copyright line is hidden on phones). Measured
+properties: height **76 px**, padding **0**, **0** `<nav>` elements, **4** links total —
+the home wordmark plus three icon buttons. `headerNav` was `["Discover", "How it works",
+"Studio", "Commitments"]` and the footer contained **none** of those labels (`[]`).
+
+| Link | Literal href | Accessible name | Rendered |
+| --- | --- | --- | --- |
+| X | `https://x.com/GatherBondApp` | `aria-label="GatherBond on X"`, matching `title` | 1 SVG, 1 path, 38 × 38 |
+| Email | `mailto:gatherbond.app@gmail.com` | `aria-label="Email GatherBond"`, matching `title` | 1 SVG, rect + path, 38 × 38 |
+| GitHub | `https://github.com/auntor69/gatherbond-near-hackathon-2026` | `aria-label="GatherBond on GitHub"`, matching `title` | 1 SVG, 1 path, 38 × 38 |
+
+The built document `frontend/.next/server/app/commitments.html` contains the same
+`aria-label` values, the three literal hrefs, and the inline X path
+`M18.244 2.25h3.308…`; `npm run build` exited 0, so no icon is an empty placeholder.
+
+### Schedule — one producer, three inputs
+
+Source search for `type="date" | type="time" | type="datetime-local"` under
+`frontend/components` and `frontend/app` returns exactly three controls, all in
+`create-event.js`: line 368 `date`, line 377 `time`, line 386 `time` (no
+`datetime-local` anywhere). Rendered DOM on `/studio` confirmed `["date", "time", "time"]`
+with values `2026-11-12`, `11:45`, `13:45`, and the ledger rows were non-editable
+(`editable: false`): registration closes `11:45 AM`, check-in opens `11:45 AM`, check-in
+closes `1:45 PM`. No input carried a `registration`/`checkin` name or id, and no
+`<select>` or picker offered those windows.
+
+The only copy about the windows is descriptive — “Registration closes at the start.
+Check-in runs from the start to the end. No separate windows to manage.” No component
+still tells the organizer to choose them.
+
+### Repair — remove the second derivation
+
+`frontend/lib/contract.js` still exported `defaultSchedule()`, which built a *different*
+window: registration and check-in opening 45 minutes before the start. It was unused by
+the UI but remained a second producer. It now delegates:
+
+```js
+export function defaultSchedule() {
+  return eventWindowFrom(defaultEventWindow());
+}
+```
+
+Verified `JSON.stringify(defaultSchedule()) === JSON.stringify(eventWindowFrom(defaultEventWindow()))`
+→ `true`, both with `registration_deadline = start`, `checkin_open = start`,
+`checkin_close = end`. `create-event.js` continues to send exactly those fields.
+
+### Re-verification
+
+```text
+scripts/verify-local.sh   ALL LOCAL CHECKS PASSED (exit 0)
+contract tests            50 passed
+frontend tests            39 passed
+metadata/auth/HTTP tests  94 passed
+frontend build            npm run build --prefix frontend (exit 0)
+responsive                1024 and 390 px: footer 76 px, no overflow
+```

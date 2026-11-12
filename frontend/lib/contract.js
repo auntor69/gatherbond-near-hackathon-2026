@@ -85,19 +85,12 @@ export function scheduleError(form) {
   return null;
 }
 
+/**
+ * @deprecated Use `defaultEventWindow` plus `eventWindowFrom`. Kept as a thin adapter so
+ * every producer of a schedule goes through the same fixed-window rule.
+ */
 export function defaultSchedule() {
-  const now = Date.now();
-  const minute = 60_000;
-  const registrationDeadline = new Date(now + 45 * minute);
-  const start = new Date(now + 60 * minute);
-  const end = new Date(now + 180 * minute);
-  return {
-    registration_deadline: toLocalInput(registrationDeadline),
-    start_at: toLocalInput(start),
-    end_at: toLocalInput(end),
-    checkin_open: toLocalInput(registrationDeadline),
-    checkin_close: toLocalInput(end),
-  };
+  return eventWindowFrom(defaultEventWindow());
 }
 
 function localDateValue(date) {
