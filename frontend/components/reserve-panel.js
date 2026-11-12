@@ -120,6 +120,43 @@ export default function ReservePanel({ event, onReserved }) {
     Boolean(contractId) &&
     Boolean(event.deposit);
 
+  const finalized = event.status === "Finalized";
+  const belowFloor =
+    finalized && Number(event.checkedIn) * 5 < Number(event.registered);
+  const refundsEveryone = event.status === "Cancelled" || event.status === "Failed" || belowFloor;
+  const canClaim =
+    reservation &&
+    reservation.claim === "Unclaimed" &&
+    (refundsEveryone || (finalized && reservation.checked_in)) &&
+    wallet.phase === "signedIn" &&
+    Boolean(contractId);
+
+  async function claimSettlement() {
+    setNotice(null);
+    setBusy(true);
+    try {
+      await sendContractCall({
+        contractId,
+        methodName: "claim_settlement",
+        args: { event_id: event.id },
+        deposit: "0",
+        gas: "150000000000000",
+        expectedAccount: wallet.accountId,
+      });
+      setReservation((current) => (current ? { ...current, claim: "Pending" } : current));
+      setNotice({
+        tone: "success",
+        text: refundsEveryone
+          ? "Refund submitted. The transfer callback marks this reservation claimed."
+          : "Claim submitted. The transfer callback marks this reservation claimed.",
+      });
+    } catch (error) {
+      setNotice({ tone: "error", text: contractError(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function reserve() {
     setNotice(null);
     if (wallet.phase !== "signedIn" || !wallet.accountId) {
@@ -200,6 +237,17 @@ export default function ReservePanel({ event, onReserved }) {
           </span>
         </div>
         <TicketCard ticket={ticket} compact checkedIn={Boolean(reservation?.checked_in)} />
+        {canClaim ? (
+          <button
+            type="button"
+            className="button button-lime button-full"
+            onClick={claimSettlement}
+            disabled={busy}
+          >
+            {busy ? "Submitting claim…" : refundsEveryone ? "Claim full refund" : "Claim settlement"}
+          </button>
+        ) : null}
+        <Notice notice={notice} />
         <p className="reserve-footnote">
           The QR/code is stored in this browser. It is not in the URL and the contract never stores
           the secret itself. If this browser is lost, use My commitments to restore the ticket with
@@ -236,6 +284,17 @@ export default function ReservePanel({ event, onReserved }) {
           Recovery is a real <code>rotate_ticket_commitment</code> transaction signed by this
           wallet. It changes only the ticket secret; the deposit and reservation stay onchain.
         </p>
+        {canClaim ? (
+          <button
+            type="button"
+            className="button button-lime button-full"
+            onClick={claimSettlement}
+            disabled={busy}
+          >
+            {busy ? "Submitting claim…" : refundsEveryone ? "Claim full refund" : "Claim settlement"}
+          </button>
+        ) : null}
+        <Notice notice={notice} />
         <Link href="/commitments" className="text-link">
           Open my commitments
           <ArrowRight size={14} />
