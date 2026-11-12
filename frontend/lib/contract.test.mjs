@@ -5,9 +5,11 @@ import test from "node:test";
 import { commitmentArray, ticketCommitmentHex } from "./ticketCommitment.mjs";
 import {
   contractError,
+  defaultEventWindow,
   defaultSchedule,
   decodeTicket,
   encodeTicket,
+  eventWindowFrom,
   formatNearAmount,
   newTicketSecret,
   parseNear,
@@ -144,6 +146,36 @@ test("schedule validation rejects every invalid window ordering", () => {
 
 test("defaultSchedule produces a valid event schedule", () => {
   assert.equal(scheduleError(defaultSchedule()), null);
+});
+
+test("eventWindowFrom derives both fixed windows from the event times", () => {
+  const schedule = eventWindowFrom({
+    date: "2030-05-01",
+    start_time: "19:00",
+    end_time: "22:30",
+  });
+  assert.equal(schedule.registration_deadline, schedule.start_at);
+  assert.equal(schedule.checkin_open, schedule.start_at);
+  assert.equal(schedule.checkin_close, schedule.end_at);
+  assert.equal(scheduleError(schedule), null);
+  assert.equal(
+    eventWindowFrom({ date: "", start_time: "", end_time: "" }),
+    null,
+  );
+  assert.match(
+    scheduleError(
+      eventWindowFrom({ date: "2030-05-01", start_time: "19:00", end_time: "18:00" }),
+    ),
+    /event end must be after the start/i,
+  );
+});
+
+test("defaultEventWindow yields a valid future window on one date", () => {
+  const window = defaultEventWindow();
+  assert.match(window.date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(window.start_time, /^\d{2}:\d{2}$/);
+  assert.match(window.end_time, /^\d{2}:\d{2}$/);
+  assert.equal(scheduleError(eventWindowFrom(window)), null);
 });
 
 test("toNanoseconds converts a valid instant and rejects invalid input", () => {

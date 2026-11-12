@@ -1475,3 +1475,36 @@ production build           npm run build --prefix frontend (exit 0), 14 routes
 - Fonts are served from `/fonts/*.woff2` (200). Live rendering was verified from the served
   HTML, CSS and API responses; no interactive wallet session was performed against
   production.
+
+## 2026-11-12 — Compact footer, brand links and fixed event windows
+
+**Status:** shipped to `main`; the Vercel Git integration rebuilds production from the push.
+
+### Changes
+
+- Replaced the three-column footer directory with a single 76 px bar: wordmark, copyright and
+  icon-only links to X (`https://x.com/GatherBondApp`), email
+  (`gatherbond.app@gmail.com`) and the GitHub repository. No navigation is repeated between
+  header and footer.
+- The organizer create form now asks for one date plus the start and end times. Registration
+  close, check-in open and check-in close are derived — at the start, at the start and at the
+  end respectively — and shown read-only in a ledger, so the contract rule is visible instead
+  of re-entered five times.
+- Inputs use the UI sans face (mono only for date/time), the old beige schedule note is gone,
+  the schedule group is visually separated by a hairline, and an end time earlier than the
+  start shows an inline warning before submission.
+- Added `defaultEventWindow` and `eventWindowFrom` to `frontend/lib/contract.js` with two
+  regression tests, including the end-before-start case.
+
+### Verification
+
+```text
+local suite                scripts/verify-local.sh -> ALL LOCAL CHECKS PASSED (exit 0)
+contract tests             50 passed
+ticket commitment vectors  8/8
+frontend math/QR tests     39 passed (2 new schedule-derivation tests)
+metadata/auth/HTTP tests   94 passed
+production build           npm run build --prefix frontend (exit 0)
+browser checks             1024 and 390 px: no horizontal overflow, footer 76 px,
+                           38 px icon targets, ledger cells no longer overflow
+```

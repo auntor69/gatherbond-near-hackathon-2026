@@ -100,6 +100,58 @@ export function defaultSchedule() {
   };
 }
 
+function localDateValue(date) {
+  const pad = (number) => String(number).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function localTimeValue(date) {
+  const pad = (number) => String(number).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Default date/start/end for a new event: next quarter hour plus two hours. */
+export function defaultEventWindow() {
+  const quarter = 15 * 60_000;
+  const start = new Date(
+    Math.ceil((Date.now() + 45 * 60_000) / quarter) * quarter,
+  );
+  // An evening default would end after midnight, which the contract rejects.
+  if (start.getHours() >= 21) {
+    start.setDate(start.getDate() + 1);
+    start.setHours(18, 0, 0, 0);
+  }
+  const end = new Date(start.getTime() + 2 * 60 * 60_000);
+  return {
+    date: localDateValue(start),
+    start_time: localTimeValue(start),
+    end_time: localTimeValue(end),
+  };
+}
+
+/**
+ * The product rule: the organizer picks one date and the start/end times. Registration
+ * closes when the event starts, check-in opens at the start, and both close at the end.
+ * Returns the five timestamps `create_event` expects, or null when incomplete.
+ */
+export function eventWindowFrom({ date, start_time, end_time } = {}) {
+  if (!date || !start_time || !end_time) return null;
+  const start = new Date(`${date}T${start_time}`);
+  const end = new Date(`${date}T${end_time}`);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+    return null;
+  }
+  const startAt = toLocalInput(start);
+  const endAt = toLocalInput(end);
+  return {
+    registration_deadline: startAt,
+    start_at: startAt,
+    end_at: endAt,
+    checkin_open: startAt,
+    checkin_close: endAt,
+  };
+}
+
 export function decodeOutcomeValue(result) {
   const raw =
     result?.status?.SuccessValue ??

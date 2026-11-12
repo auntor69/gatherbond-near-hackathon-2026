@@ -1825,115 +1825,101 @@ h3 em {
 /* Footer ------------------------------------------------------------------ */
 
 .site-footer {
-  padding: 52px 0 20px;
+  padding: 0;
   background: var(--ink);
   color: var(--paper);
 }
 
-.footer-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) 0.58fr 0.58fr;
-  gap: 40px;
-  padding-bottom: 36px;
-  border-bottom: 1px solid rgba(241, 237, 228, 0.15);
+.footer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 76px;
+  padding: 16px 0;
+}
+
+.footer-id {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--paper);
 }
 
 .footer-brand .brand-mark {
+  width: 26px;
+  height: 26px;
+  border-color: var(--ember);
   background: var(--ember);
   color: var(--ink);
-  border-color: var(--ember);
+  font-size: 0.5rem;
 }
 
 .footer-brand .brand-word {
   color: var(--paper);
+  font-size: 0.92rem;
 }
 
-.footer-tagline {
-  max-width: 36ch;
-  margin-top: 20px;
-  font-family: var(--display);
-  font-size: 1.24rem;
-  font-weight: 500;
-  line-height: 1.12;
-  letter-spacing: -0.045em;
-  color: rgba(241, 237, 228, 0.76);
-}
-
-.footer-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.footer-nav > span,
-.footer-meta > span:first-child {
-  margin-bottom: 5px;
+.footer-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
   font-family: var(--mono);
   font-size: 0.47rem;
-  font-weight: 650;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: rgba(241, 237, 228, 0.36);
+  white-space: nowrap;
+  color: rgba(241, 237, 228, 0.34);
 }
 
-.footer-nav a {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.78rem;
-  color: rgba(241, 237, 228, 0.63);
-  transition: color 160ms ease;
+.footer-copy::before {
+  content: "";
+  width: 1px;
+  height: 10px;
+  background: rgba(241, 237, 228, 0.18);
 }
 
-.footer-nav a:hover {
-  color: var(--paper);
-}
-
-.footer-meta {
+.footer-links {
   display: flex;
-  flex-direction: column;
-  gap: 9px;
-  font-family: var(--mono);
-  font-size: 0.54rem;
-  letter-spacing: 0.03em;
-  color: rgba(241, 237, 228, 0.45);
-}
-
-.footer-meta a {
-  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: rgba(241, 237, 228, 0.63);
-  transition: color 160ms ease;
+  gap: 4px;
 }
 
-.footer-meta a:hover {
-  color: var(--paper);
+.footer-links a {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(241, 237, 228, 0.16);
+  border-radius: 999px;
+  color: rgba(241, 237, 228, 0.62);
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease,
+    transform 200ms ease;
 }
 
-.footer-bottom {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  margin: 0;
-  padding-top: 17px;
-  border: 0;
-  font-family: var(--mono);
-  font-size: 0.47rem;
-  letter-spacing: 0.055em;
-  text-transform: uppercase;
-  color: rgba(241, 237, 228, 0.3);
+.footer-links a:hover {
+  transform: translateY(-1px);
+  border-color: var(--paper);
+  background: var(--paper);
+  color: var(--ink);
 }
 
-.footer-bottom a {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: rgba(241, 237, 228, 0.48);
+.footer-links a:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
 }
 
-.footer-bottom a:hover {
-  color: var(--paper);
+@media (max-width: 560px) {
+  .footer-copy {
+    display: none;
+  }
 }
 
 /* Detail ------------------------------------------------------------------ */
@@ -3360,13 +3346,38 @@ h3 em {
   outline: 0;
   background: var(--white);
   color: var(--ink);
-  font-family: var(--mono);
-  font-size: 0.8rem;
+  font-family: var(--sans);
+  font-size: 0.84rem;
 }
 
 .field input {
-  height: 46px;
-  padding: 0 12px;
+  height: 48px;
+  padding: 0 13px;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.field input[type="date"],
+.field input[type="time"] {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.field input[type="date"]::-webkit-calendar-picker-indicator,
+.field input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0.42;
+  cursor: pointer;
+}
+
+.field input[type="date"]:hover::-webkit-calendar-picker-indicator,
+.field input[type="time"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 0.85;
 }
 
 .field textarea {
@@ -3392,18 +3403,92 @@ h3 em {
   line-height: 1.5;
 }
 
-.schedule-note {
-  margin: 2px 0 13px;
-  padding: 10px 12px;
-  border-left: 3px solid var(--ember);
-  background: var(--paper-deep);
-  color: var(--ink-soft);
-  font-size: 0.7rem;
-  line-height: 1.6;
+.schedule-block {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
 }
 
-.schedule-note strong {
-  font-weight: 650;
+.schedule-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.schedule-head > span {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.schedule-head small {
+  font-family: var(--mono);
+  font-size: 0.47rem;
+  letter-spacing: 0.04em;
+  text-align: right;
+  color: var(--muted);
+}
+
+.schedule-grid {
+  margin-bottom: 0;
+}
+
+.schedule-ledger {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.schedule-ledger > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--paper);
+}
+
+.schedule-ledger dt {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.47rem;
+  line-height: 1.4;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.schedule-ledger dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.schedule-caption {
+  margin-top: 9px;
+  font-family: var(--mono);
+  font-size: 0.47rem;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.schedule-caption--warn {
+  color: #b2361c;
+}
+
+@media (max-width: 640px) {
+  .schedule-ledger {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-footnote {
@@ -5044,12 +5129,6 @@ h3 em {
     min-height: 38px;
   }
 
-  .footer-nav a,
-  .footer-meta a,
-  .footer-bottom a {
-    padding-block: 4px;
-  }
-
   .back-link {
     padding-block: 4px;
   }
@@ -5339,22 +5418,6 @@ h3 em {
 
   .home-cta-grid {
     gap: 24px;
-  }
-
-  .footer-main {
-    grid-template-columns: 1fr;
-    gap: 28px;
-    padding-bottom: 28px;
-  }
-
-  .footer-tagline {
-    max-width: 30ch;
-    font-size: 1.15rem;
-  }
-
-  .footer-bottom {
-    flex-direction: column;
-    gap: 8px;
   }
 
   .how-note {

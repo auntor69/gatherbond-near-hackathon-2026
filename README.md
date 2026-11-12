@@ -146,7 +146,7 @@ The latest verified local run passed all six steps:
 ```text
 50 contract tests
 8/8 ticket-commitment vectors
-37 Flake Fund + contract display/schedule math + QR round-trip tests
+39 Flake Fund + contract display/schedule math + QR round-trip tests
 94 Node metadata/auth/HTTP tests (including live Next + SQLite end-to-end)
 production Next build: /events/[id]/recap present
 deploy handover: 17 required methods, 414,933-byte WASM

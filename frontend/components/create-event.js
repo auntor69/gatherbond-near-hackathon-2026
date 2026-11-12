@@ -9,7 +9,8 @@ import { hashMetadata } from "../../server/metadata/canonical.mjs";
 import { sendContractCall } from "../lib/nearWallet";
 import {
   contractError,
-  defaultSchedule,
+  defaultEventWindow,
+  eventWindowFrom,
   parseNear,
   scheduleError,
   toNanoseconds,
@@ -25,15 +26,13 @@ const INITIAL = {
   deposit: "1",
   capacity: "20",
   storage: "0.1",
-  registration_deadline: "",
-  start_at: "",
-  end_at: "",
-  checkin_open: "",
-  checkin_close: "",
+  date: "",
+  start_time: "",
+  end_time: "",
 };
 
 function freshForm() {
-  return { ...INITIAL, ...defaultSchedule() };
+  return { ...INITIAL, ...defaultEventWindow() };
 }
 
 function Field({ label, children, help }) {
@@ -43,6 +42,51 @@ function Field({ label, children, help }) {
       {children}
       {help ? <small className="field-help">{help}</small> : null}
     </label>
+  );
+}
+
+function localToday() {
+  const now = new Date();
+  const pad = (number) => String(number).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+function formatClock(value) {
+  if (!/^\d{2}:\d{2}$/.test(value ?? "")) return "—";
+  const [hours, minutes] = value.split(":").map(Number);
+  const stamp = new Date(2000, 0, 1, hours, minutes);
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(stamp);
+}
+
+function windowLength(form) {
+  const schedule = eventWindowFrom(form);
+  if (!schedule) return null;
+  const span = Date.parse(schedule.end_at) - Date.parse(schedule.start_at);
+  if (!Number.isFinite(span) || span <= 0) return null;
+  const hours = Math.floor(span / 3_600_000);
+  const minutes = Math.round((span % 3_600_000) / 60_000);
+  return `${hours} h ${String(minutes).padStart(2, "0")} m`;
+}
+
+function ScheduleLedger({ form }) {
+  return (
+    <dl className="schedule-ledger">
+      <div>
+        <dt>Registration closes</dt>
+        <dd>{formatClock(form.start_time)}</dd>
+      </div>
+      <div>
+        <dt>Check-in opens</dt>
+        <dd>{formatClock(form.start_time)}</dd>
+      </div>
+      <div>
+        <dt>Check-in closes</dt>
+        <dd>{formatClock(form.end_time)}</dd>
+      </div>
+    </dl>
   );
 }
 
@@ -91,7 +135,12 @@ export default function CreateEvent({ onCreated }) {
       setError("This deployment has no contract configured, so it cannot create a real event.");
       return;
     }
-    const invalidSchedule = scheduleError(form);
+    const schedule = eventWindowFrom(form);
+    if (!schedule) {
+      setError("Choose the event date, start time and end time. Nothing was sent.");
+      return;
+    }
+    const invalidSchedule = scheduleError(schedule);
     if (invalidSchedule) {
       setError(`${invalidSchedule} Nothing was sent.`);
       return;
@@ -120,11 +169,11 @@ export default function CreateEvent({ onCreated }) {
       const args = {
         deposit: parseNear(form.deposit),
         capacity: Number(form.capacity),
-        start_at: toNanoseconds(form.start_at),
-        end_at: toNanoseconds(form.end_at),
-        registration_deadline: toNanoseconds(form.registration_deadline),
-        checkin_open: toNanoseconds(form.checkin_open),
-        checkin_close: toNanoseconds(form.checkin_close),
+        start_at: toNanoseconds(schedule.start_at),
+        end_at: toNanoseconds(schedule.end_at),
+        registration_deadline: toNanoseconds(schedule.registration_deadline),
+        checkin_open: toNanoseconds(schedule.checkin_open),
+        checkin_close: toNanoseconds(schedule.checkin_close),
         metadata_hash: hashed.array,
       };
 
@@ -303,55 +352,57 @@ export default function CreateEvent({ onCreated }) {
           </Field>
         </div>
 
-        <p className="schedule-note">
-          <strong>Schedule:</strong> registration closes before the start. Check-in opens after
-          registration closes and must close by the event end.
-        </p>
+        <div className="schedule-block">
+          <div className="schedule-head">
+            <span>Schedule</span>
+            <small>
+              {windowLength(form)
+                ? `${windowLength(form)} from start to end`
+                : "Derived from the event times"}
+            </small>
+          </div>
 
-        <div className="form-grid form-grid--two">
-          <Field label="Event starts" help="When the gathering begins.">
-            <input
-              type="datetime-local"
-              value={form.start_at}
-              onChange={(event) => update("start_at", event.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Event ends" help="When the gathering finishes.">
-            <input
-              type="datetime-local"
-              value={form.end_at}
-              onChange={(event) => update("end_at", event.target.value)}
-              required
-            />
-          </Field>
-        </div>
+          <div className="form-grid form-grid--three schedule-grid">
+            <Field label="Date">
+              <input
+                type="date"
+                value={form.date}
+                min={localToday()}
+                onChange={(event) => update("date", event.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Starts">
+              <input
+                type="time"
+                step="300"
+                value={form.start_time}
+                onChange={(event) => update("start_time", event.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Ends">
+              <input
+                type="time"
+                step="300"
+                value={form.end_time}
+                onChange={(event) => update("end_time", event.target.value)}
+                required
+              />
+            </Field>
+          </div>
 
-        <div className="form-grid form-grid--three">
-          <Field label="Registration closes" help="Last moment attendees can reserve. Before the event starts.">
-            <input
-              type="datetime-local"
-              value={form.registration_deadline}
-              onChange={(event) => update("registration_deadline", event.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Check-in opens" help="Earliest the organizer can check in tickets. After registration closes, even before the event starts.">
-            <input
-              type="datetime-local"
-              value={form.checkin_open}
-              onChange={(event) => update("checkin_open", event.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Check-in closes" help="Latest check-in time. On or before the event ends.">
-            <input
-              type="datetime-local"
-              value={form.checkin_close}
-              onChange={(event) => update("checkin_close", event.target.value)}
-              required
-            />
-          </Field>
+          <ScheduleLedger form={form} />
+          {form.start_time && form.end_time && form.end_time <= form.start_time ? (
+            <p className="schedule-caption schedule-caption--warn">
+              The end time must be after the start time.
+            </p>
+          ) : (
+            <p className="schedule-caption">
+              Registration closes at the start. Check-in runs from the start to the end. No
+              separate windows to manage.
+            </p>
+          )}
         </div>
 
         <div className="action-row">

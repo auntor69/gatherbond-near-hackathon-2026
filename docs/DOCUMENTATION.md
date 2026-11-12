@@ -301,6 +301,12 @@ Source: [`frontend/`](../frontend). Next.js App Router with React 19 and a plain
 | `/commitments` | Attendee commitments: reservations, tickets, recovery, claims, receipts |
 | `/_not-found` | Honest empty state |
 
+The organizer form asks for **one date and the start/end times**. The other three contract
+timestamps are derived: registration closes at the start, check-in opens at the start and
+closes at the end. The derived windows are shown read-only beside the picker so the rule is
+visible before signing; the contract still accepts earlier registration deadlines and
+earlier check-in openings for CLI-created events.
+
 ### Client libraries
 
 - `lib/contract.js` — integer NEAR formatting, schedule validation, ticket encode/decode, browser ticket storage.
@@ -317,7 +323,8 @@ The ticket card renders the one-time `GB1.` code as a QR with a downloadable PNG
 
 - **Palette:** bone/paper surfaces, ink text, ember orange, cobalt blue, marigold and green accents.
 - **Type:** Instrument Sans (UI) and Instrument Serif (display), self-hosted with OFL licenses.
-- **Layout:** sharp editorial grid, compact 68px header, compact three-column footer.
+- **Layout:** sharp editorial grid, compact 68px header, and a single 76px footer bar with
+  the wordmark, copyright and icon-only X, email and GitHub links (no repeated navigation).
 - **Motion:** hero entry, ticker, floating pass card and hover lifts. No JS scroll-reveal layer and no animation that hides content; `prefers-reduced-motion` collapses every animation to its final state.
 - **CSS order:** `globals.css` → `flow.css` → `nocturne.css`. Legacy styles remain as a compatibility layer; Nocturne loads last and owns the final look.
 
@@ -416,7 +423,7 @@ Latest verified result:
 ```text
 50 contract tests
 8/8 ticket-commitment vectors
-37 Flake Fund + contract display/schedule math + QR round-trip tests
+39 Flake Fund + contract display/schedule math + QR round-trip tests
 94 Node metadata/auth/HTTP tests
 production Next build: /events/[id]/recap present
 deploy handover: 17 required methods, 414,933-byte WASM
