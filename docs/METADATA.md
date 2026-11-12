@@ -4,7 +4,8 @@ Status: **implemented, locally tested and running in production.** The Turso dat
 created and migrated, the Next.js UI consumes the public listing, publication and event
 passport routes, and a real NEAR Connect NEP-413 wallet session is wired into the UI. The
 contract (`cynopom.testnet`) and the frontend (<https://gatherbond.vercel.app>) are
-deployed; three on-chain events exist, one of them published with verified metadata.
+deployed; four on-chain events exist, one of them published with verified metadata (event 3
+is an unpublished scripted lifecycle check for the fixed-window schedule).
 On-chain registration and deposit from the browser are still pending (see §7). The
 database is optional: the escrow contract remains fully usable without it.
 

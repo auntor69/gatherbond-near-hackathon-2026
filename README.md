@@ -36,7 +36,7 @@ Free event registrations are cheap promises. A no-show wastes a seat, a venue, f
 | Config | <https://gatherbond.vercel.app/api/config> |
 | Repository | <https://github.com/auntor69/gatherbond-near-hackathon-2026> |
 
-The live contract currently returns **3** events; event `0` (`Sunday Table`) is a published, verified listing backed by the Turso metadata layer.
+The live contract currently returns **4** events; event `0` (`Sunday Table`) is a published, verified listing backed by the Turso metadata layer, and event `3` is a scripted lifecycle check for the fixed-window schedule (not published).
 
 ## What is live today
 

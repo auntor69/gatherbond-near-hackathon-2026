@@ -1564,8 +1564,9 @@ sub-minute remainder, and local wall-clock times map to the correct UTC instants
 - Before the deadline (`10:34:51`, deadline `10:36`), `register` with the exact 1 NEAR
   deposit succeeded — transaction `2PoheiRLXnep7QW4tTbcxJBRmLb4i442PQeSmzzad37P`. Event 3
   then reported `registered: 1`.
-- After the start (`10:40`), a second funded account `gbverify2-1794458108.testnet`
-  attempted the same exact-deposit `register`. The call failed, `get_reservation(3,
+- After the start (the probe ran after the `10:36` deadline; it resumed after a brief
+  disconnect), a second funded account `gbverify2-1794458108.testnet` attempted the same
+  exact-deposit `register`. The call failed, `get_reservation(3,
   gbverify2-…)` returned `null`, and `registered` stayed `1` — the deadline, not the
   deposit, rejected it.
 - After `end_at`, `finalize_event` succeeded in transaction
