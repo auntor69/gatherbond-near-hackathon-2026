@@ -38,7 +38,6 @@ function unavailableStore(reason) {
     listPublished: fail,
     getPublication: fail,
     publish: fail,
-    unpublish: fail,
     setPublicationStatus: fail,
     count: fail,
   };

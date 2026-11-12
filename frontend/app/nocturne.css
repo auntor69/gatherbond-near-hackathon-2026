@@ -3218,6 +3218,59 @@ h3 em {
   min-width: 0;
 }
 
+.studio-shell {
+  padding: 34px 0 88px;
+}
+
+.studio-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.studio-tab {
+  padding: 11px 20px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.studio-tab:hover {
+  color: var(--ink);
+}
+
+.studio-tab--active {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+
+.result-hash summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .studio-tabs {
+    overflow-x: auto;
+  }
+
+  .studio-tab {
+    flex: 1;
+    padding: 11px 12px;
+  }
+}
+
 .panel {
   padding: clamp(20px, 3.5vw, 32px);
   border: 1px solid var(--line);

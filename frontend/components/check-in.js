@@ -27,11 +27,32 @@ export default function CheckIn({ defaultEventId = "0" }) {
   const [config, setConfig] = useState(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [gateKey, setGateKey] = useState(0);
+  const [stats, setStats] = useState(null);
+  const [statsKey, setStatsKey] = useState(0);
 
   useEffect(() => {
     const next = String(defaultEventId ?? "").trim();
     if (/^\d+$/.test(next)) setEventId(next);
   }, [defaultEventId]);
+
+  useEffect(() => {
+    const id = eventId.trim();
+    if (!/^\d+$/.test(id)) {
+      setStats(null);
+      return undefined;
+    }
+    let active = true;
+    fetch(`/api/events/${encodeURIComponent(id)}`, { cache: "no-store" })
+      .then((response) => response.json().then((body) => ({ response, body })))
+      .then(({ response, body }) => {
+        if (active && response.ok) setStats(body.onchain ?? null);
+        else if (active) setStats(null);
+      })
+      .catch(() => active && setStats(null));
+    return () => {
+      active = false;
+    };
+  }, [eventId, statsKey]);
 
   async function configuration() {
     if (config?.contract_id) return config;
@@ -74,17 +95,7 @@ export default function CheckIn({ defaultEventId = "0" }) {
         });
         setNotice({ tone: "success", text: `Checked in ${ticket.attendee} for event ${id}.` });
         if (gateOpen) setGateKey((currentKey) => currentKey + 1);
-        return true;
-      } else if (action === "finalize") {
-        await sendContractCall({
-          contractId: current.contract_id,
-          methodName: "finalize_event",
-          args: { event_id: id },
-          deposit: "0",
-          gas: "100000000000000",
-          expectedAccount: wallet.accountId,
-        });
-        setNotice({ tone: "success", text: `Event ${id} finalized. Attendees can now claim.` });
+        setStatsKey((key) => key + 1);
         return true;
       } else if (action === "cancel") {
         await sendContractCall({
@@ -96,6 +107,7 @@ export default function CheckIn({ defaultEventId = "0" }) {
           expectedAccount: wallet.accountId,
         });
         setNotice({ tone: "success", text: `Event ${id} cancelled. Every reservation is refundable.` });
+        setStatsKey((key) => key + 1);
         return true;
       }
       return false;
@@ -112,20 +124,64 @@ export default function CheckIn({ defaultEventId = "0" }) {
     run("check_in", raw);
   }
 
+  const belowFloor =
+    stats &&
+    Number(stats.registered) > 0 &&
+    Number(stats.checked_in) * 5 < Number(stats.registered);
+  const ended =
+    stats?.end_at && Date.now() >= Number(BigInt(String(stats.end_at)) / 1_000_000n);
+
   return (
     <section className="panel studio-panel" id="manage">
       <div className="panel-head">
         <div>
           <p className="eyebrow">Organizer actions</p>
-          <h2>Check in & settle</h2>
+          <h2>Check in at the door</h2>
         </div>
         <ShieldCheck size={22} />
       </div>
 
       <p className="panel-intro">
-        Check-in consumes the one-time ticket. Gate Mode scans and submits one on-chain
-        transaction; manual paste is the fallback.
+        Each scan consumes the one-time ticket and records real attendance on-chain. Manual
+        paste is the fallback. There is no remote check-in and no finalize step.
       </p>
+
+      {stats ? (
+        <div className="form-grid form-grid--three">
+          <div className="field">
+            <span>Registered</span>
+            <strong>{stats.registered}</strong>
+          </div>
+          <div className="field">
+            <span>Checked in</span>
+            <strong>{stats.checked_in}</strong>
+          </div>
+          <div className="field">
+            <span>Status</span>
+            <strong>{stats.status}</strong>
+          </div>
+        </div>
+      ) : null}
+
+      {stats?.status === "Failed" ? (
+        <div className="studio-notice studio-notice--info" role="status">
+          <span className="studio-notice-mark">!</span>
+          <p>Below the 20% floor: every reservation gets a full refund. No pool is distributed.</p>
+        </div>
+      ) : belowFloor ? (
+        <div className="studio-notice studio-notice--info" role="status">
+          <span className="studio-notice-mark">!</span>
+          <p>
+            Current turnout is below 20%. If the event ends here, every reservation is refunded
+            in full and no pool is distributed.
+          </p>
+        </div>
+      ) : ended ? (
+        <div className="studio-notice studio-notice--success" role="status">
+          <span className="studio-notice-mark"><Check size={14} /></span>
+          <p>Settlement is automatic. The first attendee claim after the end settles the event.</p>
+        </div>
+      ) : null}
 
       <div className="gate-mode">
         <div className="gate-mode-head">
@@ -153,8 +209,8 @@ export default function CheckIn({ defaultEventId = "0" }) {
               {wallet.phase === "signedIn" ? "Open QR scanner" : "Connect organizer wallet to scan"}
             </button>
             <p className="gate-mode-help">
-              Use a laptop webcam for the demo. The event id is prefilled from Studio; each valid
-              scan asks the organizer wallet to approve one real check-in transaction.
+              The event id is prefilled. Each valid scan asks the organizer wallet to approve one
+              real check-in transaction.
             </p>
           </>
         )}
@@ -191,22 +247,16 @@ export default function CheckIn({ defaultEventId = "0" }) {
             <Ticket size={15} />
             {busy === "check_in" ? "Checking in…" : "Check in ticket"}
           </button>
-          <button
-            type="button"
-            className="button button-ghost"
-            onClick={() => run("finalize")}
-            disabled={busy !== null}
-          >
-            {busy === "finalize" ? "Finalizing…" : "Finalize event"}
-          </button>
-          <button
-            type="button"
-            className="button button-ghost"
-            onClick={() => run("cancel")}
-            disabled={busy !== null}
-          >
-            {busy === "cancel" ? "Cancelling…" : "Cancel event"}
-          </button>
+          {stats?.status === "Open" ? (
+            <button
+              type="button"
+              className="button button-ghost"
+              onClick={() => run("cancel")}
+              disabled={busy !== null}
+            >
+              {busy === "cancel" ? "Cancelling…" : "Cancel event"}
+            </button>
+          ) : null}
         </div>
       </div>
 

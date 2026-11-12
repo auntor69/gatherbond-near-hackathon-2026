@@ -5,10 +5,10 @@
 // (server/metadata/libsql.mjs). The database is never authoritative for money,
 // registration, attendance or claims; it only stores descriptive metadata.
 //
-// Publication is append-only: every publish/unpublish appends one row to
-// event_publications. A row with action='publish' carries the immutable snapshot; a row
-// with action='unpublish' is a tombstone. The latest row decides whether the event is
-// public, so a transition is one atomic INSERT and can never leave a half-applied state.
+// Publication is append-only: every publish appends one row to event_publications.
+// A row with action='publish' carries the immutable snapshot. Publication is permanent:
+// new versions are appended, and the latest publish stays public forever, including for
+// historical rows whose later version was a legacy tombstone. Nothing is deleted.
 
 import {
   MetadataConflictError,
@@ -112,6 +112,28 @@ export function createMetadataStore(db) {
     );
   }
 
+  async function latestPublishRow(normalized) {
+    return db.get(
+      `SELECT * FROM event_publications
+        WHERE network_id = ? AND contract_id = ? AND event_id = ?
+          AND action = 'publish'
+          AND version = (
+            SELECT MAX(version) FROM event_publications
+             WHERE network_id = ? AND contract_id = ? AND event_id = ?
+               AND action = 'publish'
+          )
+        LIMIT 1`,
+      [
+        normalized.network_id,
+        normalized.contract_id,
+        normalized.event_id,
+        normalized.network_id,
+        normalized.contract_id,
+        normalized.event_id,
+      ],
+    );
+  }
+
   async function get(key) {
     const normalized = normalizeEventKey(key);
     const row = await db.get(
@@ -195,66 +217,6 @@ export function createMetadataStore(db) {
           create_tx_hash: record.create_tx_hash,
           published_by: actor,
           published_at: publishedAt,
-        },
-      };
-    }
-
-    throw new MetadataConflictError("could not allocate the next publication version");
-  }
-
-  async function unpublish({ key, unpublished_by } = {}) {
-    const normalized = normalizeEventKey(key);
-    const record = await get(normalized);
-    if (!record) {
-      return { outcome: "not_found", publication: null };
-    }
-    const actor = unpublished_by ?? record.organizer_account_id;
-
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const latest = await latestPublicationRow(normalized);
-      if (!latest) {
-        // Nothing has ever been public; there is no version to supersede.
-        return { outcome: "unchanged", publication: null };
-      }
-      if (latest.action === "unpublish") {
-        return { outcome: "unchanged", publication: publicationRowToRecord(latest) };
-      }
-
-      const version = Number(latest.version) + 1;
-      const unpublishedAt = new Date().toISOString();
-      try {
-        await db.run(
-          `INSERT INTO event_publications (
-            network_id, contract_id, event_id, version, action,
-            metadata_json, metadata_sha256, create_tx_hash, published_by, published_at
-          ) VALUES (?, ?, ?, ?, 'unpublish', NULL, NULL, NULL, ?, ?)`,
-          [
-            normalized.network_id,
-            normalized.contract_id,
-            normalized.event_id,
-            version,
-            actor,
-            unpublishedAt,
-          ],
-        );
-      } catch (error) {
-        if (attempt === 0 && isVersionConflict(error)) {
-          continue;
-        }
-        throw error;
-      }
-
-      return {
-        outcome: "unpublished",
-        publication: {
-          key: normalized,
-          version,
-          action: "unpublish",
-          metadata_json: null,
-          metadata_sha256: null,
-          create_tx_hash: null,
-          published_by: actor,
-          published_at: unpublishedAt,
         },
       };
     }
@@ -358,20 +320,19 @@ export function createMetadataStore(db) {
     },
 
     /**
-     * Latest publication only, and only when it is a publish (not a tombstone).
-     * Older publish rows are retained for audit but are never returned here.
+     * Latest publish snapshot. A legacy tombstone row does not hide an earlier publish:
+     * publications are permanent and only replaced by a later publish.
      */
     async getPublication(key) {
       const normalized = normalizeEventKey(key);
-      const row = await latestPublicationRow(normalized);
-      if (!row || row.action !== "publish") {
+      const row = await latestPublishRow(normalized);
+      if (!row) {
         return null;
       }
       return publicationRowToRecord(row);
     },
 
     publish,
-    unpublish,
 
     /**
      * Public listing: the latest version must be a publish, and its snapshot digest must
@@ -399,6 +360,7 @@ export function createMetadataStore(db) {
                    WHERE network_id = m.network_id
                      AND contract_id = m.contract_id
                      AND event_id = m.event_id
+                     AND action = 'publish'
                 )
               WHERE p.action = 'publish'
                 AND p.metadata_sha256 = m.metadata_sha256
@@ -422,6 +384,7 @@ export function createMetadataStore(db) {
                    WHERE network_id = m.network_id
                      AND contract_id = m.contract_id
                      AND event_id = m.event_id
+                     AND action = 'publish'
                 )
               WHERE p.action = 'publish'
                 AND p.metadata_sha256 = m.metadata_sha256
@@ -434,17 +397,17 @@ export function createMetadataStore(db) {
     },
 
     /**
-     * Compatibility for the existing test/store callers: publishing and unpublishing now
-     * always go through the versioned append-only log. A raw status toggle cannot bypass it.
+     * Compatibility for store callers: publishing always goes through the versioned
+     * append-only log. There is no unpublish path.
      */
     async setPublicationStatus(key, status) {
       if (!PUBLICATION_STATUSES.has(status)) {
         throw new MetadataValidationError("publication_status", "is not a known status");
       }
-      const result =
-        status === "published"
-          ? await publish({ key })
-          : await unpublish({ key });
+      if (status !== "published") {
+        throw new MetadataValidationError("publication_status", "publication cannot be hidden or removed");
+      }
+      const result = await publish({ key });
       return result.outcome !== "not_found";
     },
 

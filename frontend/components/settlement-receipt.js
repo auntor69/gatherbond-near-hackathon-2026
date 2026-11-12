@@ -26,15 +26,21 @@ export default function SettlementReceipt({
 
   const finalized = event.status === "Finalized";
   const cancelled = event.status === "Cancelled";
-  if (!finalized && !cancelled) {
+  const belowFloor =
+    finalized && Number(event.checked_in) * 5 < Number(event.registered);
+  const failed = event.status === "Failed" || belowFloor;
+  if (!finalized && !cancelled && !failed) {
     return null;
   }
-  if (finalized && !reservation.checked_in) {
+  if (finalized && !failed && !reservation.checked_in) {
     return null;
   }
 
   const deposit = toBigInt(reservation.deposit);
-  const reward = finalized && reservation.checked_in ? toBigInt(event.reward_per_attendee) : 0n;
+  const reward =
+    finalized && !failed && reservation.checked_in
+      ? toBigInt(event.reward_per_attendee)
+      : 0n;
   const total = deposit + reward;
   const claim = CLAIM_COPY[reservation.claim] ?? {
     label: String(reservation.claim ?? "Settlement"),
@@ -43,9 +49,9 @@ export default function SettlementReceipt({
 
   async function shareReceipt() {
     const recapUrl = `${window.location.origin}/events/${encodeURIComponent(eventId)}/recap`;
-    const text = cancelled
+    const text = cancelled || failed
       ? `My deposit for ${title} was refunded on GatherBond.`
-      : `I showed up to ${title}. I got my deposit back plus ${formatNearAmount(reward)} from the flake fund.`;
+      : `I showed up to ${title}. I got my deposit back plus ${formatNearAmount(reward)} from the no-show pool.`;
     try {
       if (navigator.share) {
         await navigator.share({ title: `${title} — GatherBond receipt`, text, url: recapUrl });
@@ -66,8 +72,8 @@ export default function SettlementReceipt({
     <article className="settlement-receipt">
       <div className="settlement-receipt-head">
         <div>
-          <p className="eyebrow">{cancelled ? "Refund receipt" : "Show-up receipt"}</p>
-          <h3>{cancelled ? "The room was cancelled." : "You showed up."}</h3>
+          <p className="eyebrow">{cancelled || failed ? "Refund receipt" : "Show-up receipt"}</p>
+          <h3>{cancelled ? "The room was cancelled." : failed ? "Full refund available." : "You showed up."}</h3>
         </div>
         <span className={`receipt-status receipt-status--${claim.tone}`}>
           {reservation.claim === "Claimed" ? <Check size={13} /> : <Spark size={13} />}
@@ -76,7 +82,7 @@ export default function SettlementReceipt({
       </div>
 
       <div className="settlement-receipt-amount">
-        <span>{cancelled ? "Deposit refund" : "Total returned"}</span>
+        <span>{cancelled || failed ? "Deposit refund" : "Total returned"}</span>
         <strong>{formatNearAmount(total)}</strong>
       </div>
 
@@ -86,7 +92,7 @@ export default function SettlementReceipt({
           <strong>{formatNearAmount(deposit)}</strong>
         </div>
         <div>
-          <span>{cancelled ? "Pool" : "Flake share"}</span>
+          <span>{cancelled || failed ? "Pool" : "No-show share"}</span>
           <strong>{formatNearAmount(reward)}</strong>
         </div>
         <div>
@@ -99,7 +105,9 @@ export default function SettlementReceipt({
         <ShieldCheck size={14} />
         {cancelled
           ? "Full deposit refund under the cancellation rule. No no-show pool is distributed."
-          : "The share is fixed at finalization. The contract pays each attendee by pull claim, so one failed transfer cannot block the room."}
+          : failed
+            ? "Turnout stayed below 20%, so every reservation gets its full deposit back. No pool is distributed."
+            : "The share is fixed when the event settles. The contract pays each attendee by pull claim, so one failed transfer cannot block the room."}
       </p>
 
       <div className="action-row action-row--tight">

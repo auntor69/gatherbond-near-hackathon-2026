@@ -104,7 +104,7 @@ export default function ReservePanel({ event, onReserved }) {
   const open = !event.status || event.status === "Open";
   const canRecover = open && !reservation?.checked_in && !checkinClosed;
   const recoveryNote = reservation?.checked_in
-    ? "This wallet is already checked in. No ticket is needed; claim the settlement after finalization."
+    ? "This wallet is already checked in. No ticket is needed; claim the settlement after the event ends."
     : !open
       ? "This event is closed. Ticket recovery is no longer available."
       : checkinClosed

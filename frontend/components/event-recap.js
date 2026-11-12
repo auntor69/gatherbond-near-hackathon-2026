@@ -176,7 +176,7 @@ export default function EventRecap({ id }) {
       ? event.registered === 0
         ? `${event.title} finalized with no reservations on GatherBond.`
         : event.checkedIn === 0
-          ? `No one showed up to ${event.title}. The ${formatNearAmount(summary?.pool ?? 0n)} pool accrued to treasury under the contract rule.`
+          ? `No one showed up to ${event.title}. Below the 20% floor, every reservation is refundable and no pool is distributed.`
           : event.checkedIn === event.registered
             ? `Everyone who reserved showed up to ${event.title}. There was no flake pool; every deposit was returned in full.`
             : `${event.checkedIn} of ${event.registered} showed up to ${event.title}. The flakes funded ${formatNearAmount(summary?.pool ?? 0n)}.`
@@ -223,7 +223,7 @@ export default function EventRecap({ id }) {
     : noReservations
       ? "The event finalized without reservations, so there was no pool and no settlement."
       : noAttendees
-        ? "No one checked in. The contract fixed no attendee reward, and the pool remainder accrued to treasury."
+        ? "No one checked in. The event failed the 20% floor, so every reservation gets its deposit back."
         : allShowed
           ? "Everyone who reserved showed up. There was no no-show pool, so every deposit was returned in full."
           : finalized
@@ -287,7 +287,7 @@ export default function EventRecap({ id }) {
               <RecapStat
                 label="Flaked"
                 value={finalized ? (summary?.flakes ?? "—") : "—"}
-                detail={cancelled ? "No pool" : finalized ? null : "After finalization"}
+                detail={cancelled ? "No pool" : finalized ? null : "After the event ends"}
               />
               <RecapStat
                 label="Show-up rate"
@@ -296,7 +296,7 @@ export default function EventRecap({ id }) {
                     ? formatShowUpRate(summary.showUpRate)
                     : "—"
                 }
-                detail={cancelled ? "No settlement" : finalized ? null : "After finalization"}
+                detail={cancelled ? "No settlement" : finalized ? null : "After the event ends"}
               />
             </div>
 
@@ -327,7 +327,7 @@ export default function EventRecap({ id }) {
                   : noReservations
                     ? "The event ended without reservations. There is no pool, no attendee reward and no settlement to claim."
                     : noAttendees
-                      ? `The event ended with ${summary?.flakes ?? 0} no-show${summary?.flakes === 1 ? "" : "s"}. No attendee checked in, so no attendee received a reward and the ${formatNearAmount(summary?.pool ?? 0n)} pool remainder accrued to treasury.`
+                      ? `The event ended with ${summary?.flakes ?? 0} no-show${summary?.flakes === 1 ? "" : "s"}. No attendee checked in, so every reservation is refundable in full.`
                       : allShowed
                         ? `All ${event.registered} registered attendee${event.registered === 1 ? "" : "s"} checked in. No one flaked, so there was no pool and no reward; every deposit was returned in full.`
                         : finalized

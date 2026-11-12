@@ -40,8 +40,12 @@ function statusCopy(item) {
   if (reservation.claim === "Claimed") return "Settlement claimed";
   if (reservation.claim === "Pending") return "Transfer in flight";
   if (event.status === "Finalized") {
+    if (Number(event.checked_in) * 5 < Number(event.registered)) {
+      return "Event failed · refund available";
+    }
     return reservation.checked_in ? "Checked in · claim available" : "No-show · no refund";
   }
+  if (event.status === "Failed") return "Event failed · full refund available";
   if (event.status === "Cancelled") return "Cancelled · refund available";
   if (reservation.checked_in) return "Checked in";
   return "Reserved";
@@ -129,18 +133,15 @@ export default function Commitments() {
       if (!contractId) throw new Error("The contract is not configured on this deployment.");
       await sendContractCall({
         contractId,
-        methodName: action === "claim" ? "claim_settlement" : "finalize_event",
+        methodName: "claim_settlement",
         args: { event_id: item.eventId },
         deposit: "0",
-        gas: action === "claim" ? "150000000000000" : "100000000000000",
+        gas: "150000000000000",
         expectedAccount: wallet.accountId,
       });
       setNotice({
         tone: "success",
-        text:
-          action === "claim"
-            ? `Claim submitted for event ${item.eventId}. The transfer callback marks it claimed.`
-            : `Event ${item.eventId} finalized.`,
+        text: `Claim submitted for event ${item.eventId}. The transfer callback marks it claimed.`,
       });
       window.setTimeout(load, 4500);
     } catch (error) {
@@ -265,21 +266,25 @@ export default function Commitments() {
               {items.map((item) => {
                 const event = item.onchain;
                 const reservation = item.reservation;
-                const ended = event?.end_at && Date.now() >= Date.parse(nanosDate(event.end_at));
                 const checkinClosed = event?.checkin_close
                   ? Date.now() > Date.parse(nanosDate(event.checkin_close))
                   : false;
+                const refundsEveryone =
+                  event?.status === "Cancelled" ||
+                  event?.status === "Failed" ||
+                  (event?.status === "Finalized" &&
+                    Number(event.checked_in) * 5 < Number(event.registered));
                 const canClaim =
                   event &&
                   reservation.claim === "Unclaimed" &&
-                  (event.status === "Cancelled" ||
+                  (refundsEveryone ||
                     (event.status === "Finalized" && reservation.checked_in));
                 const canRestore =
                   event?.status === "Open" && !reservation.checked_in && !checkinClosed;
                 const recoveryNote = !event
                   ? "Contract state is unavailable, so recovery cannot be trusted right now."
                   : reservation.checked_in
-                    ? "This reservation is already checked in. No ticket is needed; claim the settlement after finalization."
+                    ? "This reservation is already checked in. No ticket is needed; claim the settlement after the event ends."
                     : event.status !== "Open"
                       ? "This event is closed. Ticket recovery is no longer available."
                       : checkinClosed
@@ -303,7 +308,9 @@ export default function Commitments() {
                       <div>
                         <span>Claim</span>
                         <strong>
-                          {event?.status === "Finalized" && !reservation.checked_in
+                          {event?.status === "Finalized" &&
+                          Number(event.checked_in) * 5 >= Number(event.registered) &&
+                          !reservation.checked_in
                             ? "No refund"
                             : CLAIM_LABEL[reservation.claim] ?? reservation.claim ?? "—"}
                         </strong>
@@ -364,16 +371,6 @@ export default function Commitments() {
                         >
                           <ShieldCheck size={14} />
                           {busy === `claim-${item.eventId}` ? "Submitting claim…" : "Claim settlement"}
-                        </button>
-                      ) : null}
-                      {event?.status === "Open" && ended ? (
-                        <button
-                          type="button"
-                          className="button button-ghost button-small"
-                          onClick={() => run("finalize", item)}
-                          disabled={busy !== null}
-                        >
-                          {busy === `finalize-${item.eventId}` ? "Finalizing…" : "Finalize event"}
                         </button>
                       ) : null}
                       <Link href={`/events/${item.eventId}`} className="text-link">

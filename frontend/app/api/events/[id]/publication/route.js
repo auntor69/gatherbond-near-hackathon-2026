@@ -13,7 +13,4 @@ export async function POST(request, context) {
   return routes.publish(request, context);
 }
 
-export async function DELETE(request, context) {
-  const routes = await getMetadataRoutes();
-  return routes.unpublish(request, context);
-}
+// No DELETE handler: publications are permanent. Attempts receive 405 from Next.js.

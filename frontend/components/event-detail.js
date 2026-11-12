@@ -136,7 +136,7 @@ export default function EventDetail({ id }) {
       <StatePanel
         kicker="404 — no publication"
         title="This room is not open."
-        copy="There is no published event at this address, or the organizer has unpublished it."
+        copy="There is no published event at this address."
       >
         <Link href="/#discover" className="button button-dark">
           Back to discover

@@ -30,7 +30,7 @@ export default function FlakeFund({ event, variant = "detail" }) {
       <section className={`flake-fund${recap ? " flake-fund--recap" : ""}`} id="flake-fund">
         <div className="flake-fund-head">
           <div>
-            <p className="eyebrow">The Flake Fund</p>
+            <p className="eyebrow">No-show pool</p>
             <h2>No pool yet.</h2>
           </div>
           <span className="flake-fund-badge">
@@ -51,7 +51,7 @@ export default function FlakeFund({ event, variant = "detail" }) {
       <section className={`flake-fund${recap ? " flake-fund--recap" : ""}`} id="flake-fund">
         <div className="flake-fund-head">
           <div>
-            <p className="eyebrow">The Flake Fund</p>
+            <p className="eyebrow">No-show pool</p>
             <h2>One more seat makes a room.</h2>
           </div>
           <span className="flake-fund-badge">
@@ -61,7 +61,7 @@ export default function FlakeFund({ event, variant = "detail" }) {
         </div>
         <p className="flake-fund-empty">
           A no-show pool needs at least two reservations. The current deposit is {depositLabel}.
-          The contract will use the real check-in count at finalization.
+          The contract uses the real check-in count when the event settles.
         </p>
       </section>
     );
@@ -72,7 +72,7 @@ export default function FlakeFund({ event, variant = "detail" }) {
       <section className={`flake-fund${recap ? " flake-fund--recap" : ""}`} id="flake-fund">
         <div className="flake-fund-head">
           <div>
-            <p className="eyebrow">The Flake Fund</p>
+            <p className="eyebrow">No-show pool</p>
             <h2>The room was cancelled.</h2>
           </div>
           <span className="flake-fund-badge flake-fund-badge--cancelled">
@@ -97,6 +97,34 @@ export default function FlakeFund({ event, variant = "detail" }) {
     );
   }
 
+  if (summary.state === "failed") {
+    return (
+      <section className={`flake-fund${recap ? " flake-fund--recap" : ""}`} id="flake-fund">
+        <div className="flake-fund-head">
+          <div>
+            <p className="eyebrow">No-show pool</p>
+            <h2>The event did not meet the 20% floor.</h2>
+          </div>
+          <span className="flake-fund-badge flake-fund-badge--cancelled">
+            <ShieldCheck size={13} />
+            Full refunds
+          </span>
+        </div>
+        <p className="flake-fund-copy">
+          {summary.checkedIn} of {summary.registered} reserved seats checked in. Because turnout
+          was below 20%, every reservation gets its full deposit back — including no-shows. No
+          pool is distributed and the organizer gets nothing.
+        </p>
+        <div className="flake-fund-grid">
+          <Stat label="Registered" value={summary.registered} />
+          <Stat label="Checked in" value={summary.checkedIn} />
+          <Stat label="Refund each" value={depositLabel} />
+          <Stat label="No-show pool" value={formatNearAmount(0n)} detail="Not distributed" />
+        </div>
+      </section>
+    );
+  }
+
   if (summary.state === "finalized") {
     const noReservations = summary.registered === 0;
     const noAttendees = !noReservations && summary.checkedIn === 0;
@@ -105,7 +133,7 @@ export default function FlakeFund({ event, variant = "detail" }) {
       <section className={`flake-fund${recap ? " flake-fund--recap" : ""}`} id="flake-fund">
         <div className="flake-fund-head">
           <div>
-            <p className="eyebrow">The Flake Fund</p>
+            <p className="eyebrow">No-show pool</p>
             <h2>
               {noReservations
                 ? "No one reserved."
@@ -131,7 +159,7 @@ export default function FlakeFund({ event, variant = "detail" }) {
             {noReservations
               ? "The event finalized with no reservations. There were no deposits, no pool and no reward."
               : noAttendees
-                ? `${summary.registered} reserved and none checked in. The ${formatNearAmount(summary.pool)} pool accrued to treasury under the contract rule; no attendee received a share.`
+                ? `${summary.registered} reserved and none checked in. This is below the 20% floor, so every deposit is refundable and no pool is distributed.`
                 : allShowed
                   ? `${summary.checkedIn} of ${summary.registered} showed up. No one flaked, so there was no bonus pool; every attendee got their deposit back.`
                   : `${summary.checkedIn} of ${summary.registered} showed up. The ${summary.flakes} no-show${summary.flakes === 1 ? "" : "s"} funded a ${formatNearAmount(summary.pool)} pool.`}
@@ -159,9 +187,9 @@ export default function FlakeFund({ event, variant = "detail" }) {
         <p className="flake-fund-note">
           <ShieldCheck size={15} />
           {noReservations
-            ? "No reservations existed at finalization, so there is no settlement to distribute."
+            ? "No reservations existed when the event settled, so there is nothing to distribute."
             : noAttendees
-              ? "No attendee checked in, so there is no attendee share. The organizer gets no cut of the pool."
+              ? "No attendee checked in, so the event failed the 20% floor. Every reservation can claim its deposit back."
               : allShowed
                 ? "No one flaked, so there was no no-show pool. Every attendee's deposit was returned in full."
                 : "This is the contract snapshot. Checked-in attendees get their deposit plus the fixed per-attendee reward. The organizer gets no cut of the pool."}
@@ -174,8 +202,8 @@ export default function FlakeFund({ event, variant = "detail" }) {
     <section className={`flake-fund${recap ? " flake-fund--recap" : ""}`} id="flake-fund">
       <div className="flake-fund-head">
         <div>
-          <p className="eyebrow">The Flake Fund</p>
-          <h2>If the flakes fund the room.</h2>
+          <p className="eyebrow">No-show pool</p>
+          <h2>If the no-shows fund the room.</h2>
         </div>
         <span className="flake-fund-badge">
           <Spark size={13} />
@@ -208,8 +236,9 @@ export default function FlakeFund({ event, variant = "detail" }) {
 
       <p className="flake-fund-note">
         <ShieldCheck size={15} />
-        Illustration only. The contract uses the real check-in count at finalization. No-shows
-        fund the attendees; the organizer and GatherBond take no cut.
+        Illustration only. The contract uses the real check-in count when the event settles.
+        Below 20% attendance, every reservation is refunded. No-shows fund the attendees;
+        the organizer and GatherBond take no cut.
       </p>
     </section>
   );

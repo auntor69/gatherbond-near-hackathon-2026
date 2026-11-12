@@ -278,59 +278,6 @@ export function createMetadataHandlers({
       }
     },
 
-    /** DELETE /api/events/:id/publication — append a tombstone for the current version. */
-    async unpublish({ actor, key }) {
-      let normalized;
-      try {
-        normalized = normalizeEventKey(key);
-      } catch (error) {
-        return invalidKey(error);
-      }
-      if (!actor) {
-        return respond(401, { error: "unauthorized" });
-      }
-
-      let record;
-      try {
-        record = await store.get(normalized);
-      } catch {
-        return respond(503, { error: "metadata_store_unavailable" });
-      }
-      if (!record) {
-        return respond(404, { error: "metadata_not_found" });
-      }
-
-      let allowed = false;
-      try {
-        allowed = await authorize({
-          actor,
-          key: normalized,
-          metadata: { organizer_account_id: record.organizer_account_id },
-        });
-      } catch {
-        allowed = false;
-      }
-      if (!allowed) {
-        return respond(403, { error: "forbidden" });
-      }
-
-      try {
-        const { outcome, publication } = await store.unpublish({
-          key: normalized,
-          unpublished_by: actor,
-        });
-        return respond(200, {
-          outcome,
-          version: publication?.version ?? 0,
-          publication_status:
-            publication?.action === "publish" ? "published" : "pending",
-          published_at: publication?.published_at ?? null,
-        });
-      } catch {
-        return respond(503, { error: "metadata_store_unavailable" });
-      }
-    },
-
     /** GET /api/events/:id/publication — public current snapshot, never a draft. */
     async getPublication({ key }) {
       let normalized;

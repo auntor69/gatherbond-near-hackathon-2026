@@ -1,11 +1,12 @@
-// Pure Flake Fund math. No React, no browser globals, no floating-point money.
+// Pure no-show-pool math. No React, no browser globals, no floating-point money.
 //
-// The contract's finalize rule is:
-//   pool = (registered - checked_in) * deposit
+// The contract settles when the first claim is made after the event ends:
+//   below 20% attendance (checked_in * 5 < registered): every deposit is refunded
+//   otherwise: pool = (registered - checked_in) * deposit, split equally
 //   reward_per_attendee = floor(pool / checked_in)   when checked_in > 0
 //   remainder = pool - reward_per_attendee * checked_in
 //
-// Before finalization the page must not invent a settlement. It can show a clearly
+// Before settlement the page must not invent a settlement. It can show a clearly
 // labelled projection; the components do that, not this module.
 
 const ZERO = 0n;
@@ -53,8 +54,9 @@ export function formatShowUpRate(rate) {
  * `state` is one of:
  * - `empty`: no reservations or no deposit yet
  * - `waiting`: fewer than two reservations, so a no-show pool has no recipient
- * - `open`: projection only; the event has not finalized
+ * - `open`: projection only; the event has not settled
  * - `finalized`: actual settlement snapshot from contract fields
+ * - `failed`: below 20% attendance; every registered attendee gets the deposit back
  * - `cancelled`: every registered attendee gets the deposit back
  */
 export function flakeFundSummary({
@@ -97,11 +99,34 @@ export function flakeFundSummary({
     };
   }
 
+  if (normalizedStatus === "Failed") {
+    const refund = depositYocto * BigInt(registeredCount);
+    return {
+      ...base,
+      state: "failed",
+      totalRefund: refund,
+      totalReturned: refund,
+    };
+  }
+
   if (normalizedStatus === "Finalized") {
+    const belowFloor =
+      registeredCount > 0 && checkedInCount * 5 < registeredCount;
+    if (belowFloor) {
+      const refund = depositYocto * BigInt(registeredCount);
+      return {
+        ...base,
+        state: "failed",
+        totalRefund: refund,
+        totalReturned: refund,
+      };
+    }
+    if (checkedInCount === 0) {
+      return { ...base, state: "finalized" };
+    }
     const flakes = Math.max(0, registeredCount - checkedInCount);
     const pool = BigInt(flakes) * depositYocto;
-    const rewardPerAttendee =
-      checkedInCount > 0 ? pool / BigInt(checkedInCount) : ZERO;
+    const rewardPerAttendee = pool / BigInt(checkedInCount);
     const totalRefund = BigInt(checkedInCount) * depositYocto;
     const totalRewards = rewardPerAttendee * BigInt(checkedInCount);
     const remainder = pool - totalRewards;

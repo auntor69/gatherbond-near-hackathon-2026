@@ -24,7 +24,7 @@ Free event registrations are cheap promises. A no-show wastes a seat, a venue, f
 
 1. **Reserve.** The attendee connects a NEAR Testnet wallet and sends the exact deposit to the escrow contract.
 2. **Show up.** The attendee receives a one-time `GB1.` QR ticket. The organizer scans it (or pastes the code) inside the check-in window, and the contract records attendance.
-3. **Settle.** After the event ends, anyone can finalize it. Checked-in attendees claim their deposit plus their share of the no-show pool. Cancelled events refund the full deposit.
+3. **Settle.** The first claim after the event ends settles it automatically; there is no organizer finalize step. At or above 20% attendance, checked-in attendees claim their deposit plus an equal share of the no-show pool. Below 20%, every reservation is refunded in full. Cancelled events refund the full deposit.
 
 ## Live surfaces
 
@@ -43,10 +43,10 @@ The live contract currently returns **4** events; event `0` (`Sunday Table`) is 
 | Area | Implemented |
 | --- | --- |
 | Escrow contract | Event creation, exact-deposit registration, capacity, ticket commitments, organizer check-in, ticket rotation, cancellation, permissionless finalization, pull claims, treasury accounting, pagination and failed-transfer recovery |
-| Organizer flow | Wallet session, create event, store canonical metadata, publish a versioned snapshot, load a draft, check in attendees, finalize or cancel |
+| Organizer flow | Wallet session, create event, store canonical metadata, publish a permanent versioned snapshot, check in attendees at the door, cancel if needed |
 | Attendee flow | Wallet session, reserve, one-time QR ticket, download/copy fallback, commitments view, recovery with a fresh ticket commitment, claim settlement |
-| Public proof | Verified event passport, on-chain terms, Flake Fund projection, finalized recap, attendee receipt, public metadata API |
-| Metadata | Canonical JSON + SHA-256, append-only publish/unpublish versions, verified published-only discovery |
+| Public proof | Verified event passport, on-chain terms, no-show pool projection, settled recap, attendee receipt, public metadata API |
+| Metadata | Canonical JSON + SHA-256, append-only permanent publish versions, verified published-only discovery |
 | Auth | NEP-413 signature verification, single-use nonces, HttpOnly HMAC session cookie, full-access-key check, rate limits |
 | UI | Nocturne design system, responsive layouts at 390/768/1024/1440, reduced-motion support, self-hosted Instrument Sans/Serif |
 
@@ -177,7 +177,7 @@ Every money movement is covered by the invariant `balance >= total_liability + p
 | `GET /api/events/:id/metadata` | public | Draft/verification read for the organizer flow |
 | `PUT /api/events/:id/metadata` | organizer session | Save/replace the draft after `create_event` |
 | `POST /api/events/:id/publication` | organizer session | Publish the current draft |
-| `DELETE /api/events/:id/publication` | organizer session | Append an unpublish tombstone |
+| `DELETE /api/events/:id/publication` | none | `405`; publications are permanent |
 | `POST /api/auth/session` | public | NEP-413 login |
 | `GET /api/auth/session` | cookie | Current session / auth config |
 | `DELETE /api/auth/session` | cookie | Logout |

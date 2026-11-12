@@ -544,10 +544,16 @@ impl GatherBond {
         near_sdk::log!("Event {} cancelled; deposits are refundable", event_id);
     }
 
-    /// Permissionless finalization after the event ends. Snapshots attendance and
-    /// computes the reward share; the liability total is unchanged by design.
+    /// Permissionless finalization after the event ends. Kept for tooling/indexers;
+    /// claims also call this automatically once the event has ended.
     pub fn finalize_event(&mut self, event_id: U64) -> EventView {
-        let event_id = event_id.0;
+        let event = self.settle_event(event_id.0);
+        Self::event_view(event_id.0, &event)
+    }
+
+    /// Snapshot attendance and freeze the settlement pools. This is idempotent only in
+    /// the sense that it requires an Open event; callers that may race must check status.
+    fn settle_event(&mut self, event_id: u64) -> Event {
         let mut event = self.event_or_panic(event_id);
 
         require!(event.status == EventStatus::Open, "Event is not open");
@@ -559,6 +565,29 @@ impl GatherBond {
 
         let checked = u128::from(event.checked_in);
         let registered = u128::from(event.registered);
+
+        // Strictly below 20% attendance means the room did not happen. Everyone gets
+        // their deposit back: no attendee reward and no treasury capture.
+        if registered > 0 && checked * 5 < registered {
+            event.refund_pool = registered
+                .checked_mul(event.deposit)
+                .expect("Refund pool overflow");
+            event.reward_pool = 0;
+            event.reward_per_attendee = 0;
+            event.status = EventStatus::Finalized;
+
+            self.events.insert(event_id, event.clone());
+            self.events.flush();
+
+            near_sdk::log!(
+                "Event {} failed the 20% attendance floor: {} registered, {} attended; full refunds",
+                event_id,
+                registered,
+                checked
+            );
+            return event;
+        }
+
         let pool = registered
             .checked_sub(checked)
             .expect("Attendance exceeds registrations")
@@ -604,7 +633,7 @@ impl GatherBond {
             remainder
         );
 
-        Self::event_view(event_id, &event)
+        event
     }
 
     /// Claims the caller's settlement (deposit plus reward when applicable) for a
@@ -624,6 +653,13 @@ impl GatherBond {
         );
 
         let mut event = self.event_or_panic(event_id);
+        if event.status == EventStatus::Open {
+            require!(
+                env::block_timestamp() >= event.end_at,
+                "Event cannot be settled before it ends"
+            );
+            event = self.settle_event(event_id);
+        }
         require!(event.status != EventStatus::Open, "Event is not finalized");
         require!(!event.lock, "Settlement in flight for this event");
 
@@ -888,7 +924,11 @@ impl GatherBond {
             EventStatus::Open => (0, 0),
             EventStatus::Cancelled => (event.deposit, 0),
             EventStatus::Finalized => {
-                if reservation.checked_in {
+                // Below 20% (or zero attendance) is a failed room: every reservation,
+                // including no-shows, gets the deposit back.
+                if u128::from(event.checked_in) * 5 < u128::from(event.registered) {
+                    (event.deposit, 0)
+                } else if reservation.checked_in {
                     (event.deposit, event.reward_per_attendee)
                 } else {
                     (0, 0)
@@ -1994,7 +2034,7 @@ mod tests {
     }
 
     #[test]
-    fn test_all_no_show_accrues_treasury() {
+    fn test_all_no_show_refunds_everyone_without_treasury() {
         let (mut contract, mut chain) = init();
         let id = create(&mut contract, &mut chain);
         register(&mut contract, &mut chain, &alice(), id);
@@ -2002,12 +2042,130 @@ mod tests {
 
         finalize(&mut contract, &mut chain, id);
 
-        assert_eq!(contract.get_treasury_balance().0, 2 * DEPOSIT);
-        assert_eq!(contract.events.get(&id).unwrap().refund_pool, 0);
+        assert_eq!(
+            contract.get_event(U64::from(id)).unwrap().status,
+            EventStatus::Finalized
+        );
+        assert_eq!(contract.get_treasury_balance().0, 0);
+        assert_eq!(contract.events.get(&id).unwrap().refund_pool, 2 * DEPOSIT);
         assert_eq!(contract.events.get(&id).unwrap().reward_pool, 0);
         assert_eq!(contract.get_total_liability().0, 2 * DEPOSIT);
         assert_eq!(pool_sum(&contract), contract.total_liability);
         assert_invariant(&contract, &chain);
+
+        claim(&mut contract, &mut chain, &alice(), id);
+        settle_ok(&mut contract, &mut chain, &alice(), id);
+        claim(&mut contract, &mut chain, &bob(), id);
+        settle_ok(&mut contract, &mut chain, &bob(), id);
+        assert_eq!(contract.get_total_liability().0, 0);
+    }
+
+    #[test]
+    fn test_claim_auto_settles_without_finalize() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        register(&mut contract, &mut chain, &bob(), id);
+
+        chain.now = ns(START) + 10;
+        check_in(&mut contract, &mut chain, &alice(), id);
+        chain.now = ns(END) + 1;
+
+        // No finalize transaction: Alice's claim settles the event first.
+        claim(&mut contract, &mut chain, &alice(), id);
+        let event = contract.get_event(U64::from(id)).unwrap();
+        assert_eq!(event.status, EventStatus::Finalized);
+        // One attendee takes the whole one-person no-show pool.
+        assert_eq!(event.reward_per_attendee.0, DEPOSIT);
+        assert_eq!(event.locked, true);
+        settle_ok(&mut contract, &mut chain, &alice(), id);
+        assert_eq!(
+            contract
+                .get_reservation(U64::from(id), alice())
+                .unwrap()
+                .claim,
+            ClaimStatus::Claimed
+        );
+        assert_invariant(&contract, &chain);
+    }
+
+    #[test]
+    fn test_exactly_twenty_percent_settles_normally() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        let attendees = [
+            alice(),
+            bob(),
+            acct("carol.testnet"),
+            acct("dave.testnet"),
+            acct("erin.testnet"),
+        ];
+        for who in &attendees {
+            register(&mut contract, &mut chain, who, id);
+        }
+
+        chain.now = ns(START) + 10;
+        check_in(&mut contract, &mut chain, &attendees[0], id);
+        finalize(&mut contract, &mut chain, id);
+
+        let event = contract.get_event(U64::from(id)).unwrap();
+        assert_eq!(event.status, EventStatus::Finalized);
+        assert_eq!(event.reward_per_attendee.0, 4 * DEPOSIT);
+        assert_eq!(event.reward_pool.0, 4 * DEPOSIT);
+        assert_eq!(event.refund_pool.0, DEPOSIT);
+        assert_eq!(contract.get_treasury_balance().0, 0);
+        assert_eq!(pool_sum(&contract), contract.total_liability);
+        assert_invariant(&contract, &chain);
+    }
+
+    #[test]
+    fn test_below_twenty_percent_refunds_no_shows_too() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        let attendees = [
+            alice(),
+            bob(),
+            acct("carol.testnet"),
+            acct("dave.testnet"),
+            acct("erin.testnet"),
+            acct("frank.testnet"),
+        ];
+        for who in &attendees {
+            register(&mut contract, &mut chain, who, id);
+        }
+
+        chain.now = ns(START) + 10;
+        check_in(&mut contract, &mut chain, &attendees[0], id);
+        finalize(&mut contract, &mut chain, id);
+
+        let event = contract.get_event(U64::from(id)).unwrap();
+        // 1/6 = 16.7%, strictly below the floor; counts mark it as failed.
+        assert_eq!(event.status, EventStatus::Finalized);
+        assert_eq!(event.refund_pool.0, 6 * DEPOSIT);
+        assert_eq!(event.reward_pool.0, 0);
+        assert_eq!(contract.get_treasury_balance().0, 0);
+
+        // A no-show still gets the full deposit back.
+        claim(&mut contract, &mut chain, &bob(), id);
+        settle_ok(&mut contract, &mut chain, &bob(), id);
+        assert_eq!(
+            contract
+                .get_reservation(U64::from(id), bob())
+                .unwrap()
+                .claim,
+            ClaimStatus::Claimed
+        );
+        assert_eq!(pool_sum(&contract), contract.total_liability);
+        assert_invariant(&contract, &chain);
+    }
+
+    #[test]
+    #[should_panic(expected = "Event cannot be settled before it ends")]
+    fn test_claim_before_end_is_rejected() {
+        let (mut contract, mut chain) = init();
+        let id = create(&mut contract, &mut chain);
+        register(&mut contract, &mut chain, &alice(), id);
+        claim(&mut contract, &mut chain, &alice(), id);
     }
 
     #[test]
@@ -2051,24 +2209,53 @@ mod tests {
         assert_invariant(&contract, &chain);
     }
 
+    /// 3 registered, 2 attended, deposit 7 yocto: reward 3, remainder 1 to treasury.
+    fn rounding_event(contract: &mut GatherBond, chain: &mut Chain) -> u64 {
+        chain.enter(&organizer(), EVENT_STORAGE);
+        let id = contract
+            .create_event(
+                U128::from(7u128),
+                3,
+                U64::from(ns(START)),
+                U64::from(ns(END)),
+                U64::from(ns(REG_DEADLINE)),
+                U64::from(ns(CHECKIN_OPEN)),
+                U64::from(ns(CHECKIN_CLOSE)),
+                [9u8; 32],
+            )
+            .0;
+        chain.credit(EVENT_STORAGE);
+        chain.usage += contract.last_storage_delta;
+
+        for who in [alice(), bob(), acct("carol.testnet")] {
+            chain.enter(&who, NearToken::from_yoctonear(7));
+            contract.register(U64::from(id), commitment(id, &who, SECRET));
+            chain.credit(NearToken::from_yoctonear(7));
+            chain.usage += contract.last_storage_delta;
+        }
+
+        chain.now = ns(START) + 10;
+        check_in(contract, chain, &alice(), id);
+        check_in(contract, chain, &bob(), id);
+        finalize(contract, chain, id);
+        id
+    }
+
     #[test]
     fn test_treasury_withdrawal_bounded_and_settled() {
         let (mut contract, mut chain) = init();
-        let id = create(&mut contract, &mut chain);
-        register(&mut contract, &mut chain, &alice(), id);
-        register(&mut contract, &mut chain, &bob(), id);
-        finalize(&mut contract, &mut chain, id);
-        assert_eq!(contract.get_treasury_balance().0, 2 * DEPOSIT);
+        let _id = rounding_event(&mut contract, &mut chain);
+        assert_eq!(contract.get_treasury_balance().0, 1);
 
         chain.enter(&treasury(), zero());
-        let promise = contract.withdraw_treasury(U128::from(2 * DEPOSIT));
+        let promise = contract.withdraw_treasury(U128::from(1));
         let _ = promise.detach();
         assert!(contract.treasury_lock);
         assert_eq!(contract.get_treasury_balance().0, 0);
-        assert_eq!(contract.get_pending_amount().0, 2 * DEPOSIT);
+        assert_eq!(contract.get_pending_amount().0, 1);
 
         // Transfer executes, then the callback confirms.
-        chain.balance -= 2 * DEPOSIT;
+        chain.balance -= 1;
         let nonce = contract.treasury_nonce;
         chain.enter(&contract_account(), zero());
         assert!(contract.on_treasury_callback(Ok(()), nonce));
@@ -2080,11 +2267,10 @@ mod tests {
     #[test]
     fn test_treasury_withdrawal_failure_restores_balance() {
         let (mut contract, mut chain) = init();
-        let id = create(&mut contract, &mut chain);
-        register(&mut contract, &mut chain, &alice(), id);
-        finalize(&mut contract, &mut chain, id);
+        let _id = rounding_event(&mut contract, &mut chain);
 
         let accrued = contract.get_treasury_balance().0;
+        assert_eq!(accrued, 1);
         chain.enter(&treasury(), zero());
         let _ = contract.withdraw_treasury(U128::from(accrued)).detach();
 

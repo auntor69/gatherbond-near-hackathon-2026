@@ -88,11 +88,12 @@ Publication is a separate append-only log, `event_publications`:
   monotonically increasing per event
 - `action = 'publish'` carries the immutable `metadata_json`, `metadata_sha256` and
   `create_tx_hash` snapshot that was made public at that version
-- `action = 'unpublish'` is a tombstone: it supersedes the previous version without
-  deleting its audit row
 - `published_by` is the authenticated organizer actor; `published_at` is the transition time
+- Publication is permanent. A new publish appends a version; there is no unpublish path.
+  Legacy `unpublish` rows are retained for audit but ignored by public reads, so an earlier
+  publish becomes visible again.
 
-The highest version is authoritative. Because every transition is one INSERT, a failure
+The highest publish version is authoritative. Because every publish is one INSERT, a failure
 cannot leave the event half-published; a retry either reports the same version (unchanged
 republish) or allocates the next one. The table remains in
 `database/migrations/0001_event_metadata.sql`; the migration was applied to the configured
@@ -132,8 +133,8 @@ verified.
 
 `GET /api/events` — published rows only, bounded (`limit ≤ 50`), optionally filtered by
 category; rows whose stored JSON no longer hashes correctly are skipped and counted in
-`skipped`. It selects only the latest `publish` version, so drafts, unpublished events and
-superseded versions are never listed. Detail pages perform the on-chain check; list pages
+`skipped`. It selects only the latest `publish` version, so drafts, never-published events
+and superseded versions are never listed; a legacy tombstone does not hide a publish. Detail pages perform the on-chain check; list pages
 verify integrity locally.
 
 Publication endpoints:
@@ -141,7 +142,7 @@ Publication endpoints:
 | route | auth | result |
 | --- | --- | --- |
 | `POST /api/events/:id/publication` | organizer session | `201` first publish, `200 unchanged` with the same version, `401`/`403`, `404` missing draft/event, `409` hash mismatch, `503` fail closed |
-| `DELETE /api/events/:id/publication` | organizer session | `200` tombstone with the new version and `pending` status; idempotent while already unpublished |
+| `DELETE /api/events/:id/publication` | none | `405`; publications are permanent and cannot be unpublished |
 | `GET /api/events/:id/publication` | public | `200` current verified snapshot (`version`, `metadata`, hashes, publisher/time), `404 not_published`, `409` mismatch, `503` fail closed |
 | `GET /api/events/:id` | public | `200` verified publication plus read-only `onchain` EventView (schedule, deposit, capacity, status), `404 not_published`, `409` mismatch, `503` fail closed |
 
@@ -221,7 +222,7 @@ cd frontend && npx next build && npx next start -p 3105
 
 `server/http/test/e2eHttp.test.mjs` automates the full lifecycle against the real Next app
 and a temporary SQLite file: PUT success, idempotent retry, 401/403/404, 409 before storing,
-GET, draft/superseded isolation, versioned publish/republish/unpublish, cross-account
+GET, draft/superseded isolation, versioned publish/republish, permanent-publication, cross-account
 rejection, a real throttled publish (`429`) and tamper detection. It runs inside
 `scripts/verify-local.sh`.
 
@@ -260,7 +261,7 @@ Covered: canonical bytes and 7 independent vectors, key normalization including 
 financial-field rejection, bounds/control characters, idempotent save, hash conflicts,
 tampering detection, on-chain mismatch on write and read, auth failures, fail-closed RPC/DB
 errors, published-only bounded listings, publication version monotonicity, unchanged
-republish no-ops, unpublish tombstones, draft/superseded isolation, failed-publication
+republish no-ops, legacy-tombstone permanence, draft/superseded isolation, failed-publication
 atomicity, and the libSQL adapter mapping. Session coverage adds NEP-413 byte vectors,
 Ed25519 verification, session expiry/tampering, nonce replay, full-access key enforcement,
 the fixed-window limiter (including throttled logins that do not reach RPC or consume a

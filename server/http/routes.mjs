@@ -156,26 +156,6 @@ export function createMetadataRoutes({
       }
     },
 
-    /** DELETE /api/events/:id/publication — remove the current version from public view. */
-    async unpublish(request, context) {
-      const eventId = await readEventId(context);
-      if (!eventId) {
-        return jsonResponse(400, { error: "invalid_key", detail: "missing event id" });
-      }
-
-      const { actor, response: limited } = await authenticatedWrite(request);
-      if (limited) {
-        return limited;
-      }
-
-      try {
-        const result = await handlers.unpublish({ actor, key: keyFor(eventId) });
-        return jsonResponse(result.status, result.body);
-      } catch {
-        return jsonResponse(500, { error: "internal_error" });
-      }
-    },
-
     /** GET /api/events/:id/publication — the public current snapshot only. */
     async getPublication(request, context) {
       const eventId = await readEventId(context);

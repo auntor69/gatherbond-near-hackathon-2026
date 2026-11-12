@@ -65,16 +65,6 @@ function formatClock(value) {
   }).format(stamp);
 }
 
-function windowLength(form) {
-  const schedule = scheduleFromForm(form);
-  if (!schedule) return null;
-  const span = Date.parse(schedule.end_at) - Date.parse(schedule.start_at);
-  if (!Number.isFinite(span) || span <= 0) return null;
-  const hours = Math.floor(span / 3_600_000);
-  const minutes = Math.round((span % 3_600_000) / 60_000);
-  return `${hours} h ${String(minutes).padStart(2, "0")} m`;
-}
-
 function formatDay(value) {
   if (!value) return "—";
   const day = new Date(`${value}T00:00`);
@@ -117,6 +107,7 @@ export default function CreateEvent({ onCreated }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [created, setCreated] = useState(null);
+  const [adjustTiming, setAdjustTiming] = useState(false);
 
   useEffect(() => {
     setForm(freshForm());
@@ -269,8 +260,8 @@ export default function CreateEvent({ onCreated }) {
       </div>
 
       <p className="panel-intro">
-        Set the event, when registration closes, and when check-in opens. One wallet approval
-        publishes it on-chain; attendee deposits stay in escrow.
+        Set the room and the deposit. Registration and check-in windows default sensibly; one
+        wallet approval creates and publishes the event.
       </p>
 
       {configError ? (
@@ -353,22 +344,22 @@ export default function CreateEvent({ onCreated }) {
               required
             />
           </Field>
-          <Field label="Capacity" help="1–500 seats.">
+          <Field label="Capacity" help="New organizers are limited to 20 seats.">
             <input
               type="number"
               min="1"
-              max="500"
+              max="20"
               value={form.capacity}
               onChange={(event) => update("capacity", event.target.value)}
               required
             />
           </Field>
-          <Field label="Storage contribution (NEAR)" help="Non-refundable; at least 0.01.">
+          <Field label="Network storage (NEAR)" help="Fixed and non-refundable for this deployment.">
             <input
               inputMode="decimal"
               value={form.storage}
-              onChange={(event) => update("storage", event.target.value)}
-              required
+              readOnly
+              aria-readonly="true"
             />
           </Field>
         </div>
@@ -376,13 +367,17 @@ export default function CreateEvent({ onCreated }) {
         <div className="schedule-block">
           <div className="schedule-head">
             <span>Schedule</span>
-            <small>
-              {windowLength(form)
-                ? `${windowLength(form)} from start to end`
-                : "Set the event and its windows"}
-            </small>
+            <button
+              type="button"
+              className="button button-ghost button-small"
+              onClick={() => setAdjustTiming((open) => !open)}
+            >
+              {adjustTiming ? "Hide windows" : "Adjust windows"}
+            </button>
           </div>
 
+          {adjustTiming ? (
+            <>
           <div className="form-grid form-grid--three schedule-grid">
             <Field label="Date">
               <input
@@ -478,6 +473,8 @@ export default function CreateEvent({ onCreated }) {
               </p>
             </div>
           </div>
+            </>
+          ) : null}
 
           <ScheduleSummary form={form} />
         </div>
@@ -523,7 +520,7 @@ export default function CreateEvent({ onCreated }) {
           </p>
           <div className="result-meta">
             <span>Version {created.version ?? 1}</span>
-            <span>Create tx {created.hash ?? "confirmed"}</span>
+            <span>On-chain event {created.eventId}</span>
           </div>
         </div>
       ) : null}

@@ -158,7 +158,7 @@ test("verify detects a tampered stored document", async () => {
   assert.equal(tampered.matches, false);
 });
 
-test("publish is versioned, idempotent while public, and monotonic across unpublish", async () => {
+test("publish is versioned, idempotent while public, and permanent across legacy tombstones", async () => {
   const { store, adapter } = openSqliteMetadataStore();
   await store.save({
     key: key(),
@@ -177,11 +177,17 @@ test("publish is versioned, idempotent while public, and monotonic across unpubl
   assert.equal(identical.outcome, "unchanged");
   assert.equal(identical.publication.version, 1);
 
-  const removed = await store.unpublish({ key: key(), unpublished_by: "organizer.testnet" });
-  assert.equal(removed.outcome, "unpublished");
-  assert.equal(removed.publication.version, 2);
-  assert.equal(await store.getPublication(key()), null);
-  assert.equal((await store.listPublished()).length, 0);
+  // Simulate a tombstone written by the old product. Reads must ignore it and keep
+  // serving the last publish; no new code can append one.
+  await adapter.run(
+    `INSERT INTO event_publications (
+      network_id, contract_id, event_id, version, action,
+      metadata_json, metadata_sha256, create_tx_hash, published_by, published_at
+    ) VALUES (?, ?, ?, ?, 'unpublish', NULL, NULL, NULL, ?, ?)`,
+    ["testnet", "contract.testnet", "0", 2, "organizer.testnet", new Date().toISOString()],
+  );
+  assert.equal((await store.getPublication(key())).version, 1);
+  assert.equal((await store.listPublished()).length, 1);
 
   const republished = await store.publish({ key: key(), published_by: "organizer.testnet" });
   assert.equal(republished.outcome, "published");
@@ -203,7 +209,7 @@ test("publish is versioned, idempotent while public, and monotonic across unpubl
 });
 
 test("public listing excludes drafts and superseded versions", async () => {
-  const { store } = openSqliteMetadataStore();
+  const { store, adapter } = openSqliteMetadataStore();
   for (const id of ["0", "1"]) {
     await store.save({
       key: key({ event_id: id }),
@@ -223,12 +229,27 @@ test("public listing excludes drafts and superseded versions", async () => {
   listed = await store.listPublished();
   assert.deepEqual(listed.map((record) => record.key.event_id).sort(), ["0", "1"]);
 
-  await store.unpublish({ key: key({ event_id: "0" }), unpublished_by: "organizer.testnet" });
-  await store.publish({ key: key({ event_id: "0" }), published_by: "organizer.testnet" });
+  // A legacy tombstone does not hide event 0 after the fact.
+  await adapter.run(
+    `INSERT INTO event_publications (
+      network_id, contract_id, event_id, version, action,
+      metadata_json, metadata_sha256, create_tx_hash, published_by, published_at
+    ) VALUES (?, ?, ?, ?, 'unpublish', NULL, NULL, NULL, ?, ?)`,
+    ["testnet", "contract.testnet", "0", 2, "organizer.testnet", new Date().toISOString()],
+  );
   listed = await store.listPublished();
   assert.deepEqual(listed.map((record) => record.key.event_id).sort(), ["0", "1"]);
+  assert.equal(
+    listed.find((record) => record.key.event_id === "0").publication_version,
+    1,
+    "the latest publish remains public after a legacy tombstone",
+  );
+  assert.equal((await store.getPublication(key({ event_id: "0" }))).version, 1);
+
+  await store.publish({ key: key({ event_id: "0" }), published_by: "organizer.testnet" });
+  listed = await store.listPublished();
   const event0 = listed.find((record) => record.key.event_id === "0");
-  assert.equal(event0.publication_version, 3, "only the newest version may be listed");
+  assert.equal(event0.publication_version, 3, "the next publish appends version 3");
   assert.equal((await store.getPublication(key({ event_id: "0" }))).version, 3);
 
   const older = await store.getPublication(key({ event_id: "1" }));

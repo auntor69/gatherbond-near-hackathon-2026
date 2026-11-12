@@ -529,8 +529,8 @@ test(
       assert.equal((await writeAfterReset.json()).outcome, "unchanged");
 
       // 11b. Publication is an explicit, versioned operation. This window has one write
-      // left (writeAfterReset above), so the first four calls below fill it with publish,
-      // identical republish, publishing a second event and unpublish.
+      // left (writeAfterReset above), so the calls below fill it with publish, identical
+      // republish and publishing a second event. There is no unpublish path.
       const publish0 = await publication(0, { cookie: organizerCookie });
       const publish0Body = await publish0.json();
       assert.equal(publish0.status, 201, JSON.stringify(publish0Body));
@@ -580,36 +580,39 @@ test(
         method: "DELETE",
         cookie: organizerCookie,
       });
-      const unpublish0Body = await unpublish0.json();
-      assert.equal(unpublish0.status, 200, JSON.stringify(unpublish0Body));
-      assert.equal(unpublish0Body.outcome, "unpublished");
-      assert.equal(unpublish0Body.version, 2);
-      assert.equal(unpublish0Body.publication_status, "pending");
+      assert.equal(unpublish0.status, 405, "publication must be permanent");
 
       const afterUnpublishPage = await (await fetch(`${base}/api/events?limit=10`)).json();
-      assert.deepEqual(afterUnpublishPage.items.map((item) => item.event.event_id), ["2"]);
-      assert.equal((await getPublication(0)).status, 404, "an unpublish must close the snapshot");
+      assert.deepEqual(
+        afterUnpublishPage.items.map((item) => item.event.event_id).sort(),
+        ["0", "2"],
+      );
+      assert.equal(
+        (await getPublication(0)).status,
+        200,
+        "a rejected unpublish must leave the snapshot public",
+      );
 
-      // A fresh window lets us republish (new version), prove a cross-account rejection,
-      // then exercise the shared write limit with a real throttled publish.
+      // A fresh window lets us confirm the unchanged publish stays version 1, prove a
+      // cross-account rejection, then exercise the shared write limit.
       await delay(3_200);
       const republish0 = await publication(0, { cookie: organizerCookie });
       const republish0Body = await republish0.json();
-      assert.equal(republish0.status, 201, JSON.stringify(republish0Body));
-      assert.equal(republish0Body.version, 3, "republishing after unpublish must be monotonic");
+      assert.equal(republish0.status, 200, JSON.stringify(republish0Body));
+      assert.equal(republish0Body.version, 1, "an unchanged publish must keep its version");
 
       const currentSnapshot = await getPublication(0);
       const currentSnapshotBody = await currentSnapshot.json();
       assert.equal(currentSnapshot.status, 200, JSON.stringify(currentSnapshotBody));
-      assert.equal(currentSnapshotBody.version, 3);
+      assert.equal(currentSnapshotBody.version, 1);
 
       const currentPage = await (await fetch(`${base}/api/events?limit=10`)).json();
       const currentEvent0 = currentPage.items.find((item) => item.event.event_id === "0");
-      assert.ok(currentEvent0, "the republished event must be listed");
+      assert.ok(currentEvent0, "the published event must stay listed");
       assert.equal(
         currentEvent0.publication_version,
-        3,
-        "the listing must expose only the latest version",
+        1,
+        "the listing must expose the latest publish version",
       );
 
       const crossPublish = await publication(0, { cookie: otherCookie });
@@ -619,13 +622,12 @@ test(
         method: "DELETE",
         cookie: otherCookie,
       });
-      assert.equal(crossUnpublish.status, 403);
-      assert.equal((await crossUnpublish.json()).error, "forbidden");
+      assert.equal(crossUnpublish.status, 405);
 
       for (let attempt = 0; attempt < 4; attempt += 1) {
         const unchanged = await publication(0, { cookie: organizerCookie });
         assert.equal(unchanged.status, 200, "the first five writes of the window are allowed");
-        assert.equal((await unchanged.json()).version, 3);
+        assert.equal((await unchanged.json()).version, 1);
       }
       const publicationsBeforeThrottle = countPublications(0);
       const throttledPublish = await publication(0, { cookie: organizerCookie });
@@ -635,7 +637,7 @@ test(
       assert.equal(throttledPublishBody.error, "rate_limited");
       assert.equal(
         (await (await getPublication(0)).json()).version,
-        3,
+        1,
         "a throttled publish must not change the stored version",
       );
       assert.equal(
@@ -651,11 +653,7 @@ test(
       publishedHistory.close();
       assert.deepEqual(
         historyRows.map((row) => [Number(row.version), row.action]),
-        [
-          [1, "publish"],
-          [2, "unpublish"],
-          [3, "publish"],
-        ],
+        [[1, "publish"]],
       );
 
       // 12. Tampered bytes are detected on read.

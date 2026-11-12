@@ -40,8 +40,10 @@ Free registrations are weak commitments. No-shows waste capacity, venue spend, f
 - The attendee locks the exact deposit in the escrow contract.
 - A one-time ticket proves the right to be checked in; the secret never goes on chain.
 - The organizer authorizes attendance inside the check-in window.
-- After the event ends, anyone may finalize. The contract snapshots attendance and computes the per-attendee reward from the no-show deposits.
-- Checked-in attendees claim deposit + reward. No-shows claim nothing. A cancelled event refunds the full deposit.
+- After the event ends, the first claim settles it automatically; there is no organizer finalize step.
+- At or above 20% attendance, checked-in attendees claim deposit + an equal share of the no-show pool. No-shows claim nothing.
+- Below 20% attendance (including zero), the event failed: every reservation, including no-shows, claims the full deposit. No pool is distributed and treasury receives nothing.
+- A cancelled event refunds the full deposit. Unclaimed entitlements never expire and are never swept.
 
 ### Product decisions
 
@@ -52,7 +54,7 @@ Free registrations are weak commitments. No-shows waste capacity, venue spend, f
 | Custody | One escrow contract, no platform balance |
 | Deposit | Organizer chooses per event |
 | Attendance | On-chain boolean per reservation; no NFT |
-| Finalization | Permissionless after `end_at` |
+| Settlement | Automatic on the first claim after `end_at`; `finalize_event` remains permissionless for tooling |
 | Claims | Individual pull claims with async transfer callbacks |
 | Platform cut | Zero in the MVP |
 | Metadata | Off-chain descriptive JSON + SHA-256; never financial truth |
@@ -121,8 +123,8 @@ Source: [`contracts/src/lib.rs`](../contracts/src/lib.rs). Deployed as one contr
 | `check_in(event_id, attendee, secret)` | organizer | 0 | Verifies the SHA-256 commitment inside the check-in window |
 | `rotate_ticket_commitment(event_id, commitment)` | attendee | 0 | Replaces a lost ticket; old code is invalid immediately |
 | `cancel_event(event_id)` | organizer | 0 | Only before `start_at`; full refunds afterwards |
-| `finalize_event(event_id)` | anyone | 0 | Only after `end_at`; snapshots attendance and reward |
-| `claim_settlement(event_id)` | attendee | 0 | Pull claim with a per-event single-flight lock |
+| `finalize_event(event_id)` | anyone | 0 | Tooling/indexer path; only after `end_at`; snapshots attendance and the 20% floor |
+| `claim_settlement(event_id)` | attendee | 0 | Auto-settles an ended Open event, then pays with a per-event single-flight lock |
 | `withdraw_treasury(amount)` | treasury | 0 | Bounded by accrued treasury |
 
 ### Views
@@ -213,7 +215,7 @@ Known-answer vectors: [`metadata-vectors.json`](./metadata-vectors.json).
 Migration: [`database/migrations/0001_event_metadata.sql`](../database/migrations/0001_event_metadata.sql).
 
 - `event_metadata` — identity `(network_id, contract_id, event_id)`; canonical JSON, digest, denormalized display columns, publication status.
-- `event_publications` — append-only publish/unpublish log. The highest version is authoritative; unpublish is a tombstone, not a delete.
+- `event_publications` — append-only publish log. The latest publish is authoritative and permanent; later versions are appended, never unpublished. Legacy tombstone rows are ignored by public reads.
 - `event_id` is stored as `TEXT` decimal u64 so values above 2^53 survive.
 
 Production uses Turso/libSQL through `server/metadata/libsql.mjs`; local development and tests use Node's `node:sqlite` through `server/metadata/sqlite.mjs`. The adapter is dependency-injected, so tests never need a token.
@@ -264,7 +266,7 @@ All JSON responses are `no-store`. Metadata routes are thin wrappers around fram
 | `GET` | `/api/events/:id/metadata` | public | Draft/verification read used by the organizer flow |
 | `PUT` | `/api/events/:id/metadata` | organizer session | Save/replace the draft; idempotent retry |
 | `POST` | `/api/events/:id/publication` | organizer session | Publish the current draft |
-| `DELETE` | `/api/events/:id/publication` | organizer session | Append an unpublish tombstone |
+| `DELETE` | `/api/events/:id/publication` | none | Unsupported (`405`); publications are permanent |
 | `POST` | `/api/auth/session` | public | NEP-413 login; sets the session cookie |
 | `GET` | `/api/auth/session` | cookie | Current session or `401` + auth config |
 | `DELETE` | `/api/auth/session` | cookie | Clears the session cookie |
@@ -295,9 +297,9 @@ Source: [`frontend/`](../frontend). Next.js App Router with React 19 and a plain
 | Route | Purpose |
 | --- | --- |
 | `/` | Marketing hero, verified discovery, mechanic, organizer CTA |
-| `/events/[id]` | Event passport: verified metadata, on-chain terms, reserve, Flake Fund, passport |
-| `/events/[id]/recap` | Public recap: contract counts, flake fund, integrity proof |
-| `/studio` | Organizer studio: create/load, draft, publish/unpublish, proof dashboard, check-in |
+| `/events/[id]` | Event passport: verified metadata, on-chain terms, reserve, no-show pool, passport |
+| `/events/[id]/recap` | Public recap: contract counts, no-show pool, integrity proof |
+| `/studio` | Organizer studio: Create, Gate and Publish tabs; no finalize or unpublish |
 | `/commitments` | Attendee commitments: reservations, tickets, recovery, claims, receipts |
 | `/_not-found` | Honest empty state |
 
@@ -523,7 +525,7 @@ See [`../SECURITY.md`](../SECURITY.md). Do not open a public issue for a vulnera
 | `contract_not_configured` | `CONTRACT_NAME` / `NEXT_PUBLIC_CONTRACT_NAME` missing | Set the contract account |
 | Reserve disabled | No wallet, wrong network or missing contract | Connect a Testnet wallet and check `/api/config` |
 | Check-in rejected | Outside the window, wrong secret, already used, or not organizer | Check event timing and ticket state in the studio |
-| Claim unavailable | Event not finalized, not checked in, or already claimed | Read the event and reservation state from the contract |
+| Claim unavailable | Event not settled, not checked in (and not a failed event), or already claimed | Read the event and reservation state from the contract |
 
 ---
 

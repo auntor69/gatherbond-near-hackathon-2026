@@ -236,7 +236,7 @@ test("list only returns published rows that still verify, and counts skipped one
   assert.equal(result.body.skipped, 1);
 });
 
-test("publish, identical republish, public snapshot, unpublish and version monotonicity", async () => {
+test("publish, identical republish and permanent public snapshot", async () => {
   const { handlers, anchor } = await setup();
   await anchor();
   await handlers.put({
@@ -269,18 +269,9 @@ test("publish, identical republish, public snapshot, unpublish and version monot
   assert.equal(snapshot.body.version, 1);
   assert.equal(snapshot.body.metadata.title, "Demo night");
 
-  const removed = await handlers.unpublish({ actor: "organizer.testnet", key: key() });
-  assert.equal(removed.status, 200);
-  assert.equal(removed.body.outcome, "unpublished");
-  assert.equal(removed.body.version, 2);
-  assert.equal(removed.body.publication_status, "pending");
-  assert.equal((await handlers.getPublication({ key: key() })).status, 404);
-  assert.equal((await handlers.list()).body.items.length, 0);
-
-  const republished = await handlers.publish({ actor: "organizer.testnet", key: key() });
-  assert.equal(republished.status, 201);
-  assert.equal(republished.body.version, 3);
-  assert.equal((await handlers.getPublication({ key: key() })).body.version, 3);
+  // There is no handler-level unpublish path: the snapshot above remains public.
+  assert.equal(typeof handlers.unpublish, "undefined");
+  assert.equal((await handlers.getPublication({ key: key() })).status, 200);
   assert.equal((await handlers.list()).body.items.length, 1);
 });
 

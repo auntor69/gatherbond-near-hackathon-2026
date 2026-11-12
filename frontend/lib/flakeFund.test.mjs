@@ -54,19 +54,47 @@ test("integer remainder goes to treasury, not to an attendee", () => {
   assert.equal(summary.remainder, 1n);
 });
 
-test("all no-shows leave no attendee reward", () => {
+test("all no-shows refund every deposit and leave no attendee reward", () => {
   const summary = flakeFundSummary({
     deposit: NEAR,
     registered: 4,
     checkedIn: 0,
     status: "Finalized",
   });
-  assert.equal(summary.state, "finalized");
+  assert.equal(summary.state, "failed");
   assert.equal(summary.flakes, 4);
-  assert.equal(summary.pool, 4n * NEAR);
+  assert.equal(summary.pool, 0n);
   assert.equal(summary.rewardPerAttendee, 0n);
-  assert.equal(summary.totalReturned, 0n);
-  assert.equal(summary.remainder, 4n * NEAR);
+  assert.equal(summary.totalRefund, 4n * NEAR);
+  assert.equal(summary.totalReturned, 4n * NEAR);
+  assert.equal(summary.remainder, 0n);
+});
+
+test("below 20% attendance refunds every reservation", () => {
+  const summary = flakeFundSummary({
+    deposit: NEAR,
+    registered: 6,
+    checkedIn: 1,
+    status: "Finalized",
+  });
+  assert.equal(summary.state, "failed");
+  assert.equal(summary.totalRefund, 6n * NEAR);
+  assert.equal(summary.pool, 0n);
+  assert.equal(summary.rewardPerAttendee, 0n);
+});
+
+test("exactly 20% attendance settles the no-show pool equally", () => {
+  const summary = flakeFundSummary({
+    deposit: NEAR,
+    registered: 5,
+    checkedIn: 1,
+    status: "Finalized",
+  });
+  assert.equal(summary.state, "finalized");
+  assert.equal(summary.pool, 4n * NEAR);
+  assert.equal(summary.rewardPerAttendee, 4n * NEAR);
+  assert.equal(summary.totalRefund, NEAR);
+  assert.equal(summary.totalReturned, 5n * NEAR);
 });
 
 test("cancelled event refunds every registered deposit and has no pool", () => {
@@ -186,20 +214,20 @@ test("a single attendee gets the deposit back but no flake reward", () => {
   assert.equal(summary.remainder, 0n);
 });
 
-test("an all-no-show finalized event sends the whole pool to treasury", () => {
+test("a failed event exposes a full refund and no treasury capture", () => {
   const summary = flakeFundSummary({
     deposit: NEAR,
     registered: 4,
     checkedIn: 0,
     status: "Finalized",
   });
-  assert.equal(summary.state, "finalized");
+  assert.equal(summary.state, "failed");
   assert.equal(summary.flakes, 4);
-  assert.equal(summary.pool, 4n * NEAR);
+  assert.equal(summary.pool, 0n);
   assert.equal(summary.rewardPerAttendee, 0n);
-  assert.equal(summary.totalRefund, 0n);
-  assert.equal(summary.totalReturned, 0n);
-  assert.equal(summary.remainder, 4n * NEAR);
+  assert.equal(summary.totalRefund, 4n * NEAR);
+  assert.equal(summary.totalReturned, 4n * NEAR);
+  assert.equal(summary.remainder, 0n);
   assert.equal(formatShowUpRate(summary.showUpRate), "0%");
 });
 

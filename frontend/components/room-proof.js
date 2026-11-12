@@ -239,7 +239,7 @@ export default function RoomProof({ eventId }) {
               {summary.registered === 0
                 ? "Finalized: no reservations existed, so there is no pool and no settlement to distribute."
                 : summary.checkedIn === 0
-                  ? `Finalized: no one checked in, so no attendee received a reward. The ${formatNearAmount(summary.pool)} pool remainder accrued to treasury under the contract rule.`
+                  ? "Finalized: no one checked in, so the event failed the 20% floor and every reservation is refundable in full."
                   : summary.flakes === 0
                     ? "Actual: everyone who reserved showed up. There was no flake pool; every deposit was returned in full."
                     : `Actual: ${summary.checkedIn} showed up, ${summary.flakes} flaked, and each attendee got ${formatNearAmount(summary.rewardPerAttendee)} extra. The organizer took no cut.`}
