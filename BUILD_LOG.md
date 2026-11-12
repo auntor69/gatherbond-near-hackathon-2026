@@ -1508,3 +1508,14 @@ production build           npm run build --prefix frontend (exit 0)
 browser checks             1024 and 390 px: no horizontal overflow, footer 76 px,
                            38 px icon targets, ledger cells no longer overflow
 ```
+
+### Live deployment (verified 2026-11-12)
+
+- Commit `9612b4c` pushed to `main`; production rebuilt and serves the new footer on
+  `https://gatherbond.vercel.app/` (`x.com/GatherBondApp`, `mailto:gatherbond.app@gmail.com`
+  and the GitHub repository are present as icon links).
+- `/studio` ships one `date` input and two `time` inputs, zero `datetime-local` inputs, and
+  the derived-window caption.
+- The served stylesheet contains `footer-bar` and `schedule-ledger` and no leftover
+  `footer-main` rules. `/api/health` still reports `turso`, `database_read: ok`,
+  `auth_configured: true` and `contract_id: cynopom.testnet`.
