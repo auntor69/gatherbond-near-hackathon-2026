@@ -301,11 +301,14 @@ Source: [`frontend/`](../frontend). Next.js App Router with React 19 and a plain
 | `/commitments` | Attendee commitments: reservations, tickets, recovery, claims, receipts |
 | `/_not-found` | Honest empty state |
 
-The organizer form asks for **one date and the start/end times**. The other three contract
-timestamps are derived: registration closes at the start, check-in opens at the start and
-closes at the end. The derived windows are shown read-only beside the picker so the rule is
-visible before signing; the contract still accepts earlier registration deadlines and
-earlier check-in openings for CLI-created events.
+The organizer form asks for the event date and start/end times, a separate
+**registration-close date and time** (which may be days earlier, so an organizer can stop
+accepting reservations before final headcount), and **check-in open/close times** on the
+event day. Check-in may open before the event starts for early arrivals. Nothing is
+hard-coded: the form validates `registration <= start`, `registration <= check-in open`,
+`check-in open < check-in close` and `check-in close <= end` before signing, and prints the
+chosen windows in a summary. Those five timestamps are exactly what `create_event`
+receives.
 
 ### Client libraries
 

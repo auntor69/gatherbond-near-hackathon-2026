@@ -86,11 +86,85 @@ export function scheduleError(form) {
 }
 
 /**
- * @deprecated Use `defaultEventWindow` plus `eventWindowFrom`. Kept as a thin adapter so
- * every producer of a schedule goes through the same fixed-window rule.
+ * Defaults for a new event: the next quarter hour, two hours long. Registration closes
+ * two hours before the start and check-in opens 30 minutes before it, so the defaults
+ * show that both may precede the event.
  */
-export function defaultSchedule() {
-  return eventWindowFrom(defaultEventWindow());
+export function defaultScheduleForm() {
+  const quarter = 15 * 60_000;
+  // Three hours out keeps the default registration close (start - 2 h) in the future.
+  const start = new Date(
+    Math.ceil((Date.now() + 3 * 60 * 60_000) / quarter) * quarter,
+  );
+  // An evening default would end after midnight, which the contract rejects.
+  if (start.getHours() >= 21) {
+    start.setDate(start.getDate() + 1);
+    start.setHours(18, 0, 0, 0);
+  }
+  const end = new Date(start.getTime() + 2 * 60 * 60_000);
+  const registration = new Date(start.getTime() - 2 * 60 * 60_000);
+  let checkinOpen = new Date(start.getTime() - 30 * 60_000);
+  // Check-in runs on the event date; near midnight it opens at 00:00 instead.
+  if (localDateValue(checkinOpen) !== localDateValue(start)) {
+    checkinOpen = new Date(start);
+    checkinOpen.setHours(0, 0, 0, 0);
+  }
+  return {
+    date: localDateValue(start),
+    start_time: localTimeValue(start),
+    end_time: localTimeValue(end),
+    registration_date: localDateValue(registration),
+    registration_time: localTimeValue(registration),
+    checkin_open_time: localTimeValue(checkinOpen),
+    checkin_close_time: localTimeValue(end),
+  };
+}
+
+/**
+ * Builds the five `create_event` timestamps from the organizer's own choices.
+ * Registration may close on an earlier date; check-in runs on the event date.
+ * `scheduleError` enforces registration <= start, registration <= check-in open,
+ * check-in open < check-in close, and check-in close <= end.
+ */
+export function scheduleFromForm({
+  date,
+  start_time,
+  end_time,
+  registration_date,
+  registration_time,
+  checkin_open_time,
+  checkin_close_time,
+} = {}) {
+  if (
+    !date ||
+    !start_time ||
+    !end_time ||
+    !registration_date ||
+    !registration_time ||
+    !checkin_open_time ||
+    !checkin_close_time
+  ) {
+    return null;
+  }
+  const start = new Date(`${date}T${start_time}`);
+  const end = new Date(`${date}T${end_time}`);
+  const registration = new Date(`${registration_date}T${registration_time}`);
+  const checkinOpen = new Date(`${date}T${checkin_open_time}`);
+  const checkinClose = new Date(`${date}T${checkin_close_time}`);
+  if (
+    [start, end, registration, checkinOpen, checkinClose].some(
+      (value) => !Number.isFinite(value.getTime()),
+    )
+  ) {
+    return null;
+  }
+  return {
+    registration_deadline: toLocalInput(registration),
+    start_at: toLocalInput(start),
+    end_at: toLocalInput(end),
+    checkin_open: toLocalInput(checkinOpen),
+    checkin_close: toLocalInput(checkinClose),
+  };
 }
 
 function localDateValue(date) {
@@ -103,46 +177,11 @@ function localTimeValue(date) {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** Default date/start/end for a new event: next quarter hour plus two hours. */
-export function defaultEventWindow() {
-  const quarter = 15 * 60_000;
-  const start = new Date(
-    Math.ceil((Date.now() + 45 * 60_000) / quarter) * quarter,
-  );
-  // An evening default would end after midnight, which the contract rejects.
-  if (start.getHours() >= 21) {
-    start.setDate(start.getDate() + 1);
-    start.setHours(18, 0, 0, 0);
-  }
-  const end = new Date(start.getTime() + 2 * 60 * 60_000);
-  return {
-    date: localDateValue(start),
-    start_time: localTimeValue(start),
-    end_time: localTimeValue(end),
-  };
-}
-
 /**
- * The product rule: the organizer picks one date and the start/end times. Registration
- * closes when the event starts, check-in opens at the start, and both close at the end.
- * Returns the five timestamps `create_event` expects, or null when incomplete.
+ * @deprecated Use `defaultScheduleForm` plus `scheduleFromForm`.
  */
-export function eventWindowFrom({ date, start_time, end_time } = {}) {
-  if (!date || !start_time || !end_time) return null;
-  const start = new Date(`${date}T${start_time}`);
-  const end = new Date(`${date}T${end_time}`);
-  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
-    return null;
-  }
-  const startAt = toLocalInput(start);
-  const endAt = toLocalInput(end);
-  return {
-    registration_deadline: startAt,
-    start_at: startAt,
-    end_at: endAt,
-    checkin_open: startAt,
-    checkin_close: endAt,
-  };
+export function defaultSchedule() {
+  return scheduleFromForm(defaultScheduleForm());
 }
 
 export function decodeOutcomeValue(result) {

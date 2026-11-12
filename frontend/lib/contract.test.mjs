@@ -5,15 +5,15 @@ import test from "node:test";
 import { commitmentArray, ticketCommitmentHex } from "./ticketCommitment.mjs";
 import {
   contractError,
-  defaultEventWindow,
   defaultSchedule,
+  defaultScheduleForm,
   decodeTicket,
   encodeTicket,
-  eventWindowFrom,
   formatNearAmount,
   newTicketSecret,
   parseNear,
   scheduleError,
+  scheduleFromForm,
   toNanoseconds,
 } from "./contract.js";
 
@@ -148,34 +148,49 @@ test("defaultSchedule produces a valid event schedule", () => {
   assert.equal(scheduleError(defaultSchedule()), null);
 });
 
-test("eventWindowFrom derives both fixed windows from the event times", () => {
-  const schedule = eventWindowFrom({
+test("scheduleFromForm keeps the organizer's own registration and check-in windows", () => {
+  const schedule = scheduleFromForm({
     date: "2030-05-01",
     start_time: "19:00",
     end_time: "22:30",
+    registration_date: "2030-04-28",
+    registration_time: "18:00",
+    checkin_open_time: "18:30",
+    checkin_close_time: "22:00",
   });
-  assert.equal(schedule.registration_deadline, schedule.start_at);
-  assert.equal(schedule.checkin_open, schedule.start_at);
-  assert.equal(schedule.checkin_close, schedule.end_at);
+  assert.equal(schedule.registration_deadline, "2030-04-28T18:00");
+  assert.equal(schedule.start_at, "2030-05-01T19:00");
+  assert.equal(schedule.end_at, "2030-05-01T22:30");
+  assert.equal(schedule.checkin_open, "2030-05-01T18:30");
+  assert.equal(schedule.checkin_close, "2030-05-01T22:00");
   assert.equal(scheduleError(schedule), null);
-  assert.equal(
-    eventWindowFrom({ date: "", start_time: "", end_time: "" }),
-    null,
-  );
+  assert.equal(scheduleFromForm({}), null);
   assert.match(
     scheduleError(
-      eventWindowFrom({ date: "2030-05-01", start_time: "19:00", end_time: "18:00" }),
+      scheduleFromForm({
+        date: "2030-05-01",
+        start_time: "19:00",
+        end_time: "18:00",
+        registration_date: "2030-05-01",
+        registration_time: "17:00",
+        checkin_open_time: "18:00",
+        checkin_close_time: "18:30",
+      }),
     ),
     /event end must be after the start/i,
   );
 });
 
-test("defaultEventWindow yields a valid future window on one date", () => {
-  const window = defaultEventWindow();
-  assert.match(window.date, /^\d{4}-\d{2}-\d{2}$/);
-  assert.match(window.start_time, /^\d{2}:\d{2}$/);
-  assert.match(window.end_time, /^\d{2}:\d{2}$/);
-  assert.equal(scheduleError(eventWindowFrom(window)), null);
+test("defaultScheduleForm produces a valid future window", () => {
+  const form = defaultScheduleForm();
+  assert.match(form.date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(form.start_time, /^\d{2}:\d{2}$/);
+  assert.match(form.end_time, /^\d{2}:\d{2}$/);
+  const schedule = scheduleFromForm(form);
+  assert.equal(scheduleError(schedule), null);
+  assert.ok(schedule.registration_deadline <= schedule.start_at);
+  assert.ok(schedule.checkin_open <= schedule.start_at);
+  assert.equal(schedule.checkin_close, schedule.end_at);
 });
 
 test("toNanoseconds converts a valid instant and rejects invalid input", () => {

@@ -9,10 +9,10 @@ import { hashMetadata } from "../../server/metadata/canonical.mjs";
 import { sendContractCall } from "../lib/nearWallet";
 import {
   contractError,
-  defaultEventWindow,
-  eventWindowFrom,
+  defaultScheduleForm,
   parseNear,
   scheduleError,
+  scheduleFromForm,
   toNanoseconds,
 } from "../lib/contract";
 
@@ -29,10 +29,14 @@ const INITIAL = {
   date: "",
   start_time: "",
   end_time: "",
+  registration_date: "",
+  registration_time: "",
+  checkin_open_time: "",
+  checkin_close_time: "",
 };
 
 function freshForm() {
-  return { ...INITIAL, ...defaultEventWindow() };
+  return { ...INITIAL, ...defaultScheduleForm() };
 }
 
 function Field({ label, children, help }) {
@@ -62,7 +66,7 @@ function formatClock(value) {
 }
 
 function windowLength(form) {
-  const schedule = eventWindowFrom(form);
+  const schedule = scheduleFromForm(form);
   if (!schedule) return null;
   const span = Date.parse(schedule.end_at) - Date.parse(schedule.start_at);
   if (!Number.isFinite(span) || span <= 0) return null;
@@ -71,22 +75,37 @@ function windowLength(form) {
   return `${hours} h ${String(minutes).padStart(2, "0")} m`;
 }
 
-function ScheduleLedger({ form }) {
+function formatDay(value) {
+  if (!value) return "—";
+  const day = new Date(`${value}T00:00`);
+  if (!Number.isFinite(day.getTime())) return "—";
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short",
+  }).format(day);
+}
+
+function ScheduleSummary({ form }) {
+  const schedule = scheduleFromForm(form);
+  if (!schedule) {
+    return (
+      <p className="schedule-caption schedule-caption--warn">
+        Choose the event date, start and end times, plus both registration and check-in
+        windows.
+      </p>
+    );
+  }
+  const invalid = scheduleError(schedule);
+  if (invalid) {
+    return <p className="schedule-caption schedule-caption--warn">{invalid}</p>;
+  }
   return (
-    <dl className="schedule-ledger">
-      <div>
-        <dt>Registration closes</dt>
-        <dd>{formatClock(form.start_time)}</dd>
-      </div>
-      <div>
-        <dt>Check-in opens</dt>
-        <dd>{formatClock(form.start_time)}</dd>
-      </div>
-      <div>
-        <dt>Check-in closes</dt>
-        <dd>{formatClock(form.end_time)}</dd>
-      </div>
-    </dl>
+    <p className="schedule-caption">
+      Registration closes {formatDay(form.registration_date)} at{" "}
+      {formatClock(form.registration_time)} · Check-in opens{" "}
+      {formatClock(form.checkin_open_time)} and closes{" "}
+      {formatClock(form.checkin_close_time)}.
+    </p>
   );
 }
 
@@ -135,9 +154,11 @@ export default function CreateEvent({ onCreated }) {
       setError("This deployment has no contract configured, so it cannot create a real event.");
       return;
     }
-    const schedule = eventWindowFrom(form);
+    const schedule = scheduleFromForm(form);
     if (!schedule) {
-      setError("Choose the event date, start time and end time. Nothing was sent.");
+      setError(
+        "Choose the event date, start and end times, plus both registration and check-in windows. Nothing was sent.",
+      );
       return;
     }
     const invalidSchedule = scheduleError(schedule);
@@ -358,7 +379,7 @@ export default function CreateEvent({ onCreated }) {
             <small>
               {windowLength(form)
                 ? `${windowLength(form)} from start to end`
-                : "Derived from the event times"}
+                : "Set the event and its windows"}
             </small>
           </div>
 
@@ -392,17 +413,73 @@ export default function CreateEvent({ onCreated }) {
             </Field>
           </div>
 
-          <ScheduleLedger form={form} />
-          {form.start_time && form.end_time && form.end_time <= form.start_time ? (
-            <p className="schedule-caption schedule-caption--warn">
-              The end time must be after the start time.
-            </p>
-          ) : (
-            <p className="schedule-caption">
-              Registration closes at the start. Check-in runs from the start to the end. No
-              separate windows to manage.
-            </p>
-          )}
+          <div className="schedule-windows">
+            <div className="schedule-window">
+              <span className="schedule-window-title">Registration closes</span>
+              <div className="form-grid form-grid--two">
+                <Field label="Date">
+                  <input
+                    type="date"
+                    value={form.registration_date}
+                    min={localToday()}
+                    max={form.date || undefined}
+                    onChange={(event) =>
+                      update("registration_date", event.target.value)
+                    }
+                    required
+                  />
+                </Field>
+                <Field label="Time">
+                  <input
+                    type="time"
+                    step="300"
+                    value={form.registration_time}
+                    onChange={(event) =>
+                      update("registration_time", event.target.value)
+                    }
+                    required
+                  />
+                </Field>
+              </div>
+              <p className="schedule-hint">
+                Can be days before the event, but never after it starts.
+              </p>
+            </div>
+
+            <div className="schedule-window">
+              <span className="schedule-window-title">Check-in</span>
+              <div className="form-grid form-grid--two">
+                <Field label="Opens">
+                  <input
+                    type="time"
+                    step="300"
+                    value={form.checkin_open_time}
+                    onChange={(event) =>
+                      update("checkin_open_time", event.target.value)
+                    }
+                    required
+                  />
+                </Field>
+                <Field label="Closes">
+                  <input
+                    type="time"
+                    step="300"
+                    value={form.checkin_close_time}
+                    onChange={(event) =>
+                      update("checkin_close_time", event.target.value)
+                    }
+                    required
+                  />
+                </Field>
+              </div>
+              <p className="schedule-hint">
+                Can open before the start; must follow registration close and end by the
+                event end.
+              </p>
+            </div>
+          </div>
+
+          <ScheduleSummary form={form} />
         </div>
 
         <div className="action-row">

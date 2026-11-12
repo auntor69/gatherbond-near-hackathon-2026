@@ -1682,3 +1682,60 @@ metadata/auth/HTTP tests  94 passed
 frontend build            npm run build --prefix frontend (exit 0)
 responsive                1024 and 390 px: footer 76 px, no overflow
 ```
+
+## 2026-11-12 — Corrected scheduling UX: windows are the organizer's choice, not hard-coded
+
+**Why:** the previous pass forced `registration_deadline = start` and `checkin_open = start`.
+That removed legitimate choices: organizers often close registration hours or days early to
+prepare, and attendees arrive (and should check in) before the event starts. The rule is
+restored as an organizer decision, while illogical orderings remain impossible.
+
+### Form behaviour (rendered at 1024 and 390)
+
+The schedule block now exposes exactly:
+
+```text
+Date · Starts · Ends
+Registration closes  [date] [time]     (may be days earlier)
+Check-in             [opens] [closes]  (same event date; may open before the start)
+```
+
+Defaults are start + 3 h, two hours long, registration 2 h before the start, and check-in
+opening 30 min before it — so the default itself demonstrates both earlier windows.
+
+Rendered DOM at 1024 px: 7 controls, types
+`["date","time","time","date","time","time","time"]`, values
+`2026-11-12`, `14:15`, `16:15`, `2026-11-12`, `12:15`, `13:45`, `16:15`, and the summary
+“Registration closes Nov 12 at 12:15 PM · Check-in opens 1:45 PM and closes 4:15 PM.”
+At 390 px the controls stack in one column with no horizontal overflow.
+
+Live validation was exercised by typing a registration close of `15:00` while the start
+was `14:15`: the form immediately replaced the summary with the warning
+**“Registration must close no later than the event start.”** and marks it
+`schedule-caption--warn`. `scheduleError` enforces, in order: start in the future,
+end after start, registration in the future and ≤ start, check-in open ≥ registration
+close, open < close, close ≤ end.
+
+### Single producer
+
+- `frontend/lib/contract.js`: `defaultScheduleForm()` returns the seven form fields;
+  `scheduleFromForm()` maps them to the five `create_event` timestamps. Registration may
+  be on an earlier date; check-in is built on the event date.
+- `defaultSchedule()` (legacy) delegates to `scheduleFromForm(defaultScheduleForm())`, so
+  no path builds a different ordering.
+- `frontend/lib/contract.test.mjs`: the two fixed-window tests were replaced with the
+  organizer-choice mapping (registration on `2030-04-28`, check-in `18:30` before a
+  `19:00` start) and a default-form validity test.
+
+No contract change was needed; the already-verified event 3 remains valid under the same
+contract rules.
+
+### Verification
+
+```text
+scripts/verify-local.sh   ALL LOCAL CHECKS PASSED (exit 0)
+contract tests            50 passed
+frontend tests            39 passed
+metadata/auth/HTTP tests  94 passed
+frontend build            npm run build --prefix frontend (exit 0)
+```
