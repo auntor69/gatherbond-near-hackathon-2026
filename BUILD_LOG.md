@@ -1519,3 +1519,94 @@ browser checks             1024 and 390 px: no horizontal overflow, footer 76 px
 - The served stylesheet contains `footer-bar` and `schedule-ledger` and no leftover
   `footer-main` rules. `/api/health` still reports `turso`, `database_read: ok`,
   `auth_configured: true` and `contract_id: cynopom.testnet`.
+
+## 2026-11-12 — Live proof of the fixed-window schedule (create → read → close → finalize)
+
+**Status:** verified against the live Testnet contract `cynopom.testnet` with a real chain
+write. A faucet-funded scripted account (`gbverify-1794457801.testnet`) signed every
+transaction; no wallet or key was requested from the user.
+
+### Event created from the form's own derivation
+
+The payload was produced by the same functions the studio form calls:
+`eventWindowFrom({ date, start_time, end_time })`, `toNanoseconds`, and
+`hashMetadata` from `server/metadata/canonical.mjs`. Inputs were a browser-local date and
+times (`Asia/Dhaka`, UTC+6):
+
+```text
+date  2026-11-12   starts 10:36   ends 10:38
+derived  registration_deadline = 2026-11-12T10:36
+         start_at              = 2026-11-12T10:36
+         checkin_open          = 2026-11-12T10:36
+         checkin_close         = 2026-11-12T10:38
+         end_at                = 2026-11-12T10:38
+UTC      2026-11-12T04:36:00Z → 2026-11-12T04:38:00Z
+```
+
+Event `3` created by `create_event` in transaction
+`FzSaW3jLWrE8def52sKhkXAm2SjP5RWzjembWTGJJ2wU` (0.05 NEAR storage contribution,
+100 Tgas). `get_event(3)` returned, field by field:
+
+```text
+registration_deadline  1794458160000000000  MATCH
+start_at               1794458160000000000  MATCH
+end_at                 1794458280000000000  MATCH
+checkin_open           1794458160000000000  MATCH
+checkin_close          1794458280000000000  MATCH
+status Open · deposit 1 NEAR · capacity 3 · registered 0
+```
+
+All five stored timestamps equal the derived values; precision is nanoseconds with zero
+sub-minute remainder, and local wall-clock times map to the correct UTC instants.
+
+### Registration window actually follows the rule
+
+- Before the deadline (`10:34:51`, deadline `10:36`), `register` with the exact 1 NEAR
+  deposit succeeded — transaction `2PoheiRLXnep7QW4tTbcxJBRmLb4i442PQeSmzzad37P`. Event 3
+  then reported `registered: 1`.
+- After the start (`10:40`), a second funded account `gbverify2-1794458108.testnet`
+  attempted the same exact-deposit `register`. The call failed, `get_reservation(3,
+  gbverify2-…)` returned `null`, and `registered` stayed `1` — the deadline, not the
+  deposit, rejected it.
+- After `end_at`, `finalize_event` succeeded in transaction
+  `EGjts6FDHLiwk7GiTmotKDcd1HA24spHJ5eTNMnQGYGJ`: log `Event 3 finalized: 1 registered, 0
+  attended, reward 0, remainder 1000000000000000000000000`, status `Finalized`, both pools
+  `0`. The no-show deposit accrued to treasury per the contract rules.
+
+### Invalid window rejected
+
+- UI derivation: `eventWindowFrom({ date: "2026-11-12", start_time: "22:00", end_time:
+  "01:00" })` (a crossing-midnight entry) returns a schedule that `scheduleError` rejects
+  with **“The event end must be after the start.”** The form stops before any wallet
+  signature.
+- Chain: `create_event` with `end_at = start_at - 60s` was sent and failed in transaction
+  `9wHJsjgnRQ973D4Dg3UJfLL8zh44hnkuvGENKQFZuUjG`; `get_event_count` stayed `4` before and
+  after, so no corrupted event was written.
+
+### Defect found and fixed — runbook command order
+
+The verified calls exposed that `docs/DEPLOY_RUNBOOK.md` had `attached-deposit` before
+`prepaid-gas`, and omitted `attached-deposit '0 NEAR'` on zero-deposit calls. near-cli-rs
+0.31 rejects that order. Every command in §4 now uses
+`prepaid-gas → attached-deposit → sign-as → network-config → sign-with-keychain → send`,
+and the runbook documents that `U64` view arguments must be JSON strings
+(`{"event_id":"0"}`); numeric ids trap inside the contract.
+
+### Remaining limitation (not fixable from this account)
+
+The contract is compiled with `panic = "abort"`. All contract assertions therefore surface
+to clients as `WebAssembly trap: An unreachable opcode was executed` with no message, so a
+rejected on-chain call cannot explain itself. The studio validates the schedule before
+signing, which is why the crossing-midnight error is readable in the product. Surfacing
+contract messages would require rebuilding and upgrading `cynopom.testnet`, whose signing
+key is not in this workspace.
+
+### Re-verification
+
+```text
+scripts/verify-local.sh   ALL LOCAL CHECKS PASSED (exit 0)
+contract tests            50 passed
+frontend tests            39 passed
+metadata/auth/HTTP tests  94 passed
+frontend build            npm run build --prefix frontend (exit 0)
+```

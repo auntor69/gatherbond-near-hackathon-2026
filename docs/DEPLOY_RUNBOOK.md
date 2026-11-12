@@ -26,6 +26,12 @@ Scope: NEAR **testnet only**. There is no mainnet procedure in this project.
 Testnet accounts are free; use the NEAR faucet or wallet. Never put a mainnet key in this
 project.
 
+CLI argument order matters. With near-cli-rs 0.31 the function-call subcommands are
+`prepaid-gas` → `attached-deposit` → `sign-as` → `network-config` → `sign-with-keychain`
+→ `send`, and **every** call needs an explicit `attached-deposit`, including `'0 NEAR'`.
+The commands in §4 follow that order; the same rule applies to `as-read-only` calls with
+`U64` arguments, which must be JSON strings (`{"event_id":"0"}`, not `{"event_id":0}`).
+
 ## 2. Build, hash and storage-stake arithmetic
 
 ```bash
@@ -131,7 +137,7 @@ console.log(JSON.stringify({ deposit: "1000000000000000000000000", capacity: 3,
 ')
 
 near contract call-function as-transaction "$CONTRACT_ID" create_event \
-  json-args "$ARGS" attached-deposit '0.05 NEAR' prepaid-gas '100 Tgas' \
+  json-args "$ARGS" prepaid-gas '100 Tgas' attached-deposit '0.05 NEAR' \
   sign-as "$ORGANIZER_ID" network-config testnet sign-with-keychain send
 ```
 
@@ -170,7 +176,7 @@ commitment:
 ```bash
 near contract call-function as-transaction "$CONTRACT_ID" register \
   json-args "{\"event_id\":0,\"ticket_commitment\":$ALICE_COMMITMENT}" \
-  attached-deposit '1 NEAR' prepaid-gas '100 Tgas' \
+  prepaid-gas '100 Tgas' attached-deposit '1 NEAR' \
   sign-as "$ALICE" network-config testnet sign-with-keychain send
 ```
 
@@ -187,7 +193,7 @@ After `checkin_open` and before `checkin_close`. Check-in may open before the ev
 ```bash
 near contract call-function as-transaction "$CONTRACT_ID" check_in \
   json-args '{"event_id":0,"attendee":"alice.testnet","secret":"demo-secret-alice"}' \
-  prepaid-gas '100 Tgas' sign-as "$ORGANIZER_ID" \
+  prepaid-gas '100 Tgas' attached-deposit '0 NEAR' sign-as "$ORGANIZER_ID" \
   network-config testnet sign-with-keychain send
 ```
 
@@ -199,7 +205,7 @@ have closed. The old QR/code becomes invalid immediately:
 ```bash
 near contract call-function as-transaction "$CONTRACT_ID" rotate_ticket_commitment \
   json-args '{"event_id":0,"ticket_commitment":[<32 commitment bytes>]}' \
-  prepaid-gas '100 Tgas' sign-as "$ALICE_ID" \
+  prepaid-gas '100 Tgas' attached-deposit '0 NEAR' sign-as "$ALICE" \
   network-config testnet sign-with-keychain send
 ```
 
@@ -212,7 +218,7 @@ secret fails and does not mark attendance.
 
 ```bash
 near contract call-function as-transaction "$CONTRACT_ID" finalize_event \
-  json-args '{"event_id":0}' prepaid-gas '100 Tgas' \
+  json-args '{"event_id":0}' prepaid-gas '100 Tgas' attached-deposit '0 NEAR' \
   sign-as "$ALICE" network-config testnet sign-with-keychain send
 ```
 
@@ -224,7 +230,7 @@ NEAR` for two attendees.
 
 ```bash
 near contract call-function as-transaction "$CONTRACT_ID" claim_settlement \
-  json-args '{"event_id":0}' prepaid-gas '100 Tgas' \
+  json-args '{"event_id":0}' prepaid-gas '100 Tgas' attached-deposit '0 NEAR' \
   sign-as "$ALICE" network-config testnet sign-with-keychain send
 ```
 
@@ -243,7 +249,7 @@ then cancel it as the organizer before `start_at`:
 
 ```bash
 near contract call-function as-transaction "$CONTRACT_ID" cancel_event \
-  json-args '{"event_id":1}' prepaid-gas '100 Tgas' \
+  json-args '{"event_id":1}' prepaid-gas '100 Tgas' attached-deposit '0 NEAR' \
   sign-as "$ORGANIZER_ID" network-config testnet sign-with-keychain send
 ```
 
@@ -251,7 +257,7 @@ Then claim as Alice:
 
 ```bash
 near contract call-function as-transaction "$CONTRACT_ID" claim_settlement \
-  json-args '{"event_id":1}' prepaid-gas '100 Tgas' \
+  json-args '{"event_id":1}' prepaid-gas '100 Tgas' attached-deposit '0 NEAR' \
   sign-as "$ALICE" network-config testnet sign-with-keychain send
 ```
 
