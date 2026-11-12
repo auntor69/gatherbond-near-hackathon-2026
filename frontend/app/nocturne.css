@@ -1834,79 +1834,38 @@ h3 em {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  min-height: 76px;
-  padding: 16px 0;
-}
-
-.footer-id {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
-}
-
-.footer-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--paper);
-}
-
-.footer-brand .brand-mark {
-  width: 26px;
-  height: 26px;
-  border-color: var(--ember);
-  background: var(--ember);
-  color: var(--ink);
-  font-size: 0.5rem;
-}
-
-.footer-brand .brand-word {
-  color: var(--paper);
-  font-size: 0.92rem;
+  gap: 16px;
+  min-height: 0;
+  padding: 8px 0;
 }
 
 .footer-copy {
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  font-family: var(--mono);
-  font-size: 0.47rem;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
   white-space: nowrap;
-  color: rgba(241, 237, 228, 0.34);
-}
-
-.footer-copy::before {
-  content: "";
-  width: 1px;
-  height: 10px;
-  background: rgba(241, 237, 228, 0.18);
+  color: rgba(241, 237, 228, 0.48);
 }
 
 .footer-links {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .footer-links a {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid rgba(241, 237, 228, 0.16);
+  width: 40px;
+  height: 40px;
+  border: 1px solid transparent;
   border-radius: 999px;
-  color: rgba(241, 237, 228, 0.62);
-  transition: color 160ms ease, background 160ms ease, border-color 160ms ease,
-    transform 200ms ease;
+  color: rgba(241, 237, 228, 0.72);
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
 }
 
 .footer-links a:hover {
-  transform: translateY(-1px);
-  border-color: var(--paper);
+  border-color: rgba(241, 237, 228, 0.22);
   background: var(--paper);
   color: var(--ink);
 }
@@ -1914,12 +1873,6 @@ h3 em {
 .footer-links a:focus-visible {
   outline: 2px solid var(--ember);
   outline-offset: 2px;
-}
-
-@media (max-width: 560px) {
-  .footer-copy {
-    display: none;
-  }
 }
 
 /* Detail ------------------------------------------------------------------ */
@@ -3291,18 +3244,17 @@ h3 em {
 }
 
 .panel-intro {
-  max-width: 64ch;
-  margin-bottom: 16px;
+  max-width: 68ch;
+  margin-bottom: 18px;
   color: var(--muted);
-  font-size: 0.76rem;
-  line-height: 1.65;
+  font-size: 0.84rem;
+  line-height: 1.6;
 }
 
 .studio-form {
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  background: var(--paper);
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .form-grid {
@@ -3330,29 +3282,30 @@ h3 em {
 
 .field > span {
   display: block;
-  margin-bottom: 6px;
-  font-family: var(--mono);
-  font-size: 0.49rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
+  margin-bottom: 7px;
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  font-weight: 550;
+  letter-spacing: 0.012em;
+  text-transform: none;
+  color: var(--ink-soft);
 }
 
 .field input,
 .field textarea {
   width: 100%;
   border: 1px solid var(--line-strong);
-  border-radius: 1px;
+  border-radius: 2px;
   outline: 0;
   background: var(--white);
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 0.84rem;
+  font-size: 0.86rem;
 }
 
 .field input {
-  height: 48px;
-  padding: 0 13px;
+  height: 46px;
+  padding: 0 12px;
 }
 
 .field input::placeholder,
@@ -3363,9 +3316,9 @@ h3 em {
 
 .field input[type="date"],
 .field input[type="time"] {
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.01em;
+  font-family: var(--sans);
+  font-size: 0.86rem;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -3381,11 +3334,11 @@ h3 em {
 }
 
 .field textarea {
-  min-height: 92px;
-  padding: 11px 12px;
+  min-height: 96px;
+  padding: 12px;
   font-family: var(--sans);
-  font-size: 0.82rem;
-  line-height: 1.5;
+  font-size: 0.86rem;
+  line-height: 1.55;
   resize: vertical;
 }
 
@@ -3397,15 +3350,15 @@ h3 em {
 
 .field-help {
   display: block;
-  margin-top: 6px;
+  margin-top: 7px;
   color: var(--muted);
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   line-height: 1.5;
 }
 
 .schedule-block {
-  margin-top: 18px;
-  padding-top: 18px;
+  margin-top: 22px;
+  padding-top: 20px;
   border-top: 1px solid var(--line);
 }
 
@@ -3414,21 +3367,21 @@ h3 em {
   align-items: baseline;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .schedule-head > span {
-  font-family: var(--mono);
-  font-size: 0.5rem;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
 }
 
 .schedule-head small {
-  font-family: var(--mono);
-  font-size: 0.47rem;
-  letter-spacing: 0.04em;
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  letter-spacing: 0;
   text-align: right;
   color: var(--muted);
 }
@@ -3439,24 +3392,31 @@ h3 em {
 
 .schedule-windows {
   display: grid;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 0;
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
 .schedule-window {
-  padding: 12px;
-  border: 1px solid var(--line);
-  background: var(--paper);
+  padding: 14px 0 0;
+  border: 0;
+  background: transparent;
+}
+
+.schedule-window + .schedule-window {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .schedule-window-title {
   display: block;
-  margin-bottom: 9px;
-  font-family: var(--mono);
-  font-size: 0.5rem;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+  margin-bottom: 10px;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 .schedule-window .form-grid {
@@ -3464,33 +3424,37 @@ h3 em {
 }
 
 .schedule-hint {
-  margin-top: 9px;
-  font-size: 0.59rem;
-  line-height: 1.5;
+  margin-top: 8px;
+  font-size: 0.68rem;
+  line-height: 1.55;
   color: var(--muted);
 }
 
 .schedule-caption {
-  margin-top: 9px;
-  font-family: var(--mono);
-  font-size: 0.47rem;
-  letter-spacing: 0.03em;
+  margin-top: 12px;
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  line-height: 1.55;
   color: var(--muted);
 }
 
 .schedule-caption--warn {
-  color: #b2361c;
+  padding: 8px 10px;
+  border-left: 2px solid var(--ember);
+  background: rgba(255, 77, 46, 0.08);
+  color: #8f2a15;
+  font-weight: 500;
 }
 
 
 .form-footnote {
-  max-width: 34ch;
+  max-width: 42ch;
   color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.48rem;
-  line-height: 1.5;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  line-height: 1.55;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .action-row {

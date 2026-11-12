@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { GitHubMark, Mail, XBrand } from "./icons";
 
 const SOCIAL = [
@@ -24,13 +22,7 @@ export default function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="shell footer-bar">
-        <div className="footer-id">
-          <Link href="/" className="footer-brand" aria-label="GatherBond home">
-            <span className="brand-mark">GB</span>
-            <span className="brand-word">GatherBond</span>
-          </Link>
-          <span className="footer-copy">© 2026 · Testnet</span>
-        </div>
+        <span className="footer-copy">© 2026 · Testnet</span>
 
         <div className="footer-links">
           {SOCIAL.map(({ href, label, Icon }) => (

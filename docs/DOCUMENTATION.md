@@ -326,8 +326,9 @@ The ticket card renders the one-time `GB1.` code as a QR with a downloadable PNG
 
 - **Palette:** bone/paper surfaces, ink text, ember orange, cobalt blue, marigold and green accents.
 - **Type:** Instrument Sans (UI) and Instrument Serif (display), self-hosted with OFL licenses.
-- **Layout:** sharp editorial grid, compact 68px header, and a single 76px footer bar with
-  the wordmark, copyright and icon-only X, email and GitHub links (no repeated navigation).
+- **Layout:** sharp editorial grid, compact 68px header, and a single 56px footer strip
+  holding only the copyright and exactly three icon-only links — X, email and GitHub — with
+  accessible names. No wordmark, section list or navigation is repeated from the header.
 - **Motion:** hero entry, ticker, floating pass card and hover lifts. No JS scroll-reveal layer and no animation that hides content; `prefers-reduced-motion` collapses every animation to its final state.
 - **CSS order:** `globals.css` → `flow.css` → `nocturne.css`. Legacy styles remain as a compatibility layer; Nocturne loads last and owns the final look.
 

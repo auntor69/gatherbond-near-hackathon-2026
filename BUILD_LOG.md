@@ -1739,3 +1739,46 @@ frontend tests            39 passed
 metadata/auth/HTTP tests  94 passed
 frontend build            npm run build --prefix frontend (exit 0)
 ```
+
+## 2026-11-12 — Slim footer and modern schedule surfaces
+
+**Footer.** The 76 px bar (wordmark + duplicate home link + copyright + icons) is replaced by a
+56 px strip containing only the copyright and exactly three icon links. No header section is
+repeated, and there is no footer navigation.
+
+| link | href | accessible name | size |
+| --- | --- | --- | --- |
+| X | `https://x.com/GatherBondApp` | `GatherBond on X` | 40 × 40 |
+| Email | `mailto:gatherbond.app@gmail.com` | `Email GatherBond` | 40 × 40 |
+| GitHub | `https://github.com/auntor69/gatherbond-near-hackathon-2026` | `GatherBond on GitHub` | 40 × 40 |
+
+Rendered on `/` and `/studio` at 390, 768 and 1440 px: height **56 px**, **0** `<nav>`
+elements, exactly **3** links, zero href overlap with the four header links, no horizontal
+overflow. Icons render as the X glyph, envelope and GitHub mark, with `title` matching the
+accessible name; external links open with `rel="noreferrer"`.
+
+**Schedule UI.** The dated patterns are gone: no nested bordered window cards, no
+uppercase/typewriter field labels, no micro summary, and no beige calendar panel. The
+schedule is now one flat sequence:
+
+- field labels sentence-case Instrument Sans at 10.88 px, inputs 46 px high;
+- date and time values in sans with tabular figures instead of monospace;
+- group titles at 13.1 px (Registration closes / Check-in) with 10.88 px hints;
+- the confirmation summary at 11.52 px in sans, and an inline tinted warning block
+  (2 px ember rule) for rejected orderings;
+- the form's inner border/background removed so it no longer nests a box inside the panel;
+- the action footnote and panel introduction rewritten in sentence case product language.
+
+Live exercise at 390 px: with start `14:30`, typing registration close `15:00` replaced the
+summary with **“Registration must close no later than the event start.”**
+(`schedule-caption--warn`, 2 px ember border, tinted background). Widths after the restyle:
+
+| viewport | event fields | grouped window fields | overflow |
+| --- | --- | --- | --- |
+| 390 | 299 px | 299 px (single column) | none |
+| 768 | 218 px | 333 px (two columns) | none |
+| 1440 | 316 px | 479 px (two columns) | none |
+
+**Verification.** `scripts/verify-local.sh` → ALL LOCAL CHECKS PASSED (50 contract, 39
+frontend, 94 metadata/auth/HTTP); `npm run build --prefix frontend` → exit 0.
+`docs/DOCUMENTATION.md` now states the 56 px footer and its exact three links.

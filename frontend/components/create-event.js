@@ -269,8 +269,8 @@ export default function CreateEvent({ onCreated }) {
       </div>
 
       <p className="panel-intro">
-        Submits <code>create_event</code>, stores the canonical metadata and publishes it. The
-        storage contribution is non-refundable; attendee deposits stay in escrow.
+        Set the event, when registration closes, and when check-in opens. One wallet approval
+        publishes it on-chain; attendee deposits stay in escrow.
       </p>
 
       {configError ? (
