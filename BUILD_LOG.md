@@ -1776,9 +1776,15 @@ summary with **“Registration must close no later than the event start.”**
 | viewport | event fields | grouped window fields | overflow |
 | --- | --- | --- | --- |
 | 390 | 299 px | 299 px (single column) | none |
-| 768 | 218 px | 333 px (two columns) | none |
-| 1440 | 316 px | 479 px (two columns) | none |
+| 768 | 211 px | 322 px (two columns) | none |
+| 1440 | 253 px | 386 px (two columns) | none |
 
 **Verification.** `scripts/verify-local.sh` → ALL LOCAL CHECKS PASSED (50 contract, 39
 frontend, 94 metadata/auth/HTTP); `npm run build --prefix frontend` → exit 0.
 `docs/DOCUMENTATION.md` now states the 56 px footer and its exact three links.
+
+**Production.** Deployed from `60053a9` and driven at `https://gatherbond.vercel.app/studio`:
+footer 56 px with exactly three 40 × 40 links and zero overlap with header hrefs; seven
+schedule inputs (2 date, 5 time) at 299 px on 390; zero horizontal overflow at 390, 768 and
+1440; and typing registration close `15:00` against start `14:30` produced the live warning
+“Registration must close no later than the event start.”
