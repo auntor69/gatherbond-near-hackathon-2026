@@ -95,6 +95,9 @@ export default function RoomProof({ eventId }) {
     [state],
   );
 
+  const failed = summary?.state === "failed";
+  const settled = summary?.state === "finalized" || failed;
+
   const refreshProof = useCallback(() => setRefresh((value) => value + 1), []);
 
   async function copyRecap() {
@@ -183,26 +186,28 @@ export default function RoomProof({ eventId }) {
             <ProofStat label="Checked in" value={state.event.checkedIn ?? "—"} />
             <ProofStat
               label="No-shows"
-              value={summary.state === "finalized" ? summary.flakes : "—"}
+              value={settled ? summary.flakes : "—"}
               detail={
-                summary.state === "finalized"
-                  ? null
+                settled
+                  ? failed
+                    ? "Full refunds"
+                    : null
                   : summary.state === "cancelled"
                     ? "No pool"
-                    : "At finalization"
+                    : "After settlement"
               }
             />
             <ProofStat
               label="Show-up rate"
               value={
-                summary.state === "finalized" && summary.registered > 0
+                settled && summary.registered > 0
                   ? formatShowUpRate(summary.showUpRate)
                   : "—"
               }
               detail={
                 summary.state === "open"
-                  ? "At finalization"
-                  : summary.state === "finalized" && summary.registered === 0
+                  ? "After settlement"
+                  : settled && summary.registered === 0
                     ? "No reservations"
                     : null
               }
@@ -211,38 +216,45 @@ export default function RoomProof({ eventId }) {
             <ProofStat
               label={
                 summary.state === "finalized"
-                  ? "Pool"
+                  ? "No-show pool"
                   : summary.state === "open"
                     ? "Projected pool"
                     : "No-show pool"
               }
               value={
-                summary.state === "finalized"
+                settled
                   ? formatNearAmount(summary.pool)
                   : summary.state === "open"
                     ? formatNearAmount(summary.projectedPool)
                     : formatNearAmount(0n)
               }
               detail={
-                summary.state === "finalized"
-                  ? "Actual settlement"
-                  : summary.state === "open"
-                    ? "20% no-show illustration"
-                    : "Not distributed"
+                failed
+                  ? "Not distributed"
+                  : summary.state === "finalized"
+                    ? "Actual settlement"
+                    : summary.state === "open"
+                      ? "20% no-show illustration"
+                      : "Not distributed"
               }
             />
           </div>
 
-          {summary.state === "finalized" ? (
+          {failed ? (
             <p className="room-proof-note">
               <Check size={15} />
               {summary.registered === 0
-                ? "Finalized: no reservations existed, so there is no pool and no settlement to distribute."
-                : summary.checkedIn === 0
-                  ? "Finalized: no one checked in, so the event failed the 20% floor and every reservation is refundable in full."
-                  : summary.flakes === 0
-                    ? "Actual: everyone who reserved showed up. There was no flake pool; every deposit was returned in full."
-                    : `Actual: ${summary.checkedIn} showed up, ${summary.flakes} flaked, and each attendee got ${formatNearAmount(summary.rewardPerAttendee)} extra. The organizer took no cut.`}
+                ? "Settled: no reservations existed, so there is no pool and no settlement to distribute."
+                : `${summary.checkedIn} of ${summary.registered} checked in. Below the 20% floor, every reservation is refundable in full. No pool was distributed and no reward was paid.`}
+            </p>
+          ) : summary.state === "finalized" ? (
+            <p className="room-proof-note">
+              <Check size={15} />
+              {summary.registered === 0
+                ? "Settled: no reservations existed, so there is no pool and no settlement to distribute."
+                : summary.flakes === 0
+                  ? "Actual: everyone who reserved showed up. There was no no-show pool; every deposit was returned in full."
+                  : `Actual: ${summary.checkedIn} showed up, ${summary.flakes} flaked, and each attendee got ${formatNearAmount(summary.rewardPerAttendee)} extra. The organizer took no cut.`}
             </p>
           ) : summary.state === "cancelled" ? (
             <p className="room-proof-note">
@@ -255,13 +267,13 @@ export default function RoomProof({ eventId }) {
             <p className="room-proof-note">
               <ShieldCheck size={15} />
               Open event: the pool is a labelled projection. The contract uses the real check-in
-              count at finalization.
+              count when settlement runs.
             </p>
           ) : (
             <p className="room-proof-note">
               <ShieldCheck size={15} />
               No pool yet: the room needs at least two reservations before a no-show pool can
-              exist. The contract uses the real check-in count at finalization.
+              exist. The contract uses the real check-in count when settlement runs.
             </p>
           )}
 
