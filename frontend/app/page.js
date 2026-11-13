@@ -14,6 +14,10 @@ const TICKER = [
   "NEAR TESTNET",
 ];
 
+// One copy is narrower than a desktop viewport. The track needs at least eight
+// copies per half so the loop always covers the screen at the -50% hand-off.
+const TICKER_COPIES = 16;
+
 export const revalidate = 60;
 
 export const metadata = {
@@ -110,7 +114,7 @@ export default async function HomePage() {
 
       <div className="ticker" aria-hidden="true">
         <div className="ticker-track">
-          {[0, 1].map((group) => (
+          {Array.from({ length: TICKER_COPIES }, (_, group) => (
             <div className="ticker-group" key={group}>
               {TICKER.map((item) => (
                 <span key={`${group}-${item}`}>

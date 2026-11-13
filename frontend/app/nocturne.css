@@ -999,7 +999,8 @@ h3 em {
 .ticker-track {
   display: flex;
   width: max-content;
-  animation: ticker 34s linear infinite;
+  /* Eight copies per half: the shift stays wider than a desktop viewport. */
+  animation: ticker 272s linear infinite;
 }
 
 .ticker-group {
