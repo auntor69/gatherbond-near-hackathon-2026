@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ArrowUpRight, Check, Ticket, Wallet } from "./icons";
 import { formatDate, shortHash } from "../lib/events";
@@ -35,8 +35,18 @@ export default function Studio() {
   const [draft, setDraft] = useState(null);
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(null);
+  const requestSequence = useRef(0);
 
   const cleanId = eventId.trim();
+
+  function changeEventId(next) {
+    requestSequence.current += 1;
+    setEventId(next);
+    setPublication(null);
+    setDraft(null);
+    setNotice(null);
+    setBusy(null);
+  }
 
   function requireId() {
     if (!cleanId) {
@@ -51,19 +61,23 @@ export default function Studio() {
     if (!requireId()) {
       return;
     }
+    const id = cleanId;
+    const sequence = ++requestSequence.current;
     setBusy("load");
     setNotice(null);
+    setPublication(null);
     setDraft(null);
     try {
-      const response = await fetch(`/api/events/${encodeURIComponent(cleanId)}/publication`, {
+      const response = await fetch(`/api/events/${encodeURIComponent(id)}/publication`, {
         cache: "no-store",
       });
       const body = await response.json().catch(() => ({}));
+      if (sequence !== requestSequence.current) return;
       if (response.ok) {
         setPublication({ state: "published", body });
         setNotice({
           tone: "success",
-          text: `Loaded the public snapshot for event ${cleanId} (version ${body.version}).`,
+          text: `Loaded the public snapshot for event ${id} (version ${body.version}).`,
         });
       } else if (response.status === 404) {
         setPublication({ state: "missing", status: 404 });
@@ -82,10 +96,11 @@ export default function Studio() {
         });
       }
     } catch {
+      if (sequence !== requestSequence.current) return;
       setPublication({ state: "error", error: "network_error" });
       setNotice({ tone: "error", text: "The request failed before reaching the server." });
     } finally {
-      setBusy(null);
+      if (sequence === requestSequence.current) setBusy(null);
     }
   }
 
@@ -93,13 +108,17 @@ export default function Studio() {
     if (!requireId()) {
       return;
     }
+    const id = cleanId;
+    const sequence = ++requestSequence.current;
     setBusy("verify");
     setNotice(null);
+    setDraft(null);
     try {
-      const response = await fetch(`/api/events/${encodeURIComponent(cleanId)}/metadata`, {
+      const response = await fetch(`/api/events/${encodeURIComponent(id)}/metadata`, {
         cache: "no-store",
       });
       const body = await response.json().catch(() => ({}));
+      if (sequence !== requestSequence.current) return;
       if (response.ok && body.verified) {
         setDraft({ state: "verified", body });
         setNotice({
@@ -117,10 +136,11 @@ export default function Studio() {
         });
       }
     } catch {
+      if (sequence !== requestSequence.current) return;
       setDraft({ state: "error", error: "network_error" });
       setNotice({ tone: "error", text: "The verification request failed." });
     } finally {
-      setBusy(null);
+      if (sequence === requestSequence.current) setBusy(null);
     }
   }
 
@@ -128,13 +148,16 @@ export default function Studio() {
     if (!requireId()) {
       return;
     }
+    const id = cleanId;
+    const sequence = ++requestSequence.current;
     setBusy("publish");
     setNotice(null);
     try {
-      const response = await fetch(`/api/events/${encodeURIComponent(cleanId)}/publication`, {
+      const response = await fetch(`/api/events/${encodeURIComponent(id)}/publication`, {
         method: "POST",
       });
       const body = await response.json().catch(() => ({}));
+      if (sequence !== requestSequence.current) return;
       if (response.ok) {
         setPublication({ state: "published", body });
         setNotice({
@@ -156,9 +179,10 @@ export default function Studio() {
         });
       }
     } catch {
+      if (sequence !== requestSequence.current) return;
       setNotice({ tone: "error", text: "The publish request failed before reaching the server." });
     } finally {
-      setBusy(null);
+      if (sequence === requestSequence.current) setBusy(null);
     }
   }
 
@@ -210,7 +234,7 @@ export default function Studio() {
           <div role="tabpanel" aria-label="Create">
             <CreateEvent
               onCreated={(id) => {
-                setEventId(String(id));
+                changeEventId(String(id));
               }}
             />
           </div>
@@ -264,7 +288,7 @@ export default function Studio() {
                   <span>On-chain event ID</span>
                   <input
                     value={eventId}
-                    onChange={(event) => setEventId(event.target.value)}
+                    onChange={(event) => changeEventId(event.target.value)}
                     inputMode="numeric"
                     autoComplete="off"
                     placeholder="0"
@@ -300,7 +324,9 @@ export default function Studio() {
                       Published v{publication.body.version}
                     </span>
                     <Link
-                      href={`/events/${encodeURIComponent(cleanId)}`}
+                      href={`/events/${encodeURIComponent(
+                        publication.body.event?.event_id ?? cleanId,
+                      )}`}
                       className="result-link"
                     >
                       Open public page

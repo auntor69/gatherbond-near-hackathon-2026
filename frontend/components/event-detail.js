@@ -26,8 +26,8 @@ import {
   mapDetail,
   shortAccount,
   shortHash,
-  statusLabel,
 } from "../lib/events";
+import { eventLifecycle } from "../lib/eventState";
 
 const ERROR_COPY = {
   metadata_hash_mismatch:
@@ -74,6 +74,7 @@ function VerifiedNote({ event }) {
 export default function EventDetail({ id }) {
   const [state, setState] = useState({ status: "loading", event: null });
   const [shareLabel, setShareLabel] = useState("Share event");
+  const [reloadKey, setReloadKey] = useState(0);
   const wallet = useWallet();
 
   useEffect(() => {
@@ -114,7 +115,7 @@ export default function EventDetail({ id }) {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   if (state.status === "loading") {
     return (
@@ -165,6 +166,13 @@ export default function EventDetail({ id }) {
   }
 
   const event = state.event;
+  const lifecycle = eventLifecycle(event);
+  const closed = lifecycle.closed;
+  const displayStatus = lifecycle.displayStatus;
+  const localZone =
+    typeof Intl === "undefined"
+      ? "your local timezone"
+      : Intl.DateTimeFormat().resolvedOptions().timeZone || "your local timezone";
   const shareUrl = typeof window === "undefined" ? "" : window.location.href;
   const explorerBase =
     event.network === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";
@@ -218,6 +226,28 @@ export default function EventDetail({ id }) {
     event.capacity === null || event.capacity === undefined
       ? "From contract"
       : `${event.registered ?? 0} / ${event.capacity}`;
+  const eventLede = lifecycle.cancelled
+    ? "This room was cancelled. Every reservation can claim its full deposit back; no no-show pool is distributed."
+    : lifecycle.finalized
+      ? lifecycle.refundsEveryone
+        ? "The room settled below the 20% floor. Every reservation can claim a full refund; no pool was distributed."
+        : "The room is settled. Checked-in attendees can claim their deposit and their share of the no-show pool."
+      : lifecycle.failedStatus
+        ? "This room failed below the 20% floor. Every reservation can claim a full refund; no pool is distributed."
+        : lifecycle.settlementPending
+          ? event.registered === 0
+            ? "The room ended without reservations. There is no deposit, no pool and nothing to settle."
+            : "This room has ended. Settlement starts with the first attendee claim — there is no finalize button."
+          : `A ${String(event.category ?? "Community").toLowerCase()} room at ${event.venue}. One agreement: show up, get your bond back.`;
+  const settlementStep = lifecycle.cancelled
+    ? "Every reservation can claim its full deposit back. No pool is distributed."
+    : lifecycle.refundsEveryone
+      ? "Claim your full deposit back. The first claim settles the event; no pool is distributed."
+      : lifecycle.settlementPending
+        ? "Claim your deposit and share. The first claim settles the event automatically."
+        : lifecycle.finalized
+          ? "Claim your deposit plus your fixed share of the no-show pool."
+          : "Claim your deposit plus a share of the no-show pool.";
 
   return (
     <main className="detail-page">
@@ -232,10 +262,7 @@ export default function EventDetail({ id }) {
             <div className="detail-heading">
               <p className="eyebrow">Event passport / NEAR Testnet</p>
               <h1 className="detail-title">{event.title}</h1>
-              <p className="detail-lede">
-                A {String(event.category ?? "Community").toLowerCase()} room at {event.venue}.
-                One agreement: show up, get your bond back.
-              </p>
+              <p className="detail-lede">{eventLede}</p>
               <div className="detail-meta">
                 <span>
                   <Calendar size={16} />
@@ -249,7 +276,7 @@ export default function EventDetail({ id }) {
             </div>
 
             <div className="detail-actions">
-              {event.startAt ? (
+              {event.startAt && !closed ? (
                 <button type="button" className="button button-dark" onClick={downloadCalendar}>
                   <Calendar size={16} />
                   Add to calendar
@@ -259,7 +286,7 @@ export default function EventDetail({ id }) {
                 <Copy size={16} />
                 {shareLabel}
               </button>
-              {event.status !== "Open" ? (
+              {closed ? (
                 <Link
                   href={`/events/${encodeURIComponent(event.id)}/recap`}
                   className="button button-ghost"
@@ -284,7 +311,11 @@ export default function EventDetail({ id }) {
       <div className="shell detail-layout">
         <article className="detail-main">
           <VerifiedNote event={event} />
-          <ReservePanel event={event} />
+          <ReservePanel
+            event={event}
+            onReserved={() => setReloadKey((value) => value + 1)}
+            onChanged={() => setReloadKey((value) => value + 1)}
+          />
           <FlakeFund event={event} />
 
           <div className="detail-facts">
@@ -303,8 +334,8 @@ export default function EventDetail({ id }) {
           </div>
 
           <section className="prose-block">
-            <p className="eyebrow">The invitation</p>
-            <h2>What you are saying yes to.</h2>
+            <p className="eyebrow">{closed ? "The record" : "The invitation"}</p>
+            <h2>{closed ? "What this room agreed to." : "What you are saying yes to."}</h2>
             <p>{event.description || "The organizer has not added a description yet."}</p>
             {event.tags?.length ? (
               <div className="tag-row">
@@ -320,8 +351,12 @@ export default function EventDetail({ id }) {
           <section className="commitment-explainer" id="commitment">
             <div className="commitment-head">
               <p className="eyebrow">The bond</p>
-              <h2>Three moments. One honest agreement.</h2>
-              <p>A deposit makes the yes real. Do the thing you said you would do, and the deposit comes back.</p>
+              <h2>{closed ? "How the bond worked." : "Three moments. One honest agreement."}</h2>
+              <p>
+                {closed
+                  ? "The deposit made the yes real. The contract holds the record; claims are open when settlement is available."
+                  : "A deposit makes the yes real. Do the thing you said you would do, and the deposit comes back."}
+              </p>
             </div>
             <div className="bond-steps">
               <div className="bond-step">
@@ -337,7 +372,7 @@ export default function EventDetail({ id }) {
               <div className="bond-step">
                 <span>03</span>
                 <h3>Settle</h3>
-                <p>Claim your deposit plus a share of the no-show pool.</p>
+                <p>{settlementStep}</p>
               </div>
             </div>
 
@@ -374,7 +409,7 @@ export default function EventDetail({ id }) {
                 </div>
                 <div>
                   <span>Status</span>
-                  <strong>{statusLabel(event.status)}</strong>
+                  <strong>{displayStatus}</strong>
                 </div>
                 <div>
                   <span>Starts</span>
@@ -388,12 +423,26 @@ export default function EventDetail({ id }) {
                   <span>Registration closes</span>
                   <strong>{formatDate(event.registrationDeadline) ?? "—"}</strong>
                 </div>
+                <div>
+                  <span>Check-in opens</span>
+                  <strong>{formatDate(event.checkinOpen) ?? "—"}</strong>
+                </div>
+                <div>
+                  <span>Check-in closes</span>
+                  <strong>{formatDate(event.checkinClose) ?? "—"}</strong>
+                </div>
               </div>
             ) : (
               <p className="terms-empty">
                 The contract did not return terms for this event. Nothing is being guessed.
               </p>
             )}
+            {event.onchain ? (
+              <p className="terms-empty">
+                Times above are UTC. Your device timezone is {localZone}; the calendar download
+                follows your local calendar.
+              </p>
+            ) : null}
           </section>
 
           <section className="integrity-panel">
@@ -433,7 +482,7 @@ export default function EventDetail({ id }) {
               <Ticket size={16} />
               Event passport
             </span>
-            <span className="status-badge">{statusLabel(event.status)}</span>
+            <span className="status-badge">{displayStatus}</span>
           </div>
 
           <div className="passport-body">
@@ -504,7 +553,7 @@ export default function EventDetail({ id }) {
                   {wallet.busy === "connect" ? "Waiting for wallet…" : "Connect wallet"}
                 </button>
               ) : null}
-              {event.startAt ? (
+              {event.startAt && !closed ? (
                 <button type="button" className="button button-dark button-full" onClick={downloadCalendar}>
                   <Calendar size={16} />
                   Add to calendar

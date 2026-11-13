@@ -38,6 +38,42 @@ export function formatNearAmount(yocto) {
   }
 }
 
+export function normalizeEventId(value) {
+  const raw =
+    value !== null && typeof value === "object"
+      ? value.event_id ?? value.value
+      : value;
+  const text = String(raw ?? "").replace(/^"|"$/g, "").trim();
+  // Canonical decimal matters: the metadata key and on-chain event id must be the
+  // same string, so a wallet returning "07" cannot address event "7".
+  return /^\d+$/.test(text) ? BigInt(text).toString() : null;
+}
+
+/**
+ * Resolve the id returned by create_event without guessing when a wallet omits it. The
+ * event count must have advanced by exactly one; a concurrent create makes the id
+ * ambiguous and the safe outcome is to stop rather than save metadata to the wrong event.
+ */
+export function resolveCreatedEventId(returnValue, countBefore, countAfter) {
+  const direct = normalizeEventId(returnValue);
+  if (direct) {
+    return direct;
+  }
+  const before = normalizeEventId(countBefore);
+  const after = normalizeEventId(countAfter);
+  if (!before || !after) {
+    throw new Error(
+      "The event was sent, but its id could not be confirmed. Open the studio and retry the metadata save.",
+    );
+  }
+  if (BigInt(after) !== BigInt(before) + 1n) {
+    throw new Error(
+      "The event was sent, but another event was created at the same time. Its id cannot be guessed safely; open the studio and complete the metadata save manually.",
+    );
+  }
+  return before;
+}
+
 export function toNanoseconds(value) {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) {

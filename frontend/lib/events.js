@@ -120,6 +120,7 @@ export function shortAccount(value, head = 8, tail = 5) {
 
 export function mapListing(item) {
   const metadata = item?.metadata ?? {};
+  const onchain = item?.onchain ?? null;
   return {
     id: String(item?.event?.event_id ?? ""),
     title: metadata.title ?? "Untitled event",
@@ -128,19 +129,24 @@ export function mapListing(item) {
     venue: metadata.venue ?? "Venue to be announced",
     organizer: metadata.organizer_account_id ?? "Organizer",
     tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+    imageUrl: metadata.image_url ?? "",
     publishedAt: item?.published_at ?? null,
     version: item?.publication_version ?? 0,
     hash: item?.metadata_sha256 ?? null,
     createTxHash: item?.create_tx_hash ?? null,
     network: item?.event?.network_id ?? "testnet",
     contractId: item?.event?.contract_id ?? null,
-    startAt: null,
-    endAt: null,
-    deposit: null,
-    capacity: null,
-    registered: null,
-    status: "Published",
-    onchain: null,
+    startAt: nanosecondsToIso(onchain?.start_at),
+    endAt: nanosecondsToIso(onchain?.end_at),
+    registrationDeadline: nanosecondsToIso(onchain?.registration_deadline),
+    checkinOpen: nanosecondsToIso(onchain?.checkin_open),
+    checkinClose: nanosecondsToIso(onchain?.checkin_close),
+    deposit: onchain?.deposit ?? null,
+    capacity: onchain?.capacity ?? null,
+    registered: onchain?.registered ?? null,
+    checkedIn: onchain?.checked_in ?? null,
+    status: onchain?.status ?? "Published",
+    onchain,
     accent: accentForCategory(metadata.category ?? ""),
   };
 }
@@ -159,20 +165,9 @@ export function mapDetail(body) {
     publishedBy: body?.published_by ?? null,
     hash: body?.metadata_sha256 ?? null,
     createTxHash: body?.create_tx_hash ?? null,
-    startAt: nanosecondsToIso(onchain?.start_at),
-    endAt: nanosecondsToIso(onchain?.end_at),
-    registrationDeadline: nanosecondsToIso(onchain?.registration_deadline),
-    checkinOpen: nanosecondsToIso(onchain?.checkin_open),
-    checkinClose: nanosecondsToIso(onchain?.checkin_close),
-    deposit: onchain?.deposit ?? null,
-    capacity: onchain?.capacity ?? null,
-    registered: onchain?.registered ?? null,
-    checkedIn: onchain?.checked_in ?? null,
     rewardPerAttendee: onchain?.reward_per_attendee ?? null,
     rewardPool: onchain?.reward_pool ?? null,
     refundPool: onchain?.refund_pool ?? null,
-    status: onchain?.status ?? "Published",
-    onchain,
   };
 }
 

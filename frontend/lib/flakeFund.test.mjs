@@ -110,6 +110,52 @@ test("cancelled event refunds every registered deposit and has no pool", () => {
   assert.equal(summary.rewardPerAttendee, 0n);
 });
 
+test("an ended open event below the floor exposes full refunds, not a projection", () => {
+  const summary = flakeFundSummary({
+    deposit: NEAR,
+    registered: 6,
+    checkedIn: 1,
+    status: "Open",
+    ended: true,
+  });
+  assert.equal(summary.state, "ended");
+  assert.equal(summary.refundsEveryone, true);
+  assert.equal(summary.totalRefund, 6n * NEAR);
+  assert.equal(summary.totalReturned, 6n * NEAR);
+  assert.equal(summary.pool, 0n);
+  assert.equal(summary.projectedPool, 0n);
+});
+
+test("an ended open event above the floor waits for the first claim", () => {
+  const summary = flakeFundSummary({
+    deposit: NEAR,
+    registered: 5,
+    checkedIn: 1,
+    status: "Open",
+    ended: true,
+  });
+  assert.equal(summary.state, "ended");
+  assert.equal(summary.refundsEveryone, false);
+  assert.equal(summary.totalRefund, 0n);
+  assert.equal(summary.pool, 0n);
+  assert.equal(summary.rewardPerAttendee, 0n);
+  assert.equal(summary.projectedPool, 0n);
+});
+
+test("an ended open event with no reservations is still closed, not an open projection", () => {
+  const summary = flakeFundSummary({
+    deposit: NEAR,
+    registered: 0,
+    checkedIn: 0,
+    status: "Open",
+    ended: true,
+  });
+  assert.equal(summary.state, "ended");
+  assert.equal(summary.refundsEveryone, false);
+  assert.equal(summary.totalRefund, 0n);
+  assert.equal(summary.projectedPool, 0n);
+});
+
 test("open event projection is labelled and uses the requested no-show rate", () => {
   const summary = flakeFundSummary({
     deposit: NEAR,

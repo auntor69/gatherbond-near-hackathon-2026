@@ -1,4 +1,5 @@
 import { formatNearAmount } from "../lib/contract";
+import { eventEnded } from "../lib/eventState";
 import {
   flakeFundSummary,
   formatShowUpRate,
@@ -21,6 +22,7 @@ export default function FlakeFund({ event, variant = "detail" }) {
     registered: event.registered,
     checkedIn: event.checkedIn,
     status: event.status,
+    ended: eventEnded(event),
   });
   const recap = variant === "recap";
   const depositLabel = formatNearAmount(summary.deposit);
@@ -121,6 +123,66 @@ export default function FlakeFund({ event, variant = "detail" }) {
           <Stat label="Refund each" value={depositLabel} />
           <Stat label="No-show pool" value={formatNearAmount(0n)} detail="Not distributed" />
         </div>
+      </section>
+    );
+  }
+
+  if (summary.state === "ended") {
+    const noReservations = summary.registered === 0;
+    const allShowed = !noReservations && summary.checkedIn === summary.registered;
+    const refunds = summary.refundsEveryone;
+    return (
+      <section className={`flake-fund${recap ? " flake-fund--recap" : ""}`} id="flake-fund">
+        <div className="flake-fund-head">
+          <div>
+            <p className="eyebrow">No-show pool</p>
+            <h2>
+              {noReservations
+                ? "No one reserved."
+                : allShowed
+                  ? "The room showed up."
+                  : "The event has ended."}
+            </h2>
+          </div>
+          <span
+            className={`flake-fund-badge${refunds ? " flake-fund-badge--cancelled" : ""}`}
+          >
+            <ShieldCheck size={13} />
+            {noReservations ? "Nothing to claim" : refunds ? "Full refunds" : "Settlement pending"}
+          </span>
+        </div>
+
+        <div className="flake-fund-hero">
+          <div>
+            <span>{refunds ? "Refund per attendee" : "Settlement"}</span>
+            <strong>{refunds ? depositLabel : "Pending"}</strong>
+          </div>
+          <p>
+            {noReservations
+              ? "The event ended without reservations. There are no deposits, no pool and nothing to claim. The UI treats this room as closed without a finalize transaction."
+              : refunds
+                ? `${summary.checkedIn} of ${summary.registered} reserved seats checked in. Below the 20% floor, every reservation can claim its full deposit back. No pool is distributed. The first claim settles the event.`
+                : `${summary.checkedIn} of ${summary.registered} showed up. Settlement starts with the first attendee claim; the contract fixes the final reward then. No amount is projected here.`}
+          </p>
+        </div>
+
+        <div className="flake-fund-grid">
+          <Stat label="Registered" value={summary.registered} />
+          <Stat label="Checked in" value={summary.checkedIn} />
+          <Stat label="No-shows" value={summary.flakes} />
+          <Stat
+            label="No-show pool"
+            value={noReservations ? formatNearAmount(0n) : "—"}
+            detail={refunds ? "Not distributed" : "Not settled yet"}
+          />
+        </div>
+
+        <p className="flake-fund-note">
+          <ShieldCheck size={15} />
+          {noReservations
+            ? "No one is owed anything, so no on-chain finalize step is needed."
+            : "There is no finalize button. A checked-in attendee — or any reservation when turnout is below 20% — triggers the automatic settlement by claiming."}
+        </p>
       </section>
     );
   }

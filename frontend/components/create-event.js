@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ArrowUpRight, Check, Spark } from "./icons";
 import { useWallet } from "./wallet-provider";
 import { hashMetadata } from "../../server/metadata/canonical.mjs";
 import { sendContractCall } from "../lib/nearWallet";
+import { createSingleFlight } from "../lib/singleFlight";
 import {
   contractError,
   defaultScheduleForm,
+  normalizeEventId,
   parseNear,
+  resolveCreatedEventId,
   scheduleError,
   scheduleFromForm,
   toNanoseconds,
@@ -108,6 +111,7 @@ export default function CreateEvent({ onCreated }) {
   const [error, setError] = useState(null);
   const [created, setCreated] = useState(null);
   const [adjustTiming, setAdjustTiming] = useState(false);
+  const submitGuard = useRef(createSingleFlight());
 
   useEffect(() => {
     setForm(freshForm());
@@ -157,6 +161,7 @@ export default function CreateEvent({ onCreated }) {
       setError(`${invalidSchedule} Nothing was sent.`);
       return;
     }
+    if (!submitGuard.current.begin()) return;
 
     setBusy(true);
     try {
@@ -178,6 +183,17 @@ export default function CreateEvent({ onCreated }) {
       };
       const hashed = await hashMetadata(metadata);
 
+      // Capture the monotonic count before the transaction. It is only used when a wallet
+      // omits the create_event return value; a delta of anything other than one is unsafe.
+      let countBefore = null;
+      try {
+        const countResponse = await fetch("/api/contract/event-count", { cache: "no-store" });
+        const countBody = await countResponse.json().catch(() => ({}));
+        if (countResponse.ok) countBefore = countBody.count ?? null;
+      } catch {
+        countBefore = null;
+      }
+
       const args = {
         deposit: parseNear(form.deposit),
         capacity: Number(form.capacity),
@@ -198,20 +214,16 @@ export default function CreateEvent({ onCreated }) {
         expectedAccount: wallet.accountId,
       });
 
-      let eventId = call.value;
-      if (eventId === null || eventId === undefined || eventId === "") {
-        // Wallets are not required to expose the return value. The contract's event
-        // count is monotonic, so the newest id is the one just created.
+      let eventId = normalizeEventId(call.value);
+      if (!eventId) {
+        // Wallets are not required to expose the return value. Use the before/after count
+        // only when exactly one event was created; otherwise do not guess another id.
         const countResponse = await fetch("/api/contract/event-count", { cache: "no-store" });
         const countBody = await countResponse.json().catch(() => ({}));
-        if (!countResponse.ok || !/^\d+$/.test(String(countBody.count))) {
+        if (!countResponse.ok) {
           throw new Error("The event was sent, but its id could not be read. Open the studio and retry the metadata save.");
         }
-        eventId = String(Number(countBody.count) - 1);
-      }
-      eventId = String(eventId).replace(/^"|"$/g, "");
-      if (!/^\d+$/.test(eventId)) {
-        throw new Error("The contract returned an invalid event id.");
+        eventId = resolveCreatedEventId(call.value, countBefore, countBody.count);
       }
 
       const metadataResponse = await fetch(`/api/events/${encodeURIComponent(eventId)}/metadata`, {
@@ -242,6 +254,7 @@ export default function CreateEvent({ onCreated }) {
     } catch (caught) {
       setError(contractError(caught));
     } finally {
+      submitGuard.current.end();
       setBusy(false);
     }
   }

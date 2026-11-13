@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Check, Refresh } from "./icons";
 import { contractError } from "../lib/contract";
 import { recoverTicket } from "../lib/ticketRecovery";
+import { createSingleFlight } from "../lib/singleFlight";
 
 export default function TicketRecovery({
   config,
@@ -18,6 +19,7 @@ export default function TicketRecovery({
 }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
+  const actionGuard = useRef(createSingleFlight());
 
   async function restore() {
     if (!canRecover || busy) return;
@@ -28,6 +30,7 @@ export default function TicketRecovery({
     ) {
       return;
     }
+    if (!actionGuard.current.begin()) return;
     setBusy(true);
     setNotice(null);
     try {
@@ -40,6 +43,7 @@ export default function TicketRecovery({
     } catch (error) {
       setNotice({ tone: "error", text: contractError(error) });
     } finally {
+      actionGuard.current.end();
       setBusy(false);
     }
   }

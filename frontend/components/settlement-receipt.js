@@ -49,9 +49,20 @@ export default function SettlementReceipt({
 
   async function shareReceipt() {
     const recapUrl = `${window.location.origin}/events/${encodeURIComponent(eventId)}/recap`;
-    const text = cancelled || failed
-      ? `My deposit for ${title} was refunded on GatherBond.`
-      : `I showed up to ${title}. I got my deposit back plus ${formatNearAmount(reward)} from the no-show pool.`;
+    const refundText =
+      reservation.claim === "Claimed"
+        ? `My deposit for ${title} was refunded on GatherBond.`
+        : reservation.claim === "Pending"
+          ? `My refund for ${title} is on the way on GatherBond.`
+          : `I can claim a full refund for ${title} on GatherBond.`;
+    const text =
+      cancelled || failed
+        ? refundText
+        : reservation.claim === "Claimed"
+          ? `I showed up to ${title}. I got my deposit back plus ${formatNearAmount(reward)} from the no-show pool.`
+          : reservation.claim === "Pending"
+            ? `I showed up to ${title}. My deposit and ${formatNearAmount(reward)} share are on the way.`
+            : `I showed up to ${title}. I can claim my deposit back plus ${formatNearAmount(reward)} from the no-show pool.`;
     try {
       if (navigator.share) {
         await navigator.share({ title: `${title} — GatherBond receipt`, text, url: recapUrl });

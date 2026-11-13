@@ -6,10 +6,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import { connectNearWallet, disconnectNearWallet } from "../lib/nearWallet";
+import { createSingleFlight } from "../lib/singleFlight";
 
 const WalletContext = createContext(null);
 
@@ -76,6 +78,7 @@ export function WalletProvider({ children }) {
   });
   const [busy, setBusy] = useState(null);
   const [notice, setNotice] = useState(null);
+  const actionGuard = useRef(createSingleFlight());
 
   useEffect(() => {
     let active = true;
@@ -111,6 +114,7 @@ export function WalletProvider({ children }) {
       });
       return;
     }
+    if (!actionGuard.current.begin()) return;
 
     setBusy("connect");
     setNotice(null);
@@ -142,6 +146,7 @@ export function WalletProvider({ children }) {
     } catch (error) {
       setNotice({ tone: "error", text: copyFor(error) });
     } finally {
+      actionGuard.current.end();
       setBusy(null);
     }
   }, [busy, session.recipient]);
@@ -150,6 +155,7 @@ export function WalletProvider({ children }) {
     if (busy) {
       return;
     }
+    if (!actionGuard.current.begin()) return;
     setBusy("disconnect");
     setNotice(null);
     try {
@@ -173,6 +179,7 @@ export function WalletProvider({ children }) {
     } catch (error) {
       setNotice({ tone: "error", text: copyFor(error) });
     } finally {
+      actionGuard.current.end();
       setBusy(null);
     }
   }, [busy]);

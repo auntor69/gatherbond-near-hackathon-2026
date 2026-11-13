@@ -6,24 +6,53 @@ import { useEffect, useMemo, useState } from "react";
 import EventArt from "./event-art";
 import EventCard from "./event-card";
 import { ArrowRight, ArrowUpRight, Check, Search } from "./icons";
-import { eventWhenLabel, mapListing } from "../lib/events";
+import { eventLifecycle, eventStartsAt } from "../lib/eventState";
+import { eventWhenLabel, formatNear, mapListing } from "../lib/events";
+
+function listingOrder(left, right) {
+  const leftLifecycle = eventLifecycle(left);
+  const rightLifecycle = eventLifecycle(right);
+  const rank = (lifecycle) => {
+    if (lifecycle.closed) return 3;
+    if (lifecycle.started) return 2;
+    return 1;
+  };
+  const rankDiff = rank(leftLifecycle) - rank(rightLifecycle);
+  if (rankDiff !== 0) return rankDiff;
+  const leftStart = eventStartsAt(left) ?? 0;
+  const rightStart = eventStartsAt(right) ?? 0;
+  return leftLifecycle.closed ? rightStart - leftStart : leftStart - rightStart;
+}
 
 function FeatureEvent({ event }) {
+  const lifecycle = eventLifecycle(event);
+  const closed = lifecycle.closed;
   return (
     <Link href={`/events/${encodeURIComponent(event.id)}`} className="feature-card">
       <div className="feature-art">
         <EventArt event={event} className="feature-art-inner" />
-        <span className="feature-stamp">Next<br />up</span>
+        <span className="feature-stamp">
+          {closed ? (
+            <>Latest<br />room</>
+          ) : lifecycle.started ? (
+            <>Happening<br />now</>
+          ) : (
+            <>Next<br />up</>
+          )}
+        </span>
       </div>
       <div className="feature-body">
         <div className="feature-topline">
-          <span className="feature-label">Featured room</span>
+          <span className="feature-label">
+            Featured room{closed ? ` · ${lifecycle.displayStatus}` : ""}
+          </span>
         </div>
         <h3 className="feature-title">{event.title}</h3>
         <p className="feature-description">{event.description}</p>
         <div className="feature-meta">
           <span>{eventWhenLabel(event)}</span>
           <span>{event.venue}</span>
+          {formatNear(event.deposit) ? <span>{formatNear(event.deposit)}</span> : null}
         </div>
         <span className="feature-cta">
           Open the event
@@ -68,12 +97,17 @@ export default function Discover() {
         if (!active) {
           return;
         }
-        if (response.ok && Array.isArray(body.items) && body.items.length > 0) {
+        const skippedRows = Number(body.skipped) || 0;
+        if (
+          response.ok &&
+          Array.isArray(body.items) &&
+          (body.items.length > 0 || skippedRows > 0)
+        ) {
           setLiveEvents(body.items.map(mapListing).filter((event) => event.id));
-          setSkipped(Number(body.skipped) || 0);
+          setSkipped(skippedRows);
           setSource("live");
         } else {
-          setSource(body.error === "metadata_store_unavailable" ? "unavailable" : "empty");
+          setSource(body.error ? "unavailable" : "empty");
         }
       } catch {
         if (active) {
@@ -88,7 +122,7 @@ export default function Discover() {
     };
   }, []);
 
-  const events = liveEvents;
+  const events = useMemo(() => [...liveEvents].sort(listingOrder), [liveEvents]);
   const loading = source === "loading";
 
   const categories = useMemo(
@@ -188,8 +222,8 @@ export default function Discover() {
 
         {source === "live" && skipped > 0 ? (
           <p className="data-note">
-            {skipped} published {skipped === 1 ? "row was" : "rows were"} hidden because the
-            stored metadata no longer matches its hash.
+            {skipped} published {skipped === 1 ? "row was" : "rows were"} hidden because they
+            could not be verified against the contract.
           </p>
         ) : null}
 
@@ -206,7 +240,18 @@ export default function Discover() {
           </div>
         ) : null}
 
-        {!loading && filtered.length === 0 && source === "live" ? (
+        {!loading && filtered.length === 0 && source === "live" && events.length === 0 ? (
+          <div className="empty-state">
+            <span className="empty-state-mark">∅</span>
+            <h3>No verified rooms are available.</h3>
+            <p>
+              Every published row was hidden because it could not be verified against the
+              contract. Nothing unverified is being shown.
+            </p>
+          </div>
+        ) : null}
+
+        {!loading && filtered.length === 0 && source === "live" && events.length > 0 ? (
           <div className="empty-state">
             <span className="empty-state-mark">∅</span>
             <h3>Nothing matches those filters.</h3>

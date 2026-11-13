@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import TicketCard from "./ticket-card";
 import TicketRecovery from "./ticket-recovery";
@@ -17,6 +17,12 @@ import {
   saveTicket,
 } from "../lib/contract";
 import { ticketCommitmentHex } from "../lib/ticketCommitment.mjs";
+import {
+  eventCheckinCloseAt,
+  eventClaimState,
+  eventLifecycle,
+} from "../lib/eventState";
+import { createSingleFlight } from "../lib/singleFlight";
 
 function Notice({ notice }) {
   if (!notice) return null;
@@ -28,7 +34,7 @@ function Notice({ notice }) {
   );
 }
 
-export default function ReservePanel({ event, onReserved }) {
+export default function ReservePanel({ event, onReserved, onChanged }) {
   const wallet = useWallet();
   const [config, setConfig] = useState(null);
   const [ticket, setTicket] = useState(null);
@@ -36,9 +42,15 @@ export default function ReservePanel({ event, onReserved }) {
   const [reservationLoading, setReservationLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
+  const actionGuard = useRef(createSingleFlight());
+  const refreshTimer = useRef(null);
 
   const contractId = event.contractId ?? config?.contract_id ?? null;
   const networkId = event.network ?? config?.network_id ?? "testnet";
+  const lifecycle = eventLifecycle(event);
+  const claimState = eventClaimState(event, reservation);
+  const ended = lifecycle.ended;
+  const open = lifecycle.status === "Open" && !ended;
 
   useEffect(() => {
     let active = true;
@@ -97,19 +109,36 @@ export default function ReservePanel({ event, onReserved }) {
     );
   }, [wallet.accountId, contractId, networkId, event.id]);
 
+  useEffect(
+    () => () => {
+      if (refreshTimer.current !== null) {
+        window.clearTimeout(refreshTimer.current);
+        refreshTimer.current = null;
+      }
+    },
+    [event.id],
+  );
+
   const registrationClosed =
     event.registrationDeadline && Date.now() >= Date.parse(event.registrationDeadline);
-  const checkinClosed = event.checkinClose && Date.now() > Date.parse(event.checkinClose);
-  const full = event.capacity !== null && event.registered >= event.capacity;
-  const open = !event.status || event.status === "Open";
-  const canRecover = open && !reservation?.checked_in && !checkinClosed;
+  const checkinClose = eventCheckinCloseAt(event);
+  const checkinClosed = checkinClose !== null && Date.now() > checkinClose;
+  const full =
+    event.capacity !== null &&
+    event.capacity !== undefined &&
+    Number(event.registered) >= Number(event.capacity);
+  const canRecover = lifecycle.status === "Open" && !ended && !reservation?.checked_in && !checkinClosed;
   const recoveryNote = reservation?.checked_in
     ? "This wallet is already checked in. No ticket is needed; claim the settlement after the event ends."
-    : !open
-      ? "This event is closed. Ticket recovery is no longer available."
-      : checkinClosed
-        ? "The onchain check-in window has closed. This reservation can no longer be checked in."
-        : "The reservation is onchain and belongs to this wallet. Restore a new secret; the old QR/code stops working immediately.";
+    : lifecycle.cancelled
+      ? "This event was cancelled. Ticket recovery is no longer available; claim the refund from this wallet."
+      : ended
+        ? "The event has ended. Ticket recovery is closed; claim settlement from this wallet instead."
+        : !open
+          ? "This event is closed. Ticket recovery is no longer available."
+          : checkinClosed
+            ? "The onchain check-in window has closed. This reservation can no longer be checked in."
+            : "The reservation is onchain and belongs to this wallet. Restore a new secret; the old QR/code stops working immediately.";
   const canReserve =
     open &&
     !registrationClosed &&
@@ -120,18 +149,42 @@ export default function ReservePanel({ event, onReserved }) {
     Boolean(contractId) &&
     Boolean(event.deposit);
 
-  const finalized = event.status === "Finalized";
-  const belowFloor =
-    finalized && Number(event.checkedIn) * 5 < Number(event.registered);
-  const refundsEveryone = event.status === "Cancelled" || event.status === "Failed" || belowFloor;
-  const canClaim =
-    reservation &&
-    reservation.claim === "Unclaimed" &&
-    (refundsEveryone || (finalized && reservation.checked_in)) &&
-    wallet.phase === "signedIn" &&
-    Boolean(contractId);
+  const refundsEveryone = claimState.refundsEveryone;
+  const canClaim = claimState.canClaim && wallet.phase === "signedIn" && Boolean(contractId);
+  const claimLabel = refundsEveryone ? "Claim full refund" : "Claim settlement";
+  const reserveHeading = lifecycle.cancelled
+    ? "This room was cancelled."
+    : lifecycle.finalized
+      ? "The room is settled."
+      : lifecycle.settlementPending
+        ? "The room has ended."
+        : lifecycle.failedStatus
+          ? "This event failed."
+          : "Reserve your seat.";
+  const reserveCopy = lifecycle.cancelled
+    ? event.registered === 0
+      ? "The organizer cancelled before anyone reserved. There is no deposit to refund and no pool to distribute."
+      : "The event was cancelled. Every reservation can claim its full deposit back. No pool is distributed."
+    : lifecycle.failedStatus
+      ? "This event failed below the 20% floor. Every reservation can claim its full deposit back. No pool is distributed."
+      : lifecycle.settlementPending
+        ? event.registered === 0
+          ? "The event ended without reservations. There is no pool and nothing to claim."
+          : refundsEveryone
+            ? "The event has ended below the 20% floor. Every reservation can claim its full deposit back. The first claim settles the event automatically."
+            : "The event has ended. Checked-in attendees can claim their deposit and share. The first claim settles the event automatically."
+        : lifecycle.finalized
+          ? refundsEveryone
+            ? "The event settled below the 20% floor. Every reservation can claim its full deposit back. No pool was distributed."
+            : "The event is settled. Checked-in attendees can claim their deposit and no-show share."
+          : "";
 
   async function claimSettlement() {
+    if (!actionGuard.current.begin()) return;
+    if (refreshTimer.current !== null) {
+      window.clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+    }
     setNotice(null);
     setBusy(true);
     try {
@@ -147,12 +200,20 @@ export default function ReservePanel({ event, onReserved }) {
       setNotice({
         tone: "success",
         text: refundsEveryone
-          ? "Refund submitted. The transfer callback marks this reservation claimed."
-          : "Claim submitted. The transfer callback marks this reservation claimed.",
+          ? "Refund submitted. The first claim settles the event; the transfer callback marks this reservation claimed."
+          : "Claim submitted. The first claim settles the event; the transfer callback marks this reservation claimed.",
       });
+      if (refreshTimer.current !== null) {
+        window.clearTimeout(refreshTimer.current);
+      }
+      refreshTimer.current = window.setTimeout(() => {
+        refreshTimer.current = null;
+        onChanged?.();
+      }, 4500);
     } catch (error) {
       setNotice({ tone: "error", text: contractError(error) });
     } finally {
+      actionGuard.current.end();
       setBusy(false);
     }
   }
@@ -167,6 +228,7 @@ export default function ReservePanel({ event, onReserved }) {
       setNotice({ tone: "error", text: "The contract terms are not available, so no deposit can be sent." });
       return;
     }
+    if (!actionGuard.current.begin()) return;
 
     setBusy(true);
     try {
@@ -210,7 +272,7 @@ export default function ReservePanel({ event, onReserved }) {
       next.code = encodeTicket(next);
       saveTicket(next);
       setTicket(next);
-      setReservation({ event_id: String(event.id), checked_in: false });
+      setReservation({ event_id: String(event.id), checked_in: false, claim: "Unclaimed" });
       setNotice({
         tone: "success",
         text: `Reserved with ${formatNearAmount(event.deposit)}. Your one-time ticket is below.`,
@@ -219,6 +281,7 @@ export default function ReservePanel({ event, onReserved }) {
     } catch (error) {
       setNotice({ tone: "error", text: contractError(error) });
     } finally {
+      actionGuard.current.end();
       setBusy(false);
     }
   }
@@ -228,15 +291,28 @@ export default function ReservePanel({ event, onReserved }) {
       <section className="reserve-panel" id="reserve">
         <div className="reserve-head">
           <div>
-            <p className="eyebrow">Your reservation</p>
-            <h2>You are in the room.</h2>
+            <p className="eyebrow">{lifecycle.closed ? "Reservation record" : "Your reservation"}</p>
+            <h2>
+              {lifecycle.cancelled
+                ? "The room was cancelled."
+                : lifecycle.finalized
+                  ? "The room is settled."
+                  : lifecycle.settlementPending
+                    ? "The room has ended."
+                    : "You are in the room."}
+            </h2>
           </div>
-          <span className="status-badge status-badge--live">
+          <span className={`status-badge${lifecycle.closed ? "" : " status-badge--live"}`}>
             <Check size={13} />
             On chain
           </span>
         </div>
-        <TicketCard ticket={ticket} compact checkedIn={Boolean(reservation?.checked_in)} />
+        <TicketCard
+          ticket={ticket}
+          compact
+          checkedIn={Boolean(reservation?.checked_in)}
+          inactive={lifecycle.closed}
+        />
         {canClaim ? (
           <button
             type="button"
@@ -244,14 +320,14 @@ export default function ReservePanel({ event, onReserved }) {
             onClick={claimSettlement}
             disabled={busy}
           >
-            {busy ? "Submitting claim…" : refundsEveryone ? "Claim full refund" : "Claim settlement"}
+            {busy ? "Submitting claim…" : claimLabel}
           </button>
         ) : null}
         <Notice notice={notice} />
         <p className="reserve-footnote">
-          The QR/code is stored in this browser. It is not in the URL and the contract never stores
-          the secret itself. If this browser is lost, use My commitments to restore the ticket with
-          the same wallet.
+          {lifecycle.closed
+            ? "The door is closed. Your reservation and claim record stay on chain; no finalize step is needed."
+            : "The QR/code is stored in this browser. It is not in the URL and the contract never stores the secret itself. If this browser is lost, use My commitments to restore the ticket with the same wallet."}
         </p>
       </section>
     );
@@ -263,11 +339,17 @@ export default function ReservePanel({ event, onReserved }) {
         <div className="reserve-head">
           <div>
             <p className="eyebrow">Your reservation is onchain</p>
-            <h2>{reservation.checked_in ? "Already checked in." : "The ticket needs a restore."}</h2>
+            <h2>
+              {lifecycle.closed
+                ? "The room is closed."
+                : reservation.checked_in
+                  ? "Already checked in."
+                  : "The ticket needs a restore."}
+            </h2>
           </div>
-          <span className="status-badge status-badge--live">
+          <span className={`status-badge${lifecycle.closed ? "" : " status-badge--live"}`}>
             <Check size={13} />
-            {reservation.checked_in ? "Checked in" : "Reserved"}
+            {lifecycle.closed ? "Closed" : reservation.checked_in ? "Checked in" : "Reserved"}
           </span>
         </div>
         <TicketRecovery
@@ -291,7 +373,7 @@ export default function ReservePanel({ event, onReserved }) {
             onClick={claimSettlement}
             disabled={busy}
           >
-            {busy ? "Submitting claim…" : refundsEveryone ? "Claim full refund" : "Claim settlement"}
+            {busy ? "Submitting claim…" : claimLabel}
           </button>
         ) : null}
         <Notice notice={notice} />
@@ -308,19 +390,33 @@ export default function ReservePanel({ event, onReserved }) {
       <div className="reserve-head">
         <div>
           <p className="eyebrow">The commitment</p>
-          <h2>Reserve your seat.</h2>
+          <h2>{reserveHeading}</h2>
         </div>
         <Ticket size={22} />
       </div>
 
       <p className="reserve-copy">
-        The contract will hold exactly <strong>{formatNearAmount(event.deposit)}</strong> until
-        the event settles. Show up and check in to claim it back plus your share of the no-show
-        pool.
+        {open ? (
+          <>
+            The contract will hold exactly <strong>{formatNearAmount(event.deposit)}</strong> until
+            the event settles. Show up and check in to claim it back plus your share of the no-show
+            pool.
+          </>
+        ) : (
+          reserveCopy
+        )}
       </p>
 
       {!open ? (
-        <p className="reserve-closed">Registration is closed because the event is {String(event.status).toLowerCase()}.</p>
+        <p className="reserve-closed">
+          {lifecycle.cancelled
+            ? "This event was cancelled. Registration is closed."
+            : lifecycle.finalized
+              ? "This event is settled. Registration is closed."
+              : lifecycle.settlementPending
+                ? "This event has ended. Registration is closed."
+                : `Registration is closed because the event is ${String(lifecycle.status).toLowerCase()}.`}
+        </p>
       ) : registrationClosed ? (
         <p className="reserve-closed">The registration deadline has passed.</p>
       ) : full ? (
@@ -355,8 +451,9 @@ export default function ReservePanel({ event, onReserved }) {
       <Notice notice={notice} />
 
       <p className="reserve-footnote">
-        No card. No platform balance. The wallet signs one <code>register</code> transaction with
-        the exact deposit. The organizer checks the one-time ticket in after registration closes.
+        {open
+          ? "No card. No platform balance. The wallet signs one register transaction with the exact deposit. The organizer checks the one-time ticket in after registration closes."
+          : "There is no finalize button. Ended rooms settle with the first claim; cancelled rooms are already terminal."}
       </p>
       <Link href="/commitments" className="text-link">
         Open my commitments

@@ -284,6 +284,78 @@ test("a failed publication insert leaves no public state behind", async () => {
   assert.equal((await base.store.listPublished()).length, 0);
 });
 
+test("concurrent identical saves collapse to one row without a raw constraint error", async () => {
+  const { store, adapter } = openSqliteMetadataStore();
+  const input = {
+    key: key(),
+    metadata: doc(),
+    organizer_account_id: "organizer.testnet",
+    create_tx_hash: TX_HASH,
+  };
+
+  const results = await Promise.all(
+    Array.from({ length: 12 }, () => store.save(input)),
+  );
+  assert.equal(results.filter((result) => result.outcome === "inserted").length, 1);
+  assert.equal(results.filter((result) => result.outcome === "unchanged").length, 11);
+  const rows = await adapter.all("SELECT COUNT(*) AS total FROM event_metadata", []);
+  assert.equal(Number(rows[0].total), 1);
+});
+
+test("concurrent different saves produce one winner and clean conflicts", async () => {
+  const { store, adapter } = openSqliteMetadataStore();
+  const results = await Promise.allSettled(
+    Array.from({ length: 8 }, (_, index) =>
+      store.save({
+        key: key(),
+        metadata: doc({ title: `Draft ${index}` }),
+        organizer_account_id: "organizer.testnet",
+        create_tx_hash: TX_HASH,
+      }),
+    ),
+  );
+
+  const fulfilled = results.filter((result) => result.status === "fulfilled");
+  const rejected = results.filter((result) => result.status === "rejected");
+  assert.equal(fulfilled.length, 1);
+  assert.equal(rejected.length, 7);
+  for (const result of rejected) {
+    assert.ok(
+      result.reason instanceof MetadataConflictError,
+      `expected MetadataConflictError, got ${result.reason}`,
+    );
+  }
+  const rows = await adapter.all("SELECT COUNT(*) AS total FROM event_metadata", []);
+  assert.equal(Number(rows[0].total), 1);
+});
+
+test("concurrent publishers allocate exactly one version", async () => {
+  const { store, adapter } = openSqliteMetadataStore();
+  await store.save({
+    key: key(),
+    metadata: doc(),
+    organizer_account_id: "organizer.testnet",
+    create_tx_hash: TX_HASH,
+  });
+
+  const results = await Promise.all(
+    Array.from({ length: 8 }, (_, index) =>
+      store.publish({
+        key: key(),
+        published_by: `organizer-${index}.testnet`,
+      }),
+    ),
+  );
+  assert.equal(results.filter((result) => result.outcome === "published").length, 1);
+  assert.equal(results.filter((result) => result.outcome === "unchanged").length, 7);
+
+  const rows = await adapter.all(
+    "SELECT version, action FROM event_publications ORDER BY version",
+    [],
+  );
+  assert.deepEqual(rows.map((row) => [Number(row.version), row.action]), [[1, "publish"]]);
+});
+
 test("libsql adapter maps an @libsql/client-shaped object", async () => {
   const calls = [];
   const client = {

@@ -114,6 +114,30 @@ test("replaying the same signed nonce is rejected", async () => {
   await rejectsWith(verifyLoginRequest(options), 400, "nonce_already_used");
 });
 
+test("simultaneous logins with the same signed nonce create only one session", async () => {
+  const keys = account("organizer.testnet");
+  const body = signedBody(keys);
+  const nonceStore = memoryNonceStore();
+  const options = {
+    body,
+    recipient: RECIPIENT,
+    lookupAccessKey: fullAccess(keys),
+    nonceStore,
+  };
+
+  const results = await Promise.allSettled([
+    verifyLoginRequest(options),
+    verifyLoginRequest(options),
+    verifyLoginRequest(options),
+  ]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  for (const result of results.filter((item) => item.status === "rejected")) {
+    assert.ok(result.reason instanceof AuthError);
+    assert.equal(result.reason.status, 400);
+    assert.equal(result.reason.code, "nonce_already_used");
+  }
+});
+
 test("a signature for a different recipient is rejected", async () => {
   const keys = account("organizer.testnet");
   await rejectsWith(

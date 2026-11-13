@@ -21,6 +21,7 @@ import {
   mapDetail,
   shortHash,
 } from "../lib/events";
+import { eventEnded, eventLifecycle } from "../lib/eventState";
 import {
   flakeFundSummary,
   formatShowUpRate,
@@ -101,6 +102,7 @@ export default function EventRecap({ id }) {
             registered: state.event.registered,
             checkedIn: state.event.checkedIn,
             status: state.event.status,
+            ended: eventEnded(state.event),
           })
         : null,
     [state],
@@ -158,11 +160,15 @@ export default function EventRecap({ id }) {
   }
 
   const event = state.event;
-  const finalized = event.status === "Finalized";
-  const cancelled = event.status === "Cancelled";
-  const belowFloor =
-    finalized && event.registered > 0 && event.checkedIn * 5 < event.registered;
-  const failedEvent = event.status === "Failed" || belowFloor;
+  const lifecycle = eventLifecycle(event);
+  const finalized = lifecycle.finalized;
+  const cancelled = lifecycle.cancelled;
+  const ended = lifecycle.ended;
+  const settlementPending = lifecycle.settlementPending;
+  const belowFloor = lifecycle.belowFloor;
+  const failedEvent = lifecycle.failedStatus || ((finalized || ended) && belowFloor);
+  const attendanceFinal = finalized || ended || lifecycle.failedStatus;
+  const displayStatus = lifecycle.displayStatus;
   const shareUrl =
     typeof window === "undefined" ? "" : window.location.href;
   const explorerBase =
@@ -175,19 +181,25 @@ export default function EventRecap({ id }) {
     : null;
 
   async function shareRecap() {
-    const text = finalized || failedEvent
+    const text = settlementPending
       ? event.registered === 0
-        ? `${event.title} settled with no reservations on GatherBond.`
+        ? `${event.title} ended with no reservations on GatherBond.`
         : failedEvent
-          ? `${event.checkedIn} of ${event.registered} checked in to ${event.title}. Below the 20% floor, every reservation is refundable and no pool is distributed.`
-          : event.checkedIn === event.registered
-            ? `Everyone who reserved showed up to ${event.title}. There was no no-show pool; every deposit was returned in full.`
-            : `${event.checkedIn} of ${event.registered} showed up to ${event.title}. The no-shows funded ${formatNearAmount(summary?.pool ?? 0n)}.`
-      : cancelled
+          ? `${event.checkedIn} of ${event.registered} checked in to ${event.title}. Below the 20% floor, every reservation can claim a full refund. The first claim settles the event.`
+          : `${event.checkedIn} of ${event.registered} showed up to ${event.title}. The event has ended; settlement starts with the first attendee claim.`
+      : finalized || failedEvent
         ? event.registered === 0
-          ? `${event.title} on GatherBond was cancelled before anyone reserved.`
-          : `${event.title} on GatherBond was cancelled. ${event.registered} reservation${event.registered === 1 ? "" : "s"} can claim a full refund.`
-        : `${event.title} on GatherBond — ${event.registered} reserved, ${event.checkedIn} checked in.`;
+          ? `${event.title} settled with no reservations on GatherBond.`
+          : failedEvent
+            ? `${event.checkedIn} of ${event.registered} checked in to ${event.title}. Below the 20% floor, every reservation is refundable and no pool is distributed.`
+            : event.checkedIn === event.registered
+              ? `Everyone who reserved showed up to ${event.title}. There was no no-show pool; every deposit was returned in full.`
+              : `${event.checkedIn} of ${event.registered} showed up to ${event.title}. The no-shows funded ${formatNearAmount(summary?.pool ?? 0n)}.`
+        : cancelled
+          ? event.registered === 0
+            ? `${event.title} on GatherBond was cancelled before anyone reserved.`
+            : `${event.title} on GatherBond was cancelled. ${event.registered} reservation${event.registered === 1 ? "" : "s"} can claim a full refund.`
+          : `${event.title} on GatherBond — ${event.registered} reserved, ${event.checkedIn} checked in.`;
     try {
       if (navigator.share) {
         await navigator.share({ title: `${event.title} — GatherBond recap`, text, url: shareUrl });
@@ -204,9 +216,10 @@ export default function EventRecap({ id }) {
     }
   }
 
-  const noReservations = finalized && event.registered === 0;
-  const noAttendees = finalized && event.registered > 0 && event.checkedIn === 0;
-  const allShowed = finalized && event.registered > 0 && event.checkedIn === event.registered;
+  const noReservations = attendanceFinal && event.registered === 0;
+  const noAttendees = attendanceFinal && event.registered > 0 && event.checkedIn === 0;
+  const allShowed =
+    attendanceFinal && event.registered > 0 && event.checkedIn === event.registered;
   const cancelledEmpty = cancelled && event.registered === 0;
 
   const headline = cancelled
@@ -217,25 +230,35 @@ export default function EventRecap({ id }) {
         ? "The event did not meet the floor."
         : noAttendees
           ? "No one showed up."
-          : finalized
-            ? "The room showed up."
-            : "The room is still open.";
+          : settlementPending
+            ? "The room has ended."
+            : finalized
+              ? "The room showed up."
+              : "The room is still open.";
 
   const lede = cancelled
     ? cancelledEmpty
       ? "The event was cancelled before anyone reserved. There is no deposit to refund and no pool."
       : "Every registered attendee can claim the full deposit. No no-show pool is distributed."
-    : noReservations
-      ? "The event settled without reservations, so there was no pool and no settlement."
-      : failedEvent
-        ? `Only ${event.checkedIn} of ${event.registered} reserved seats checked in. Below the 20% floor, every reservation gets its full deposit back. No pool is distributed.`
-        : noAttendees
-          ? "No one checked in. The event failed the 20% floor, so every reservation gets its deposit back."
+    : settlementPending
+      ? noReservations
+        ? "The event ended without reservations, so there is no pool and nothing to settle."
+        : failedEvent
+          ? `Only ${event.checkedIn} of ${event.registered} reserved seats checked in. Below the 20% floor, every reservation can claim its full deposit back. The first claim settles the event; no pool is distributed.`
           : allShowed
-            ? "Everyone who reserved showed up. There was no no-show pool, so every deposit was returned in full."
-            : finalized
-              ? "The contract counted the room, fixed the reward and left a public receipt. The no-shows funded the people who showed up."
-              : "The recap settles automatically on the first claim after the event ends. These are live contract counts, not a promise.";
+            ? "Everyone who reserved showed up. The event has ended; settlement starts with the first attendee claim. No pool is projected here."
+            : "The event has ended. The first attendee claim settles the room and fixes the final reward. No amount is projected until then."
+      : noReservations
+        ? "The event settled without reservations, so there was no pool and no settlement."
+        : failedEvent
+          ? `Only ${event.checkedIn} of ${event.registered} reserved seats checked in. Below the 20% floor, every reservation gets its full deposit back. No pool is distributed.`
+          : noAttendees
+            ? "No one checked in. The event failed the 20% floor, so every reservation gets its deposit back."
+            : allShowed
+              ? "Everyone who reserved showed up. There was no no-show pool, so every deposit was returned in full."
+              : finalized
+                ? "The contract counted the room, fixed the reward and left a public receipt. The no-shows funded the people who showed up."
+                : "The recap settles automatically on the first claim after the event ends. These are live contract counts, not a promise.";
 
   return (
     <main className="recap-page">
@@ -277,7 +300,7 @@ export default function EventRecap({ id }) {
               <MapPin size={14} />
               {event.venue}
             </span>
-            <span className="status-badge">{event.status}</span>
+            <span className="status-badge">{displayStatus}</span>
           </div>
         </div>
       </section>
@@ -288,33 +311,39 @@ export default function EventRecap({ id }) {
             <div className="recap-stats">
               <RecapStat label="Registered" value={event.registered ?? "—"} />
               <RecapStat
-                label={finalized ? "Showed up" : cancelled ? "Checked in" : "Checked in so far"}
+                label={
+                  attendanceFinal ? "Showed up" : cancelled ? "Checked in" : "Checked in so far"
+                }
                 value={event.checkedIn ?? "—"}
               />
               <RecapStat
                 label="Flaked"
-                value={finalized ? (summary?.flakes ?? "—") : "—"}
+                value={attendanceFinal ? (summary?.flakes ?? "—") : "—"}
                 detail={
                   cancelled || failedEvent
                     ? "No pool"
-                    : finalized
-                      ? null
-                      : "After the event ends"
+                    : settlementPending
+                      ? "Settlement pending"
+                      : finalized
+                        ? null
+                        : "After the event ends"
                 }
               />
               <RecapStat
                 label="Show-up rate"
                 value={
-                  finalized && summary && event.registered > 0
+                  attendanceFinal && summary && event.registered > 0
                     ? formatShowUpRate(summary.showUpRate)
                     : "—"
                 }
                 detail={
                   cancelled || failedEvent
                     ? "Full refunds"
-                    : finalized
-                      ? null
-                      : "After the event ends"
+                    : settlementPending
+                      ? "Settlement pending"
+                      : finalized
+                        ? null
+                        : "After the event ends"
                 }
               />
             </div>
@@ -329,33 +358,45 @@ export default function EventRecap({ id }) {
                     ? "No reservations. Nothing to refund."
                     : "No pool. Full refunds."
                   : noReservations
-                    ? "No reservations. No settlement."
+                    ? settlementPending
+                      ? "No reservations. Nothing to settle."
+                      : "No reservations. No settlement."
                     : failedEvent
                       ? "No pool. Full refunds."
                       : noAttendees
                         ? "No one checked in."
-                        : allShowed
-                          ? "Everyone showed up."
-                          : finalized
-                            ? "The contract closed the room."
-                            : "The room is still being counted."}
+                        : settlementPending
+                          ? allShowed
+                            ? "Everyone showed up."
+                            : "The room has ended. Settlement is pending."
+                          : allShowed
+                            ? "Everyone showed up."
+                            : finalized
+                              ? "The contract closed the room."
+                              : "The room is still being counted."}
               </h2>
               <p>
                 {cancelled
                   ? cancelledEmpty
                     ? "The organizer cancelled before anyone reserved. There is no escrow to refund, no pool and no settlement to claim."
                     : "The organizer cancelled the event. Every registered attendee is eligible for exactly their deposit back. The no-show pool is not distributed."
-                  : noReservations
-                    ? "The event ended without reservations. There is no pool, no attendee reward and no settlement to claim."
-                    : failedEvent
-                      ? `${event.checkedIn} of ${event.registered} reserved seats checked in. That is below the 20% floor, so every reservation is refundable in full. No pool was distributed and no attendee received a reward.`
-                      : noAttendees
-                        ? `The event ended with ${summary?.flakes ?? 0} no-show${summary?.flakes === 1 ? "" : "s"}. No attendee checked in, so every reservation is refundable in full.`
-                        : allShowed
-                          ? `All ${event.registered} registered attendee${event.registered === 1 ? "" : "s"} checked in. No one flaked, so there was no pool and no reward; every deposit was returned in full.`
-                          : finalized
-                            ? `The event ended with ${summary?.flakes ?? 0} no-show${summary?.flakes === 1 ? "" : "s"}. The contract fixed the reward at ${formatNearAmount(summary?.rewardPerAttendee ?? 0n)} per checked-in attendee. Claims are individual pull withdrawals, so one failed transfer cannot block the room.`
-                            : `The contract currently shows ${event.registered ?? 0} reservation${event.registered === 1 ? "" : "s"} and ${event.checkedIn ?? 0} check-in${event.checkedIn === 1 ? "" : "s"}. The organizer can check attendees in during the published window; settlement starts with the first claim after the event ends.`}
+                  : settlementPending
+                    ? noReservations
+                      ? "The event ended without reservations. There is no pool, no attendee reward and nothing to claim. The UI treats this room as closed without a finalize transaction."
+                      : failedEvent
+                        ? `${event.checkedIn} of ${event.registered} reserved seats checked in. That is below the 20% floor, so every reservation is refundable in full. The first claim settles the event; no pool is distributed and no attendee receives a reward.`
+                        : `The event ended with ${summary?.flakes ?? 0} no-show${summary?.flakes === 1 ? "" : "s"}. The contract fixes the reward when the first attendee claims. Claims are individual pull withdrawals, so one failed transfer cannot block the room.`
+                    : noReservations
+                      ? "The event ended without reservations. There is no pool, no attendee reward and no settlement to claim."
+                      : failedEvent
+                        ? `${event.checkedIn} of ${event.registered} reserved seats checked in. That is below the 20% floor, so every reservation is refundable in full. No pool was distributed and no attendee received a reward.`
+                        : noAttendees
+                          ? `The event ended with ${summary?.flakes ?? 0} no-show${summary?.flakes === 1 ? "" : "s"}. No attendee checked in, so every reservation is refundable in full.`
+                          : allShowed
+                            ? `All ${event.registered} registered attendee${event.registered === 1 ? "" : "s"} checked in. No one flaked, so there was no pool and no reward; every deposit was returned in full.`
+                            : finalized
+                              ? `The event ended with ${summary?.flakes ?? 0} no-show${summary?.flakes === 1 ? "" : "s"}. The contract fixed the reward at ${formatNearAmount(summary?.rewardPerAttendee ?? 0n)} per checked-in attendee. Claims are individual pull withdrawals, so one failed transfer cannot block the room.`
+                              : `The contract currently shows ${event.registered ?? 0} reservation${event.registered === 1 ? "" : "s"} and ${event.checkedIn ?? 0} check-in${event.checkedIn === 1 ? "" : "s"}. The organizer can check attendees in during the published window; settlement starts with the first claim after the event ends.`}
               </p>
             </section>
 

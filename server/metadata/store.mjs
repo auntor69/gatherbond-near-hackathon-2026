@@ -271,32 +271,52 @@ export function createMetadataStore(db) {
       }
 
       const now = new Date().toISOString();
-      await db.run(
-        `INSERT INTO event_metadata (
-          network_id, contract_id, event_id, organizer_account_id,
-          title, description, category, venue, image_url, tags_json,
-          metadata_json, metadata_sha256, create_tx_hash, publication_status,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          normalized.network_id,
-          normalized.contract_id,
-          normalized.event_id,
-          document.organizer_account_id,
-          document.title,
-          document.description,
-          document.category,
-          document.venue,
-          document.image_url,
-          JSON.stringify(document.tags),
-          canonicalJson(document),
-          hashed.hex,
-          txHash,
-          publication_status,
-          document.created_at,
-          now,
-        ],
-      );
+      try {
+        await db.run(
+          `INSERT INTO event_metadata (
+            network_id, contract_id, event_id, organizer_account_id,
+            title, description, category, venue, image_url, tags_json,
+            metadata_json, metadata_sha256, create_tx_hash, publication_status,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            normalized.network_id,
+            normalized.contract_id,
+            normalized.event_id,
+            document.organizer_account_id,
+            document.title,
+            document.description,
+            document.category,
+            document.venue,
+            document.image_url,
+            JSON.stringify(document.tags),
+            canonicalJson(document),
+            hashed.hex,
+            txHash,
+            publication_status,
+            document.created_at,
+            now,
+          ],
+        );
+      } catch (error) {
+        // Two organizers can race the same event id after both pass the SELECT above.
+        // The primary key lets exactly one INSERT win. Re-read it and report the same
+        // document as idempotent, or the other hash as a proper conflict.
+        if (isVersionConflict(error)) {
+          const winner = await db.get(
+            `SELECT metadata_sha256 FROM event_metadata
+              WHERE network_id = ? AND contract_id = ? AND event_id = ?`,
+            [normalized.network_id, normalized.contract_id, normalized.event_id],
+          );
+          if (winner?.metadata_sha256 === hashed.hex) {
+            return { outcome: "unchanged", record: await get(normalized) };
+          }
+          throw new MetadataConflictError(
+            "an event with this identity is already anchored with a different metadata hash",
+          );
+        }
+        throw error;
+      }
 
       return { outcome: "inserted", record: await get(normalized) };
     },

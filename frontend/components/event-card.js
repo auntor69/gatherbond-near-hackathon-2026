@@ -2,9 +2,13 @@ import Link from "next/link";
 
 import { ArrowUpRight, MapPin } from "./icons";
 import EventArt from "./event-art";
-import { eventWhenLabel, formatNear } from "../lib/events";
+import { eventEnded } from "../lib/eventState";
+import { eventWhenLabel, formatNear, statusLabel } from "../lib/events";
 
 export default function EventCard({ event }) {
+  const ended = eventEnded(event);
+  const displayStatus =
+    ended && event.status === "Open" ? "Ended" : statusLabel(event.status);
   return (
     <article className="event-card">
       <Link
@@ -16,7 +20,7 @@ export default function EventCard({ event }) {
         <div className="card-body">
           <div className="card-topline">
             <span className="card-category">{event.category}</span>
-            <span className="card-network">NEAR</span>
+            <span className="card-network" title="Contract status">{displayStatus}</span>
           </div>
 
           <h3 className="card-title">{event.title}</h3>

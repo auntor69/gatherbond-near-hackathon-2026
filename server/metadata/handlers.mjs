@@ -38,8 +38,8 @@ function storeFailure(error) {
   return respond(503, { error: "metadata_store_unavailable" });
 }
 
-function publicRecord(record) {
-  return {
+function publicRecord(record, onchain = null) {
+  const body = {
     event: record.key,
     metadata: JSON.parse(record.metadata_json),
     metadata_sha256: record.metadata_sha256,
@@ -50,6 +50,10 @@ function publicRecord(record) {
     create_tx_hash: record.create_tx_hash,
     created_at: record.created_at,
   };
+  if (onchain) {
+    body.onchain = onchain;
+  }
+  return body;
 }
 
 function publicationRecord(publication) {
@@ -384,8 +388,10 @@ export function createMetadataHandlers({
 
     /**
      * GET /api/events?status=published&limit&offset&category
-     * Discovery only lists rows that still hash to their stored digest. On-chain
-     * cross-checks happen on the detail route, where a single event is read.
+     * Discovery lists only rows that still hash to their stored digest and whose
+     * on-chain event still matches that hash. The on-chain terms travel with each
+     * row so cards can show the real schedule, deposit and status instead of a
+     * publication timestamp and a guessed label.
      */
     async list({ limit, offset, category } = {}) {
       let rows;
@@ -395,15 +401,23 @@ export function createMetadataHandlers({
         return respond(503, { error: "metadata_store_unavailable" });
       }
 
+      let onChainRows;
+      try {
+        onChainRows = await Promise.all(rows.map((record) => getOnChainEvent(record.key)));
+      } catch {
+        return respond(503, { error: "chain_unavailable" });
+      }
+
       const items = [];
       let skipped = 0;
-      for (const record of rows) {
+      for (const [index, record] of rows.entries()) {
         const local = await store.verify(record);
-        if (!local.matches) {
+        const onChain = onChainRows[index];
+        if (!local.matches || !onChain || !hashEquals(record.metadata_sha256, onChain.metadata_hash)) {
           skipped += 1;
           continue;
         }
-        items.push(publicRecord(record));
+        items.push(publicRecord(record, onChain));
       }
 
       const pageOffset = Math.max(Number(offset) || 0, 0);

@@ -58,12 +58,14 @@ export function formatShowUpRate(rate) {
  * - `finalized`: actual settlement snapshot from contract fields
  * - `failed`: below 20% attendance; every registered attendee gets the deposit back
  * - `cancelled`: every registered attendee gets the deposit back
+ * - `ended`: the event has ended, but the first attendee claim has not settled it yet
  */
 export function flakeFundSummary({
   deposit,
   registered,
   checkedIn,
   status = "Open",
+  ended = false,
   projectedNoShowBps = DEFAULT_PROJECTED_NO_SHOW_BPS,
 } = {}) {
   const depositYocto = toBigInt(deposit);
@@ -139,6 +141,23 @@ export function flakeFundSummary({
       totalRefund,
       totalReturned: totalRefund + totalRewards,
       remainder,
+    };
+  }
+
+  // The contract keeps an event Open until the first claim settles it. Do not show a
+  // projection here: attendance is already final, and settlement is one claim away.
+  if (normalizedStatus === "Open" && ended) {
+    const refundsEveryone =
+      registeredCount > 0 && checkedInCount * 5 < registeredCount;
+    const refund = refundsEveryone
+      ? depositYocto * BigInt(registeredCount)
+      : ZERO;
+    return {
+      ...base,
+      state: "ended",
+      refundsEveryone,
+      totalRefund: refund,
+      totalReturned: refund,
     };
   }
 

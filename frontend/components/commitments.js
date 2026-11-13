@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import SettlementReceipt from "./settlement-receipt";
 import TicketCard from "./ticket-card";
@@ -14,17 +14,15 @@ import {
   formatNearAmount,
   loadTicket,
 } from "../lib/contract";
+import {
+  eventCheckinCloseAt,
+  eventClaimState,
+  eventLifecycle,
+} from "../lib/eventState";
+import { createSingleFlight } from "../lib/singleFlight";
 
 function json(response) {
   return response.json().catch(() => ({}));
-}
-
-function nanosDate(value) {
-  try {
-    return new Date(Number(BigInt(String(value)) / 1_000_000n)).toISOString();
-  } catch {
-    return null;
-  }
 }
 
 const CLAIM_LABEL = {
@@ -39,14 +37,21 @@ function statusCopy(item) {
   if (!event) return "Contract state unavailable";
   if (reservation.claim === "Claimed") return "Settlement claimed";
   if (reservation.claim === "Pending") return "Transfer in flight";
-  if (event.status === "Finalized") {
-    if (Number(event.checked_in) * 5 < Number(event.registered)) {
-      return "Event failed · refund available";
-    }
-    return reservation.checked_in ? "Checked in · claim available" : "No-show · no refund";
+  const lifecycle = eventLifecycle(event);
+  const claimState = eventClaimState(event, reservation);
+  if (lifecycle.settlementPending) {
+    if (claimState.refundsEveryone) return "Ended · refund available";
+    return reservation.checked_in ? "Ended · claim available" : "Ended · no refund";
   }
-  if (event.status === "Failed") return "Event failed · full refund available";
-  if (event.status === "Cancelled") return "Cancelled · refund available";
+  if (lifecycle.finalized) {
+    return claimState.refundsEveryone
+      ? "Event failed · refund available"
+      : reservation.checked_in
+        ? "Checked in · claim available"
+        : "No-show · no refund";
+  }
+  if (lifecycle.failedStatus) return "Event failed · full refund available";
+  if (lifecycle.cancelled) return "Cancelled · refund available";
   if (reservation.checked_in) return "Checked in";
   return "Reserved";
 }
@@ -58,6 +63,9 @@ export default function Commitments() {
   const [state, setState] = useState("signedOut");
   const [busy, setBusy] = useState(null);
   const [notice, setNotice] = useState(null);
+  const actionGuard = useRef(createSingleFlight());
+  const loadSequence = useRef(0);
+  const refreshTimer = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -71,6 +79,7 @@ export default function Commitments() {
   }, []);
 
   const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     if (wallet.phase !== "signedIn") {
       setState("signedOut");
       setItems([]);
@@ -80,6 +89,7 @@ export default function Commitments() {
     try {
       const response = await fetch("/api/me/commitments", { cache: "no-store" });
       const body = await json(response);
+      if (sequence !== loadSequence.current) return;
       if (!response.ok) {
         setState(body.error === "contract_not_configured" ? "unavailable" : "error");
         setItems([]);
@@ -110,15 +120,22 @@ export default function Commitments() {
           return { ...item, eventId, title, ticket };
         }),
       );
+      if (sequence !== loadSequence.current) return;
       setItems(next);
       setState("ready");
     } catch {
-      setState("error");
+      if (sequence === loadSequence.current) setState("error");
     }
   }, [wallet.phase, wallet.accountId, config]);
 
   useEffect(() => {
     load();
+    return () => {
+      if (refreshTimer.current !== null) {
+        window.clearTimeout(refreshTimer.current);
+        refreshTimer.current = null;
+      }
+    };
   }, [load]);
 
   async function run(action, item) {
@@ -126,6 +143,11 @@ export default function Commitments() {
     if (wallet.phase !== "signedIn") {
       setNotice({ tone: "error", text: "Connect your wallet first." });
       return;
+    }
+    if (!actionGuard.current.begin()) return;
+    if (refreshTimer.current !== null) {
+      window.clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
     }
     setBusy(`${action}-${item.eventId}`);
     try {
@@ -139,14 +161,31 @@ export default function Commitments() {
         gas: "150000000000000",
         expectedAccount: wallet.accountId,
       });
+      setItems((current) =>
+        current.map((entry) =>
+          entry.eventId === item.eventId
+            ? {
+                ...entry,
+                reservation: { ...entry.reservation, claim: "Pending" },
+              }
+            : entry,
+        ),
+      );
       setNotice({
         tone: "success",
-        text: `Claim submitted for event ${item.eventId}. The transfer callback marks it claimed.`,
+        text: `Claim submitted for event ${item.eventId}. The first claim settles the event; the transfer callback marks it claimed.`,
       });
-      window.setTimeout(load, 4500);
+      if (refreshTimer.current !== null) {
+        window.clearTimeout(refreshTimer.current);
+      }
+      refreshTimer.current = window.setTimeout(() => {
+        refreshTimer.current = null;
+        load();
+      }, 4500);
     } catch (error) {
       setNotice({ tone: "error", text: contractError(error) });
     } finally {
+      actionGuard.current.end();
       setBusy(null);
     }
   }
@@ -266,30 +305,34 @@ export default function Commitments() {
               {items.map((item) => {
                 const event = item.onchain;
                 const reservation = item.reservation;
-                const checkinClosed = event?.checkin_close
-                  ? Date.now() > Date.parse(nanosDate(event.checkin_close))
-                  : false;
-                const refundsEveryone =
-                  event?.status === "Cancelled" ||
-                  event?.status === "Failed" ||
-                  (event?.status === "Finalized" &&
-                    Number(event.checked_in) * 5 < Number(event.registered));
-                const canClaim =
-                  event &&
-                  reservation.claim === "Unclaimed" &&
-                  (refundsEveryone ||
-                    (event.status === "Finalized" && reservation.checked_in));
+                const claimState = event ? eventClaimState(event, reservation) : null;
+                const lifecycle = claimState?.lifecycle ?? null;
+                const checkinClose = event ? eventCheckinCloseAt(event) : null;
+                const checkinClosed = checkinClose !== null && Date.now() > checkinClose;
+                const refundsEveryone = claimState?.refundsEveryone ?? false;
+                const canClaim = Boolean(claimState?.canClaim) && Boolean(config?.contract_id);
                 const canRestore =
-                  event?.status === "Open" && !reservation.checked_in && !checkinClosed;
+                  event?.status === "Open" &&
+                  !lifecycle?.ended &&
+                  !reservation.checked_in &&
+                  !checkinClosed;
+                const noRefund =
+                  Boolean(lifecycle?.finalized || lifecycle?.settlementPending) &&
+                  !refundsEveryone &&
+                  !reservation.checked_in;
                 const recoveryNote = !event
                   ? "Contract state is unavailable, so recovery cannot be trusted right now."
                   : reservation.checked_in
                     ? "This reservation is already checked in. No ticket is needed; claim the settlement after the event ends."
-                    : event.status !== "Open"
-                      ? "This event is closed. Ticket recovery is no longer available."
-                      : checkinClosed
-                        ? "The onchain check-in window has closed. This reservation can no longer be checked in."
-                        : undefined;
+                    : lifecycle?.cancelled
+                      ? "This event was cancelled. Ticket recovery is closed; claim the refund from this wallet."
+                      : lifecycle?.ended
+                        ? "The event has ended. Ticket recovery is closed; claim settlement from this wallet instead."
+                        : event.status !== "Open"
+                          ? "This event is closed. Ticket recovery is no longer available."
+                          : checkinClosed
+                            ? "The onchain check-in window has closed. This reservation can no longer be checked in."
+                            : undefined;
                 return (
                   <article className="commitment-card" key={item.eventId}>
                     <div className="commitment-card-head">
@@ -308,9 +351,7 @@ export default function Commitments() {
                       <div>
                         <span>Claim</span>
                         <strong>
-                          {event?.status === "Finalized" &&
-                          Number(event.checked_in) * 5 >= Number(event.registered) &&
-                          !reservation.checked_in
+                          {noRefund
                             ? "No refund"
                             : CLAIM_LABEL[reservation.claim] ?? reservation.claim ?? "—"}
                         </strong>
@@ -321,7 +362,7 @@ export default function Commitments() {
                       </div>
                       <div>
                         <span>Event status</span>
-                        <strong>{event?.status ?? "Unavailable"}</strong>
+                        <strong>{lifecycle?.displayStatus ?? event?.status ?? "Unavailable"}</strong>
                       </div>
                     </div>
 
@@ -330,6 +371,7 @@ export default function Commitments() {
                         ticket={item.ticket}
                         compact
                         checkedIn={reservation.checked_in}
+                        inactive={Boolean(lifecycle?.closed)}
                       />
                     ) : (
                       <TicketRecovery
@@ -370,13 +412,17 @@ export default function Commitments() {
                           disabled={busy !== null}
                         >
                           <ShieldCheck size={14} />
-                          {busy === `claim-${item.eventId}` ? "Submitting claim…" : "Claim settlement"}
+                          {busy === `claim-${item.eventId}`
+                            ? "Submitting claim…"
+                            : refundsEveryone
+                              ? "Claim full refund"
+                              : "Claim settlement"}
                         </button>
                       ) : null}
                       <Link href={`/events/${item.eventId}`} className="text-link">
                         Open event <ArrowRight size={14} />
                       </Link>
-                      {event && event.status !== "Open" ? (
+                      {lifecycle?.closed ? (
                         <Link href={`/events/${item.eventId}/recap`} className="text-link">
                           Open recap <ArrowRight size={14} />
                         </Link>

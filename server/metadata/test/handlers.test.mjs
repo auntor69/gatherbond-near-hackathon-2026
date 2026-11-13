@@ -233,7 +233,47 @@ test("list only returns published rows that still verify, and counts skipped one
   assert.equal(result.status, 200);
   assert.equal(result.body.items.length, 1);
   assert.equal(result.body.items[0].metadata.title, "Published");
+  assert.ok(result.body.items[0].onchain, "listed rows carry their contract terms");
   assert.equal(result.body.skipped, 1);
+});
+
+test("list hides rows missing from the contract and fails closed when RPC is down", async () => {
+  const { handlers, chain, store, anchor } = await setup();
+  await anchor(key({ event_id: "0" }), doc({ title: "On chain" }));
+  await anchor(key({ event_id: "1" }), doc({ title: "Missing" }));
+  for (const id of ["0", "1"]) {
+    await handlers.put({
+      actor: "organizer.testnet",
+      key: key({ event_id: id }),
+      metadata: doc({ title: id === "0" ? "On chain" : "Missing" }),
+      create_tx_hash: TX_HASH,
+    });
+    await store.setPublicationStatus(key({ event_id: id }), "published");
+  }
+  chain.delete(JSON.stringify(key({ event_id: "1" })));
+
+  const listed = await handlers.list({ limit: 10 });
+  assert.equal(listed.status, 200);
+  assert.equal(listed.body.items.length, 1);
+  assert.equal(listed.body.items[0].event.event_id, "0");
+  assert.equal(listed.body.skipped, 1);
+
+  const { store: brokenStore } = openSqliteMetadataStore();
+  await brokenStore.save({
+    key: key(),
+    metadata: doc(),
+    organizer_account_id: "organizer.testnet",
+    create_tx_hash: TX_HASH,
+  });
+  await brokenStore.publish({ key: key(), published_by: "organizer.testnet" });
+  const broken = createMetadataHandlers({
+    store: brokenStore,
+    getOnChainEvent: async () => {
+      throw new Error("rpc down");
+    },
+  });
+  assert.equal((await broken.list()).status, 503);
+  assert.equal((await broken.list()).body.error, "chain_unavailable");
 });
 
 test("publish, identical republish and permanent public snapshot", async () => {
@@ -354,4 +394,105 @@ test("details refuses an unpublished event and a mismatched on-chain hash", asyn
   const mismatch = await handlers.details({ key: key() });
   assert.equal(mismatch.status, 409);
   assert.equal(mismatch.body.error, "metadata_hash_mismatch");
+});
+
+test("concurrent identical PUTs store once and answer 201 plus 200", async () => {
+  const { handlers, store, anchor } = await setup();
+  await anchor();
+  const input = {
+    actor: "organizer.testnet",
+    key: key(),
+    metadata: doc(),
+    create_tx_hash: TX_HASH,
+  };
+
+  const results = await Promise.all([
+    handlers.put(input),
+    handlers.put(input),
+    handlers.put(input),
+    handlers.put(input),
+  ]);
+  assert.deepEqual(
+    results.map((result) => result.status).sort((left, right) => left - right),
+    [200, 200, 200, 201],
+  );
+  assert.equal(await store.count(), 1);
+});
+
+test("concurrent publish requests allocate one version and never fail a retry", async () => {
+  const { handlers, anchor } = await setup();
+  await anchor();
+  await handlers.put({
+    actor: "organizer.testnet",
+    key: key(),
+    metadata: doc(),
+    create_tx_hash: TX_HASH,
+  });
+
+  const results = await Promise.all(
+    Array.from({ length: 6 }, () =>
+      handlers.publish({ actor: "organizer.testnet", key: key() }),
+    ),
+  );
+  assert.deepEqual(
+    results.map((result) => result.status).sort((left, right) => left - right),
+    [200, 200, 200, 200, 200, 201],
+  );
+  assert.ok(results.every((result) => result.body.version === 1));
+});
+
+test("list skips a published row when the contract now points at different metadata", async () => {
+  const { handlers, chain, anchor } = await setup();
+  await anchor();
+  await handlers.put({
+    actor: "organizer.testnet",
+    key: key(),
+    metadata: doc(),
+    create_tx_hash: TX_HASH,
+  });
+  await handlers.publish({ actor: "organizer.testnet", key: key() });
+
+  const other = await hashMetadata(doc({ title: "Different on-chain event" }));
+  chain.set(JSON.stringify(key()), { metadata_hash: other.array });
+  const listed = await handlers.list({ limit: 10 });
+  assert.equal(listed.status, 200);
+  assert.equal(listed.body.items.length, 0);
+  assert.equal(listed.body.skipped, 1);
+});
+
+test("details refreshes on-chain status without changing the anchored snapshot", async () => {
+  const { handlers, chain, anchor } = await setup();
+  const hashed = await anchor();
+  chain.set(JSON.stringify(key()), {
+    event_id: 0,
+    organizer: "organizer.testnet",
+    metadata_hash: hashed.array,
+    start_at: "1763000000000000000",
+    end_at: "1763003600000000000",
+    status: "Open",
+  });
+  await handlers.put({
+    actor: "organizer.testnet",
+    key: key(),
+    metadata: doc(),
+    create_tx_hash: TX_HASH,
+  });
+  await handlers.publish({ actor: "organizer.testnet", key: key() });
+
+  const before = await handlers.details({ key: key() });
+  assert.equal(before.status, 200);
+  assert.equal(before.body.onchain.status, "Open");
+  assert.equal(before.body.metadata_sha256, hashed.hex);
+
+  chain.set(JSON.stringify(key()), {
+    ...chain.get(JSON.stringify(key())),
+    status: "Finalized",
+    checked_in: 6,
+  });
+  const after = await handlers.details({ key: key() });
+  assert.equal(after.status, 200);
+  assert.equal(after.body.onchain.status, "Finalized");
+  assert.equal(after.body.onchain.checked_in, 6);
+  assert.equal(after.body.metadata_sha256, before.body.metadata_sha256);
+  assert.equal(after.body.version, before.body.version);
 });

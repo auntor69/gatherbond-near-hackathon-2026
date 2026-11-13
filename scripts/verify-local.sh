@@ -29,8 +29,8 @@ grep -E '^test result' "$LOG"
 echo "== 3/6 ticket-commitment parity =="
 node "$ROOT/scripts/verify-ticket-commitment.mjs"
 
-echo "== 4/6 Flake Fund + contract display/schedule math + QR round-trip =="
-node --test "$ROOT/frontend/lib/flakeFund.test.mjs" "$ROOT/frontend/lib/contract.test.mjs" "$ROOT/frontend/lib/qr.test.mjs"
+echo "== 4/6 frontend event state, display, contract math and QR helpers =="
+node --test "$ROOT"/frontend/lib/*.test.mjs
 
 echo "== 5/6 metadata + auth + publication + HTTP tests (incl. live Next + SQLite end-to-end) =="
 node --test "$ROOT"/server/metadata/test/*.test.mjs "$ROOT"/server/auth/test/*.test.mjs "$ROOT"/server/http/test/*.test.mjs "$ROOT"/server/near/test/*.test.mjs

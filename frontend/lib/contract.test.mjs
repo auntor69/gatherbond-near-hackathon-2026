@@ -11,7 +11,9 @@ import {
   encodeTicket,
   formatNearAmount,
   newTicketSecret,
+  normalizeEventId,
   parseNear,
+  resolveCreatedEventId,
   scheduleError,
   scheduleFromForm,
   toNanoseconds,
@@ -253,6 +255,40 @@ test("commitmentArray returns the 32-byte digest, not the canonical preimage", a
   assert.equal(
     array.map((byte) => byte.toString(16).padStart(2, "0")).join(""),
     hex,
+  );
+});
+
+test("normalizeEventId accepts wallet return shapes and rejects non-ids", () => {
+  assert.equal(normalizeEventId(7), "7");
+  assert.equal(normalizeEventId("7"), "7");
+  assert.equal(normalizeEventId('"7"'), "7");
+  assert.equal(normalizeEventId({ event_id: 7 }), "7");
+  assert.equal(normalizeEventId({ value: "7" }), "7");
+  assert.equal(normalizeEventId("007"), "7");
+  assert.equal(normalizeEventId(0), "0");
+  for (const value of [null, undefined, "", "-1", "1.5", "0x10", {}, true]) {
+    assert.equal(normalizeEventId(value), null, String(value));
+  }
+});
+
+test("resolveCreatedEventId trusts only a direct id or an exact one-event delta", () => {
+  assert.equal(resolveCreatedEventId("7", null, null), "7");
+  assert.equal(resolveCreatedEventId(0, null, null), "0");
+  assert.equal(resolveCreatedEventId(null, 4, 5), "4");
+  assert.equal(resolveCreatedEventId(null, "0", "1"), "0");
+  assert.equal(resolveCreatedEventId("007", null, null), "7");
+
+  assert.throws(
+    () => resolveCreatedEventId(null, null, 5),
+    /could not be confirmed/,
+  );
+  assert.throws(
+    () => resolveCreatedEventId(null, "4", "6"),
+    /another event was created/,
+  );
+  assert.throws(
+    () => resolveCreatedEventId(null, "4", "4"),
+    /another event was created/,
   );
 });
 
