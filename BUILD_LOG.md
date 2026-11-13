@@ -1901,3 +1901,58 @@ Live API read-only checks:
 Review the diff, push/deploy when authorized, run the post-deploy checks in
 `docs/DEPLOY_RUNBOOK.md` §8.3 and `docs/SEO.md` §9, then finish the human-owned X post and
 submission payload.
+
+## 2026-11-13 — SEO/docs release deployed; event hydration and JSON-LD image fixed
+
+**Status:** pushed as `76439b5`; Vercel reported a successful deployment; the production
+crawl surface was verified against `https://gatherbond.vercel.app`.
+
+### Release fixes
+
+- `frontend/components/event-detail.js` now renders `your local timezone` on the server and
+  during the first client render, then reveals the device zone in `useEffect`. The previous
+  render-time `Intl.DateTimeFormat()` call made the server (UTC) and browser (Asia/Dhaka)
+  disagree on the first paint.
+- `frontend/lib/seo.js` always points Event JSON-LD `image` at
+  `/events/<id>/opengraph-image`. An organizer metadata image can no longer override the
+  generated per-event card.
+- `frontend/lib/seo.test.mjs` now expects the per-event card and includes a regression test
+  proving an organizer image cannot override it.
+
+### Verification
+
+```text
+scripts/verify-local.sh   ALL LOCAL CHECKS PASSED (exit 0)
+contract tests            54 passed
+ticket vectors            8/8 matched
+frontend tests            75 passed (10 SEO tests)
+metadata/auth/HTTP tests  107 passed
+total                     236 passed
+production build          exit 0, 21 routes, no build warnings
+```
+
+Production crawl checks on commit `76439b5`:
+
+```text
+GET /                          200  canonical + Organization/WebSite/ItemList JSON-LD
+GET /events/0                  200  canonical + Event JSON-LD + per-event OG meta
+GET /events/0/recap            200  canonical + WebPage/BreadcrumbList JSON-LD
+GET /events/999999             404  noindex, nofollow
+GET /robots.txt                200  text/plain; sitemap + private routes disallowed
+GET /sitemap.xml               200  exactly home, event 0 and its recap
+GET /opengraph-image           200  image/png, 1200x630
+GET /events/0/opengraph-image  200  image/png, 1200x630
+```
+
+- Event JSON-LD `image` is `https://gatherbond.vercel.app/events/0/opengraph-image`; the
+  event OG meta resolves to the same per-event card.
+- The event HTML contains the stable server-safe timezone fallback. In Chromium the page
+  hydrated with no hydration console error and the label changed to `Asia/Dhaka`.
+- `/studio` and `/commitments` return `200` with `noindex, nofollow`.
+
+### Limits
+
+- No Google Search Console/Bing submission, indexing request or rich-results validation.
+- No funded multi-account production reserve/check-in/claim run in this session.
+- The live shelf still contains one verified publication; the other seven on-chain events are
+  development/acceptance records and remain excluded by design.

@@ -3,7 +3,7 @@
 > **Product:** Commitment-first event platform for real-world communities
 > **Hackathon:** NEAR HACKATHON 2026 — Build Beyond Boundaries
 > **Network:** NEAR Testnet only
-> **Status:** Testnet v1.1 implemented and verified; SEO release candidate complete; production deploy of this candidate pending
+> **Status:** Testnet v1.1 implemented; SEO/docs release deployed to Vercel and production crawl routes verified
 > **Last updated:** 2026-11-13
 > **Primary track:** Social Money (`social`)
 > **Secondary:** Open Innovation (`open`), only if the final submission genuinely fits
@@ -157,7 +157,7 @@ flowchart LR
 | M6 | Event passport, recap, studio, commitments | Done | production routes |
 | M7 | QR check-in, gate mode, ticket recovery | Done | fixture pipeline + Testnet lifecycle |
 | M8 | Lifecycle/concurrency hardening | Done | race tests, claim paths, 236 total tests |
-| M9 | SEO + documentation release candidate | **Implemented, verified locally; deploy pending** | `docs/SEO.md`, 75 frontend tests, build 21 routes |
+| M9 | SEO + documentation release | **Done — deployed and verified live** | `docs/SEO.md`, 75 frontend tests, build 21 routes, commit `76439b5` |
 | M10 | Funded multi-account pilot | Open | requires two funded accounts and a live event |
 | M11 | Independent audit + mainnet plan | Out of scope for hackathon | post-hackathon |
 
@@ -168,7 +168,7 @@ flowchart LR
 - `Event`, `Organization`, `WebSite`, `ItemList`, `WebPage` and `BreadcrumbList` JSON-LD.
 - Verified-only sitemap; robots; noindex for private surfaces; real 404.
 - Dynamic 1200×630 social cards.
-- Nine SEO tests.
+- Ten SEO tests, including per-event OG image selection.
 - Full documentation rewrite and MIT license.
 
 ## 11. Live snapshot (2026-11-13)
@@ -182,7 +182,7 @@ flowchart LR
 | Auth | configured |
 | Tests | 54 contract + 8/8 vectors + 75 frontend + 107 server |
 | Build | exit 0, 21 routes |
-| SEO production status | release candidate not yet pushed/deployed |
+| SEO production status | live on Vercel; canonical, JSON-LD, sitemap, robots and OG verified 2026-11-13 |
 
 The seven extra on-chain events are development/acceptance records. Discovery hides them because they lack a current verified publication. This is the fail-closed design, not a bug.
 
@@ -195,8 +195,8 @@ The seven extra on-chain events are development/acceptance records. Discovery hi
 - [x] 236-test verification and 21-route build
 - [x] SEO implementation and docs
 - [x] MIT license
-- [ ] Push/deploy the SEO release candidate (requires human authorization)
-- [ ] Verify production SEO routes after deploy
+- [x] Push/deploy the SEO release
+- [x] Verify production SEO routes after deploy
 - [ ] Record demo video/screenshots for the human's X post
 - [ ] Human confirms the submission payload
 

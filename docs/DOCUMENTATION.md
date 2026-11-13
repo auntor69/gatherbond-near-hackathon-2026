@@ -724,6 +724,8 @@ production build          exit 0, 21 routes
 - Production `/api/events?limit=10`: one verified `Sunday Table` row, `skipped: 0`.
 - Production `/api/events/0`: verified hash and `Finalized` on-chain terms.
 - Local production server: home/event/recap/robots/sitemap/OG `200`; missing event `404`; event HTML contains verified title, canonical, OG image, Event JSON-LD; studio/commitments noindex; sitemap has 3 URLs.
+- Deployed commit `76439b5` on Vercel: home/event/recap/robots/sitemap/OG `200`; missing event `404`; canonical and `Event` JSON-LD present; Event JSON-LD image is the per-event card; studio/commitments `noindex, nofollow`; sitemap has exactly 3 URLs.
+- Browser on the production event page: no hydration console error; the server-safe timezone fallback changed to the device zone (`Asia/Dhaka`) after hydration.
 
 ### 10.5 Checks not performed
 
@@ -731,7 +733,6 @@ production build          exit 0, 21 routes
 - No physical printed QR camera scan.
 - No independent contract audit.
 - No Search Console/Bing submission or Google rich-results validation.
-- No deployment/push of this release candidate.
 
 Do not report a check as passed when it is in this list.
 
@@ -889,8 +890,7 @@ Report vulnerabilities per [SECURITY.md](../SECURITY.md), not in a public issue.
 - **Metadata availability is centralized**: the operator can withhold a listing.
 - **One verified publication is currently indexed**; seven other on-chain events are development/acceptance records.
 - **Publication is permanent**; no unpublish/delete UI or API.
-- **No SEO deployment yet**: the implementation is verified locally; the current production URL serves the previous commit until this release is pushed and Vercel rebuilds.
-- **No Search Console/Bing submission, no rich-results validation, no analytics.**
+- **No Search Console/Bing submission, no Google rich-results validation, no analytics.** The crawl routes are live and verified.
 - **No privacy policy, terms of service or legal review.**
 - **No mobile native app; the browser is the client.**
 - **The Testnet contract release uses `panic = "abort"`**, so on-chain rejection messages are opaque.

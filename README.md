@@ -343,7 +343,7 @@ Never put a secret in a `NEXT_PUBLIC_*` variable. The full list and defaults are
 
 ## Verification
 
-The exact command used for the latest release candidate:
+The exact command used for the latest release:
 
 ```bash
 bash scripts/verify-local.sh
@@ -366,7 +366,7 @@ production build          exit 0, 21 routes
 
 The SEO layer adds ten focused tests for canonical URLs, description truncation, Event JSON-LD, per-event OG image selection, Organization/WebSite/ItemList graphs, breadcrumbs, recap graphs and script-tag escaping.
 
-Local production-server checks (not claims about the current deployed commit):
+Production crawl checks (2026-11-13, commit `76439b5`):
 
 ```text
 GET /                         200
@@ -378,6 +378,8 @@ GET /sitemap.xml              200  3 URLs: home, verified event, closed recap
 GET /opengraph-image          200  image/png
 GET /events/0/opengraph-image 200  image/png
 ```
+
+Browser check: `/events/0` hydrated with no console hydration error and changed the timezone label from the server-safe fallback to the device zone (`Asia/Dhaka`). Event JSON-LD and the event OG meta both resolve to the per-event card.
 
 Full test rationale: [docs/DOCUMENTATION.md](./docs/DOCUMENTATION.md#testing-and-verification).
 
@@ -421,20 +423,21 @@ This is **Testnet only**. It is not audited, has no mainnet procedure and must n
 - **One verified publication is currently indexed**; the other seven on-chain events are development/acceptance records. This is deliberate fail-closed behavior.
 - **No unpublish.** Publication is permanent by design; there is no delete/withdraw UI.
 - **No mainnet, no production incident history, no legal/trademark clearance.**
-- **SEO deployment is pending** for the commit that adds this document. The implementation and local verification are complete; the production URL still serves the previous commit until the branch is pushed and Vercel rebuilds.
+- **No Search Console/Bing submission, Google rich-results validation or analytics.** The crawl routes are live and verified, but search-engine account setup is human-owned.
 
 ---
 
 ## Hackathon submission checklist
 
-- [ ] Public repository visible to judges — verify on GitHub before submitting
+- [x] Public repository visible to judges
 - [x] Live production frontend
 - [x] Live NEAR Testnet contract
 - [x] Real on-chain event, metadata hash and public recap
 - [x] Wallet-signed login and organizer publication path
-- [x] SEO metadata, JSON-LD, sitemap, robots, 404 and social cards (implemented and verified locally; deploy pending)
+- [x] SEO metadata, JSON-LD, sitemap, robots, 404 and social cards (live and verified on Vercel)
 - [x] Reproducible 236-test verification and 21-route build
 - [x] MIT license
+- [x] GitHub About description, homepage and topics
 - [ ] Demo post on X by the human (organizer rule; never automated)
 - [ ] Final submission payload confirmed by the human
 - [ ] Optional: funded multi-account pilot and physical QR check

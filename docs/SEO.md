@@ -1,6 +1,6 @@
 # GatherBond — SEO & Crawlability
 
-**Status:** implemented and verified in the release candidate · **Last verified:** 2026-11-13
+**Status:** live on Vercel · **Last verified:** 2026-11-13 (commit `76439b5`)
 **Canonical production origin:** `https://gatherbond.vercel.app`
 **Rule:** no unverified event may enter metadata, JSON-LD, the sitemap or a social card.
 
@@ -225,17 +225,18 @@ Spot checks in the served HTML:
 - `/studio` and `/commitments`: `<meta name="robots" content="noindex, nofollow">`
 - unknown path: HTTP 404 with only `noindex` robots metadata (Next may emit a second noindex tag for its 404 shell; there must be no `index` tag)
 
-### After deployment
+### Post-deploy checks
 
-1. Confirm `NEXT_PUBLIC_SITE_URL` is the production origin.
-2. Open `/robots.txt` and `/sitemap.xml` on the deployed origin.
-3. View source on a verified event; check canonical, OG image and `Event` JSON-LD.
-4. Fetch `/events/<id>/opengraph-image` and confirm `image/png`.
-5. Confirm a missing event returns 404, not 200.
-6. Submit the sitemap in Google Search Console and Bing Webmaster Tools.
-7. Request indexing for the home page and the verified event. Rich Results Test can validate the Event graph.
+Completed on `https://gatherbond.vercel.app` at commit `76439b5`:
 
-**Not yet done:** Search Console/Bing verification, production crawl after deployment, and Google rich-result validation. These require account access and a deployed commit.
+1. `NEXT_PUBLIC_SITE_URL` resolves to the production origin; canonical URLs use it.
+2. `/robots.txt` and `/sitemap.xml` return `200`; the sitemap contains exactly the home page, verified event 0 and its closed recap.
+3. The verified event's HTML contains its canonical, per-event OG meta and `Event` JSON-LD; the JSON-LD `image` is `/events/0/opengraph-image`.
+4. `/events/0/opengraph-image` returns `image/png` at 1200×630.
+5. `/events/999999` returns `404` and `noindex, nofollow`.
+6. `/events/0` hydrates without a console hydration error; the timezone label moves from `your local timezone` to the device zone (`Asia/Dhaka`).
+
+**Not yet done:** Google Search Console/Bing Webmaster Tools submission, indexing requests, and Google Rich Results validation. Those require search-engine account access; the production crawl itself has passed.
 
 ---
 
