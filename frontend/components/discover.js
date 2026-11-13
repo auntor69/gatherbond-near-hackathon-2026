@@ -80,14 +80,20 @@ function SkeletonGrid() {
   );
 }
 
-export default function Discover() {
-  const [liveEvents, setLiveEvents] = useState([]);
-  const [source, setSource] = useState("loading");
-  const [skipped, setSkipped] = useState(0);
+export default function Discover({ initial = null }) {
+  const [liveEvents, setLiveEvents] = useState(() => initial?.events ?? []);
+  const [source, setSource] = useState(() => {
+    if (!initial) return "loading";
+    return initial.events.length > 0 || initial.skipped > 0 ? "live" : "empty";
+  });
+  const [skipped, setSkipped] = useState(initial?.skipped ?? 0);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
 
   useEffect(() => {
+    // The server already rendered the verified shelf. Keep that content in the HTML
+    // instead of replacing it with a client-only loading state.
+    if (initial) return undefined;
     let active = true;
 
     async function load() {
@@ -120,7 +126,7 @@ export default function Discover() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [initial]);
 
   const events = useMemo(() => [...liveEvents].sort(listingOrder), [liveEvents]);
   const loading = source === "loading";

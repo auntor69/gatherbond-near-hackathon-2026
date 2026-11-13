@@ -1788,3 +1788,116 @@ footer 56 px with exactly three 40 × 40 links and zero overlap with header href
 schedule inputs (2 date, 5 time) at 299 px on 390; zero horizontal overflow at 390, 768 and
 1440; and typing registration close `15:00` against start `14:30` produced the live warning
 “Registration must close no later than the event start.”
+
+## 2026-11-13 — SEO surface, crawlable verified data, and full documentation release candidate
+
+**Status:** implemented and verified locally. **Not pushed or deployed in this session.**
+Production still serves the previous commit until the maintainer pushes and Vercel rebuilds.
+
+### SEO implementation
+
+- Root metadata now has `metadataBase`, title template, canonical default, keywords, authors,
+  robots, OpenGraph, Twitter, manifest, SVG icon and Apple web-app fields. The origin comes
+  from `NEXT_PUBLIC_SITE_URL` with a `https://gatherbond.vercel.app` fallback.
+- Added `app/robots.js`, `app/sitemap.js`, `app/manifest.js`, `app/icon.svg`, a 1200×630
+  root `app/opengraph-image.js` and a per-event `app/events/[id]/opengraph-image.js`.
+- `/studio` and `/commitments` are `noindex, nofollow`; `/api/`, `/studio` and `/commitments`
+  are disallowed in robots. Missing events now return a real HTTP 404.
+- `frontend/lib/serverEvents.mjs` loads verified event data through the same route layer as
+  the public API, with `react.cache` deduplication between `generateMetadata` and the page.
+  The home page passes verified listings into `Discover`, so the event card is in the initial
+  HTML instead of appearing only after a client fetch.
+- Event pages render verified title, venue, schedule and terms server-side. They add canonical,
+  article OpenGraph/Twitter metadata, dynamic OG image and schema.org `Event` JSON-LD.
+  Recaps render server-side and add `WebPage` + `BreadcrumbList`; they are indexable only after
+  the room closes.
+- Added `frontend/lib/seo.js` (descriptions, Organization/WebSite/ItemList/Event/WebPage
+  graphs, escaped JSON-LD), `frontend/lib/site.js` (canonical paths) and
+  `frontend/components/json-ld.js`.
+- Sitemap is verified-only, paginates the publication list up to 1,000 events, revalidates
+  hourly and falls back to the home URL if the DB/RPC fails. No draft or mismatched row can
+  enter it.
+- `frontend/next.config.mjs` traces the libSQL runtime into API, home, event and sitemap
+  functions, not only `/api/**`.
+
+### Defect fixed during verification
+
+`server/metadata/schema.mjs` read the migration file at module evaluation. Next's build-time
+collection evaluated that module through the new server page and failed because its fs shim
+rejected the URL path. The migration is now loaded lazily by `migrationSql()` only when a
+SQLite/libSQL store opens. A production build after the change succeeded.
+
+### Verification
+
+```text
+scripts/verify-local.sh   ALL LOCAL CHECKS PASSED (exit 0)
+contract format           clean
+contract tests            54 passed
+ticket vectors            8/8 matched
+frontend tests            74 passed (9 new SEO tests)
+metadata/auth/HTTP tests  107 passed
+total                     235 passed
+WASM                      415,893 bytes
+SHA-256                   af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b
+production build          exit 0, 21 routes, no build warnings
+```
+
+Local production server checks (not production deployment):
+
+```text
+GET /                          200
+GET /events/0                  200  title/canonical/OG/Event JSON-LD + event HTML
+GET /events/0/recap            200  server-rendered proof
+GET /events/999999             404
+GET /robots.txt                200  studio, commitments, api disallowed
+GET /sitemap.xml               200  3 URLs: home, event 0, closed recap
+GET /opengraph-image           200  image/png
+GET /events/0/opengraph-image  200  image/png
+```
+
+Sitemap output at verification time:
+
+```xml
+<loc>https://gatherbond.vercel.app/</loc>
+<loc>https://gatherbond.vercel.app/events/0</loc>
+<loc>https://gatherbond.vercel.app/events/0/recap</loc>
+```
+
+Live API read-only checks:
+
+```text
+/api/health                  database_mode turso, database_read ok,
+                             auth_configured true, contract_configured true
+/api/contract/event-count    8
+/api/events?limit=10         one verified Sunday Table row, skipped 0
+/api/events/0                verified true, status Finalized, registered 1, checked_in 0
+```
+
+### Documentation
+
+- Rewrote `README.md` as the judge-first artifact: live proof, 5-minute Do X → See Y path,
+  architecture, contract/API summary, SEO, exact tests, limitations and submission checklist.
+- Rewrote `docs/DOCUMENTATION.md` as the authoritative system guide: lifecycle, auto-settle,
+  accounting, ticket commitment, metadata, auth, API, frontend/SEO, data model, testing,
+  operations, security, troubleshooting and limitations.
+- Added `docs/SEO.md` with the canonical policy, indexability matrix, structured data, sitemap,
+  failure modes and post-deploy checks.
+- Rewrote `docs/METADATA.md`, `docs/DEPLOY_RUNBOOK.md` and `MASTERPLAN.md` for permanent
+  publication, auto-settling claims, the current artifact and the current roadmap.
+- Updated `CONTRIBUTING.md` and `SECURITY.md`; added the MIT `LICENSE`; kept `HACKATHON.md`
+  unchanged.
+
+### Limits
+
+- Not deployed, not pushed, and not submitted. The production URL still serves the prior
+  commit until the maintainer authorizes a push/deploy.
+- No Search Console/Bing submission, no production crawl, no Google rich-results validation.
+- No funded multi-account production reserve/check-in/claim run in this session.
+- The live shelf has one verified publication because the other seven on-chain events are
+  development/acceptance records; that is the intended fail-closed behavior.
+
+### Next action
+
+Review the diff, push/deploy when authorized, run the post-deploy checks in
+`docs/DEPLOY_RUNBOOK.md` §8.3 and `docs/SEO.md` §9, then finish the human-owned X post and
+submission payload.

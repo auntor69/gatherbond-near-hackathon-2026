@@ -50,11 +50,27 @@ function RecapStat({ label, value, detail }) {
   );
 }
 
-export default function EventRecap({ id }) {
-  const [state, setState] = useState({ status: "loading", event: null });
+export default function EventRecap({
+  id,
+  initialEvent = null,
+  initialStatus = null,
+  initialError = null,
+}) {
+  const servedState = initialEvent
+    ? { status: "ready", event: initialEvent }
+    : initialStatus === "conflict"
+      ? { status: "error", event: null, error: initialError }
+      : initialStatus === "unavailable"
+        ? { status: "unavailable", event: null, error: initialError }
+        : null;
+  const served = servedState !== null;
+  const [state, setState] = useState(servedState ?? { status: "loading", event: null });
   const [shareLabel, setShareLabel] = useState("Share recap");
 
   useEffect(() => {
+    if (served) {
+      return undefined;
+    }
     let active = true;
     setState({ status: "loading", event: null });
 
@@ -92,7 +108,7 @@ export default function EventRecap({ id }) {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, served]);
 
   const summary = useMemo(
     () =>

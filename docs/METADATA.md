@@ -1,284 +1,359 @@
-# GatherBond — Event Metadata Layer (M3)
+# GatherBond — Event Metadata Layer
 
-Status: **implemented, locally tested and running in production.** The Turso database is
-created and migrated, the Next.js UI consumes the public listing, publication and event
-passport routes, and a real NEAR Connect NEP-413 wallet session is wired into the UI. The
-contract (`cynopom.testnet`) and the frontend (<https://gatherbond.vercel.app>) are
-deployed; four on-chain events exist, one of them published with verified metadata (event 3
-is an unpublished scripted lifecycle check for the fixed-window schedule).
-On-chain registration and deposit from the browser are still pending (see §7). The
-database is optional: the escrow contract remains fully usable without it.
+**Status:** implemented and live on Turso · **Updated:** 2026-11-13
+**Boundary:** display metadata only. The NEAR contract is authoritative for money, capacity, attendance, settlement and claims.
 
-## 1. Source-of-truth boundary
+---
 
-Authoritative on-chain (never mirrored as truth):
+## 1. Why this layer exists
 
-- organizer, deposit, capacity, timestamps, status
-- reservations, ticket commitments, attendance
-- escrow, refunds, rewards, claims, treasury
+The contract needs a 32-byte `metadata_hash` for each event, but it should not store titles, descriptions, images or tags. GatherBond stores one canonical JSON document off-chain, anchors its SHA-256 on chain at `create_event`, and verifies both representations on every public read.
 
-Stored off-chain only:
+The metadata layer can:
 
-- title, description, category, venue, image URL, tags, organizer display identity
-- the canonical metadata JSON and its SHA-256
-- the create transaction reference and publication status
+- make a room readable and discoverable;
+- preserve publication history;
+- reject financial or unknown fields;
+- hide a row whose hash no longer matches the chain.
 
-A metadata row can never prove payment, registration, attendance or claim entitlement, and
-the metadata document rejects financial fields outright (`deposit`, `capacity`, `status`,
-timestamps and any unknown key are validation errors).
+It cannot:
+
+- change a deposit, capacity or attendance;
+- prove payment or check-in;
+- make an unverified row visible;
+- unpublish or delete a published event through the current API.
+
+---
 
 ## 2. Canonical document
 
-Defined by `server/metadata/canonical.mjs` (browser-safe; M4 will import it to hash before
-calling `create_event`).
+### 2.1 Allowed fields
 
-Fields (all required except `schema_version`, `image_url`, `tags`):
+| Field | Type | Limit | Required | Notes |
+| --- | --- | --- | --- | --- |
+| `schema_version` | integer | `1` | yes | Must be exactly `1` |
+| `network_id` | string | 32 bytes | yes | `testnet` |
+| `contract_id` | string | valid NEAR account | yes | `cynopom.testnet` |
+| `organizer_account_id` | string | valid NEAR account | yes | Must match the authenticated actor |
+| `title` | string | 140 bytes | yes | Non-blank |
+| `description` | string | 4,000 bytes | yes | May be empty |
+| `category` | string | 40 bytes | yes | Non-blank |
+| `venue` | string | 200 bytes | yes | May be empty |
+| `image_url` | string | 500 bytes | no | HTTP(S) URL or empty; no data URLs |
+| `tags` | string[] | 8 items × 32 bytes | no | Trimmed, unique, no control characters |
+| `created_at` | string | 40 bytes | yes | RFC3339 UTC |
 
-| field | limit | notes |
-| --- | --- | --- |
-| `schema_version` | must be `1` | defaults to 1 |
-| `network_id` | 32 bytes | e.g. `testnet` |
-| `contract_id` | NEAR account id | must equal the event key |
-| `organizer_account_id` | NEAR account id | must equal the event key's creator |
-| `title` | 140 bytes | non-empty |
-| `description` | 4000 bytes | may be empty |
-| `category` | 40 bytes | non-empty |
-| `venue` | 200 bytes | may be empty |
-| `image_url` | 500 bytes | `https://` only, or empty |
-| `tags` | ≤ 8 entries, 32 bytes each | unique, order preserved |
-| `created_at` | RFC 3339 UTC (`Z`) | set before the on-chain transaction |
+Any other field is rejected, including `deposit`, `capacity`, `registered`, `checked_in`, `status`, `refund_pool` and `reward_pool`. Control characters (except normal whitespace) are rejected.
 
-Canonicalization:
+### 2.2 Canonicalization
 
-1. object keys sorted lexicographically and recursively,
-2. `JSON.stringify` with no whitespace,
-3. UTF-8 bytes as provided (no Unicode normalization),
-4. SHA-256 over those bytes.
+1. Validate all fields and bounds.
+2. Rebuild the object with only allowed fields.
+3. Sort object keys recursively.
+4. Serialize with `JSON.stringify` and no whitespace.
+5. Compute SHA-256 over the UTF-8 bytes.
 
-**Decision — `event_id` is excluded.** The contract assigns the event id inside
-`create_event`, which already has to carry the metadata hash, so the id cannot be part of
-the hashed document. Binding is provided by the unique
-`(network_id, contract_id, event_id)` row plus the create transaction hash. The same
-reasoning applies to all contract-derived terms.
+The digest is lowercase hex in the database and a 32-byte array on chain.
 
-**Decision — no title/description on-chain.** The contract keeps only the 32-byte hash
-(`metadata_hash`), which is what `create_event` accepts today; no contract change was
-needed for M3 and no accounting rule was touched.
+### 2.3 Verified example
 
-The hash is exposed three ways: `hex`, `Uint8Array`, and the `[u8; 32]` JSON array that
-`create_event` expects. `scripts/metadata-tool.mjs` prints all of them for the runbook.
+This is the current live publication for event `0`:
 
-Known-answer vectors: `docs/metadata-vectors.json`, generated independently by
-`scripts/generate_metadata_vectors.py` and executed by the JS tests.
+```json
+{
+  "category": "Community",
+  "contract_id": "cynopom.testnet",
+  "created_at": "2026-11-10T05:04:55.231Z",
+  "description": "",
+  "image_url": "",
+  "network_id": "testnet",
+  "organizer_account_id": "cynopom.testnet",
+  "schema_version": 1,
+  "tags": ["supper"],
+  "title": "Sunday Table",
+  "venue": "Banani Kitchen, Dhaka, Bangladesh"
+}
+```
+
+```text
+metadata_sha256  e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc
+create_tx_hash   2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a
+publication v1   published 2026-11-10T05:05:21.485Z
+```
+
+---
 
 ## 3. Database schema
 
 Migration: `database/migrations/0001_event_metadata.sql`.
 
-- identity: `PRIMARY KEY (network_id, contract_id, event_id)`
-- `event_id` is `TEXT` decimal u64 so values above 2^53 survive (the contract's `u64`
-  serializes as a string over JSON anyway)
-- `metadata_json` stores the canonical string, `metadata_sha256` its digest
-- `publication_status` ∈ `pending | published | hidden` (default `pending`)
-- indexes for published listings, category listings and organizer history
+### 3.1 `event_metadata`
 
-Publication is a separate append-only log, `event_publications`:
-
-- `(network_id, contract_id, event_id, version)` is the primary key; versions are
-  monotonically increasing per event
-- `action = 'publish'` carries the immutable `metadata_json`, `metadata_sha256` and
-  `create_tx_hash` snapshot that was made public at that version
-- `published_by` is the authenticated organizer actor; `published_at` is the transition time
-- Publication is permanent. A new publish appends a version; there is no unpublish path.
-  Legacy `unpublish` rows are retained for audit but ignored by public reads, so an earlier
-  publish becomes visible again.
-
-The highest publish version is authoritative. Because every publish is one INSERT, a failure
-cannot leave the event half-published; a retry either reports the same version (unchanged
-republish) or allocates the next one. The table remains in
-`database/migrations/0001_event_metadata.sql`; the migration was applied to the configured
-Turso database on 2026-11-08, so the operator command is unchanged.
-
-Local SQLite is the reference implementation (`server/metadata/sqlite.mjs`, Node's
-`node:sqlite`); production uses the same store over Turso/libSQL through
-`server/metadata/libsql.mjs` (an `@libsql/client`-shaped adapter, no dependency import).
-
-## 4. Server API (framework-agnostic)
-
-`server/metadata/handlers.mjs` exports `createMetadataHandlers({ store, getOnChainEvent,
-authorize })`. The Next.js App Router route handlers in
-`frontend/app/api/events/route.js`, `frontend/app/api/events/[id]/route.js`,
-`frontend/app/api/events/[id]/metadata/route.js` and
-`frontend/app/api/events/[id]/publication/route.js` wrap these through
-`server/http/routes.mjs` (Web `Request`/`Response`). Nothing here reads environment
-variables, so `TURSO_AUTH_TOKEN` cannot reach a client bundle.
-
-`PUT /api/events/:id/metadata` — body `{ key, metadata, create_tx_hash }`, actor from the
-server session:
-
-| status | meaning |
+| Column | Purpose |
 | --- | --- |
-| 201 | inserted |
-| 200 | idempotent retry, same key + hash (no duplicate row) |
-| 400 | invalid key/metadata, including financial fields |
-| 401 / 403 | missing actor / not the organizer |
-| 404 | event does not exist on-chain |
-| 409 | submitted hash ≠ on-chain `metadata_hash`, or a different hash is already anchored |
-| 503 | RPC or database unavailable (fail closed) |
+| `network_id`, `contract_id`, `event_id` | Primary identity; `event_id` is `TEXT` to preserve u64 above 2^53 |
+| `organizer_account_id` | Authorized writer |
+| `title`, `description`, `category`, `venue`, `image_url`, `tags_json` | Denormalized listing columns |
+| `metadata_json` | Canonical document |
+| `metadata_sha256` | 64-char hex digest |
+| `create_tx_hash` | Contract creation transaction |
+| `publication_status` | `pending`, `published`, legacy `hidden` |
+| `created_at`, `updated_at` | Audit timestamps |
 
-`GET /api/events/:id/metadata` — returns `{ verified: true, metadata, metadata_hash, ... }`
-only when the stored JSON re-hashes to the stored digest **and** equals the on-chain hash.
-Mismatch returns `409 metadata_hash_mismatch`; the altered content is never returned as
-verified.
+### 3.2 `event_publications`
 
-`GET /api/events` — published rows only, bounded (`limit ≤ 50`), optionally filtered by
-category; rows whose stored JSON no longer hashes correctly are skipped and counted in
-`skipped`. It selects only the latest `publish` version, so drafts, never-published events
-and superseded versions are never listed; a legacy tombstone does not hide a publish. Detail pages perform the on-chain check; list pages
-verify integrity locally.
+Append-only log:
 
-Publication endpoints:
+| Column | Purpose |
+| --- | --- |
+| `version` | Monotonic per event, starting at 1 |
+| `action` | `publish` or legacy `unpublish` |
+| `metadata_json`, `metadata_sha256`, `create_tx_hash` | Immutable snapshot for a publish |
+| `published_by`, `published_at` | Actor and timestamp |
 
-| route | auth | result |
-| --- | --- | --- |
-| `POST /api/events/:id/publication` | organizer session | `201` first publish, `200 unchanged` with the same version, `401`/`403`, `404` missing draft/event, `409` hash mismatch, `503` fail closed |
-| `DELETE /api/events/:id/publication` | none | `405`; publications are permanent and cannot be unpublished |
-| `GET /api/events/:id/publication` | public | `200` current verified snapshot (`version`, `metadata`, hashes, publisher/time), `404 not_published`, `409` mismatch, `503` fail closed |
-| `GET /api/events/:id` | public | `200` verified publication plus read-only `onchain` EventView (schedule, deposit, capacity, status), `404 not_published`, `409` mismatch, `503` fail closed |
+The highest version is current. A publish row is never mutated. The schema retains legacy `unpublish` tombstones because a database may predate the permanent-publication policy; **the current API does not create new tombstones and exposes no unpublish/delete action.** The store still understands an old tombstone as “the next publish must append a new version.”
 
-Publishing verifies the stored draft against both its stored digest and the on-chain
-`metadata_hash` before appending the snapshot. An identical republish of unchanged content
-returns the existing version and does not write a row. Unpublishing appends a tombstone;
-republishing afterwards produces the next version. All three operations use the same
-server-derived event key, never a client-supplied network/contract.
+---
 
-The pre-existing `GET /api/events/:id/metadata` remains the draft/verification read required
-by the organizer flow and its contract tests; public event pages and discovery use
-`GET /api/events/:id/publication`, `GET /api/events/:id` and `GET /api/events`, which never
-select drafts or superseded versions. The editorial Next.js pages call the public list and
-event-passport routes; sample event IDs are static client content and never call the chain.
+## 4. Verification rules
 
-Partial failure follows MASTERPLAN §9.5: hash first, submit `create_event`, then save with
-the idempotent key and allow a user-triggered retry. A database failure never creates a
-second event and never affects escrow.
+A row is public only if all of these are true:
 
-### Runtime selection and HTTP wiring
+1. `event_publications` has a current `publish` version.
+2. The stored `metadata_json` re-hashes to `metadata_sha256`.
+3. `get_event(event_id)` returns an event on the configured contract.
+4. The on-chain `metadata_hash` equals `metadata_sha256`.
 
-`server/metadata/runtime.mjs` chooses the store from server-side environment variables:
+| Failure | Response |
+| --- | --- |
+| No publication | `404 not_published` |
+| Event missing from chain | `409 event_not_found_on_chain` |
+| Local or on-chain hash mismatch | `409 metadata_hash_mismatch` |
+| Store unavailable | `503 metadata_store_unavailable` |
+| RPC unavailable | `503 chain_unavailable` |
+| Invalid event ID | `400 invalid_key` |
 
-| configuration | mode | behaviour |
-| --- | --- | --- |
-| `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` | `turso` | `@libsql/client` from `frontend/`; migrations are applied explicitly (runbook), not at startup |
-| `METADATA_SQLITE_PATH` | `sqlite` | local SQLite; migration applied automatically for dev/tests |
-| neither | `unavailable` | routes answer `503 metadata_store_unavailable`; escrow stays usable |
+Discovery does not fail the whole list when one row is bad. It skips that row and increments `skipped`.
 
-Other server variables: `CONTRACT_NAME` (falls back to `NEXT_PUBLIC_CONTRACT_NAME`),
-`NEAR_RPC_URL` (default `https://rpc.testnet.near.org`), `NEAR_NETWORK_ID`.
+---
 
-On-chain reads use `server/near/rpc.mjs`: a read-only JSON-RPC `query`/`call_function` of
-`get_event`, with no keys and no writes. The event id comes from the URL, while
-network/contract identity comes from server configuration, never from the request body.
+## 5. HTTP API
 
-Authorization binds the actor to the validated `organizer_account_id`. The actor comes from
-a verified NEP-413 wallet session (`server/auth/`): the client signs
-`sha256(u32le(2147484061) || borsh({ message, nonce[32], recipient, callbackUrl? }))` with
-an Ed25519 full-access key, `POST /api/auth/session` verifies it and checks
-`view_access_key(account, public_key)` through the read-only RPC seam, then sets an
-HttpOnly `gatherbond_session` cookie. The nonce is single-use per account, persisted in
-`auth_nonces` (created with `IF NOT EXISTS`, so the Turso migration command is unchanged).
-`GET`/`DELETE /api/auth/session` report and clear the session; the GET body also publishes
-`configured` and `recipient` so the browser can decide whether to start a login and which
-recipient to sign for. The browser uses `@hot-labs/near-connect` and requests
-`wallet.signMessage` after connecting; it never adds a function-call key. Without
-`GATHERBOND_SESSION_SECRET` login is disabled (503) and writes stay 401.
+Base: `/api`. All responses are JSON with `cache-control: no-store`.
 
-The development-only `GATHERBOND_ALLOW_DEV_ACTOR=1` + `x-gatherbond-actor` seam remains for
-local work and is ignored unless explicitly enabled; it is never a production actor. Reads
-(the published snapshot and listing) stay public so discovery and event pages do not require
-login.
+### 5.1 Public reads
 
-Login and every authenticated metadata write are throttled by a process-local fixed-window
-limiter (`server/http/rateLimit.mjs`): limits are per client and per account for login, and
-per actor for writes. Over-limit requests answer `429` with `Retry-After` (and
-`retry_after_seconds` in the body) before signature verification, RPC lookup, nonce claim
-or the write handler runs. Failed signatures, replays and wrong-actor writes count toward
-the limit. State is in-process, so separate instances/replicas each enforce their own
-counters; a shared limiter would require a new service and is deliberately out of scope.
-Defaults and tuning are in `.env.example`; invalid values fall back to safe defaults and
-the limiter is only disabled by the explicit `GATHERBOND_RATE_LIMIT_DISABLED=1`.
+#### `GET /api/events?limit=20&offset=0&category=Community`
 
-Local HTTP check (no credentials, no database):
-
-```bash
-cd frontend && npx next build && npx next start -p 3105
-# GET /api/events                     -> 503 metadata_store_unavailable
-# GET /api/events/0                   -> 503 metadata_store_unavailable
-# GET /api/events/0/metadata          -> 503 metadata_store_unavailable
-# GET /api/events/0/publication       -> 503 metadata_store_unavailable
-# GET /api/auth/session               -> 401 configured:false (when auth is unset)
-# PUT /api/events/0/metadata          -> 401 unauthorized
-# POST /api/events/0/publication      -> 401 unauthorized
+```json
+{
+  "items": [
+    {
+      "event": {
+        "network_id": "testnet",
+        "contract_id": "cynopom.testnet",
+        "event_id": "0"
+      },
+      "metadata": { "title": "Sunday Table", "venue": "Banani Kitchen, Dhaka, Bangladesh" },
+      "metadata_sha256": "e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc",
+      "metadata_hash": [224, 37, 127, 231, "..."],
+      "publication_version": 1,
+      "published_at": "2026-11-10T05:05:21.485Z",
+      "create_tx_hash": "2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a",
+      "onchain": {
+        "status": "Finalized",
+        "deposit": "100000000000000000000000",
+        "capacity": 20,
+        "registered": 1,
+        "checked_in": 0
+      }
+    }
+  ],
+  "skipped": 0,
+  "next_offset": 1
+}
 ```
 
-`server/http/test/e2eHttp.test.mjs` automates the full lifecycle against the real Next app
-and a temporary SQLite file: PUT success, idempotent retry, 401/403/404, 409 before storing,
-GET, draft/superseded isolation, versioned publish/republish, permanent-publication, cross-account
-rejection, a real throttled publish (`429`) and tamper detection. It runs inside
-`scripts/verify-local.sh`.
+- `limit` is clamped to 1..50.
+- `category` is an exact filter.
+- Only verified current publications are returned.
+- `onchain` is read live from RPC and may change without republishing metadata.
 
-## 5. Turso / Vercel check (M3 task 1)
+#### `GET /api/events/:id`
 
-Checked 2026-11-07:
+Returns the verified publication plus public contract terms. This is the event page's source.
 
-- The free plan still exists: 100 databases, 5 GB storage, 500M rows read/month, 10M rows
-  written/month, 3 GB sync/month; free databases are archived after 10 days of inactivity
-  (vendor pricing page and a 2026-10-30 third-party read of it). Recheck
-  <https://turso.tech/pricing> before launch.
-- The Vercel Marketplace integration ("Turso Cloud") injects `TURSO_DATABASE_URL` and
-  `TURSO_AUTH_TOKEN` and instructs projects to install `@libsql/client`; Turso's current
-  docs also offer `@tursodatabase/serverless` for fetch-only runtimes.
-- Chosen: `@libsql/client` for the server route handlers, matching the Vercel integration
-  and the adapter already implemented here. The adapter is dependency-injected so the
-  local tests never need the package or a token.
-
-Sources: <https://turso.tech/pricing>, <https://docs.turso.tech/sdk/ts/reference>,
-<https://changelog.vercel.com/marketplace/tursocloud>.
-
-The database was created and `database/migrations/0001_event_metadata.sql` was applied on
-2026-11-08 with the user's credentials. `event_metadata` and `event_publications` exist;
-`event_publications` was empty at the time of writing. Credentials remain server-only in
-`frontend/.env.local`, which is ignored by Git.
-
-## 6. Local verification
-
-```bash
-python scripts/generate_metadata_vectors.py     # regenerate vectors
-node --test server/metadata/test/*.test.mjs     # metadata handler/store tests
-bash scripts/verify-local.sh                    # full local suite, including Next e2e
+```json
+{
+  "verified": true,
+  "event": { "network_id": "testnet", "contract_id": "cynopom.testnet", "event_id": "0" },
+  "version": 1,
+  "publication_status": "published",
+  "metadata": { "title": "Sunday Table" },
+  "metadata_sha256": "e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc",
+  "published_by": "cynopom.testnet",
+  "published_at": "2026-11-10T05:05:21.485Z",
+  "onchain": { "status": "Finalized", "registered": 1, "checked_in": 0 }
+}
 ```
 
-Covered: canonical bytes and 7 independent vectors, key normalization including u64 max,
-financial-field rejection, bounds/control characters, idempotent save, hash conflicts,
-tampering detection, on-chain mismatch on write and read, auth failures, fail-closed RPC/DB
-errors, published-only bounded listings, publication version monotonicity, unchanged
-republish no-ops, legacy-tombstone permanence, draft/superseded isolation, failed-publication
-atomicity, and the libSQL adapter mapping. Session coverage adds NEP-413 byte vectors,
-Ed25519 verification, session expiry/tampering, nonce replay, full-access key enforcement,
-the fixed-window limiter (including throttled logins that do not reach RPC or consume a
-nonce), and the live signed-login lifecycle over real HTTP.
+#### `GET /api/events/:id/publication`
 
-## 7. Not done
+Returns only the current public snapshot. A draft returns `404 not_published`. The response contains `version`, `metadata`, `metadata_sha256`, `metadata_hash`, `create_tx_hash`, `published_by` and `published_at`.
 
-- Wallet-driven registration/deposit, ticket display/scanning, finalization and claims in
-  the UI. The contract supports the full lifecycle and the runbook exercises it with the
-  NEAR CLI; the browser flow stops at discovery, event pages and organizer metadata.
-- Saving metadata from a create-event flow; the server publication workflow exists, but the
-  organizer UI currently works from an existing event ID.
-- A multi-account published pilot across two browsers. The live Testnet acceptance used one
-  account and an unpublished hash.
+#### `GET /api/events/:id/metadata`
 
-Deployed on 2026-11-11: contract `cynopom.testnet` (WASM SHA-256
-`8b8817aa9da9f0a0784a9059f59e3c2640c26c9228648b2196a306e78c54e1f0`), frontend on Vercel,
-Turso metadata live behind `/api/events`. Discovery shows the published on-chain event and
-keeps its labeled sample shelf for the remaining empty slots; sample cards never carry
-financial activity.
+Returns the organizer's current stored draft if it verifies against the chain, including `publication_status: "pending"` when it has never been published. A draft is **not** public discovery data.
+
+### 5.2 Authenticated writes
+
+Both endpoints require a valid NEP-413 session cookie. The actor is derived from the session, never from the body.
+
+#### `PUT /api/events/:id/metadata`
+
+```json
+{
+  "metadata": { "schema_version": 1, "title": "Sunday Table", "..." : "..." },
+  "create_tx_hash": "2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a"
+}
+```
+
+Flow:
+
+1. Parse and validate canonical metadata.
+2. Require actor = `organizer_account_id`.
+3. Read `get_event(event_id)`.
+4. Compare the submitted hash to the on-chain hash.
+5. Store the draft idempotently.
+
+Responses: `201` inserted, `200` idempotent update, `400` invalid metadata, `401` no session, `403` wrong organizer, `404` event not on chain, `409` hash mismatch, `503` store/RPC unavailable.
+
+#### `POST /api/events/:id/publication`
+
+No body. Appends the current verified draft as a new public version.
+
+- `201` when a new version is appended.
+- `200` when the current version already has identical content.
+- `401` no session.
+- `403` not the organizer.
+- `404` no draft or no chain event.
+- `409` draft no longer matches the chain.
+- `503` store/RPC unavailable.
+
+There is no `DELETE` and no unpublish route.
+
+### 5.3 Error envelope
+
+```json
+{ "error": "metadata_hash_mismatch", "detail": "optional safe diagnostic" }
+```
+
+Never expect the server to include credentials, tokens, full URLs or private keys.
+
+---
+
+## 6. Runtime selection
+
+`server/metadata/runtime.mjs` wires the store, RPC reader, auth routes and handlers.
+
+| Environment | Store |
+| --- | --- |
+| `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` | Turso/libSQL via `@libsql/client/http` |
+| `METADATA_SQLITE_PATH` | Local Node `node:sqlite` |
+| neither | Unavailable store; routes return `503` |
+
+The runtime is lazy. Importing a page or route during `next build` does not require credentials, does not open a database and does not read the migration file. The migration is loaded only when a SQLite/libSQL store opens.
+
+`@libsql/client` is resolved through `createRequire` because the metadata layer lives outside `frontend/`. `frontend/next.config.mjs` traces the client and its transitive dependencies into API, home, event and sitemap functions.
+
+---
+
+## 7. Local verification
+
+```bash
+python scripts/generate_metadata_vectors.py     # regenerate known-answer vectors
+node --test server/metadata/test/*.test.mjs     # handlers/store/canonical
+bash scripts/verify-local.sh                    # full suite incl. live Next e2e
+```
+
+Covered:
+
+- canonical bytes and known-answer vectors;
+- object key ordering;
+- u64 event IDs above 2^53;
+- unknown and financial field rejection;
+- bounds, control characters, URL schemes;
+- idempotent save and hash conflicts;
+- tamper detection;
+- on-chain mismatch on write and read;
+- cross-account rejection;
+- append-only publication versions;
+- unchanged republish no-op;
+- legacy tombstone permanence;
+- failed publication atomicity;
+- concurrent identical and conflicting saves;
+- concurrent publish version allocation;
+- bounded lists and verification filtering;
+- real HTTP login → PUT → publish → GET over Next + SQLite;
+- fail-closed missing DB/RPC/auth paths.
+
+Latest counts: **107 server/metadata/auth/HTTP tests**, part of **236 total**.
+
+---
+
+## 8. Operations
+
+### Publish a new event
+
+```text
+create_event(metadata_hash) on chain
+  → PUT /api/events/:id/metadata
+  → GET /api/events/:id/metadata   (verify)
+  → POST /api/events/:id/publication
+  → GET /api/events/:id            (public)
+```
+
+### Correct a mistake
+
+Save a new draft whose canonical hash matches a new on-chain metadata hash, then publish a new version. You cannot edit a published version in place. Earlier versions remain.
+
+### Withhold a listing
+
+The metadata operator can stop serving a row (for example, by taking the database offline or removing the publication through a direct operator process). There is no user-facing unpublish button. Withholding display data cannot change contract state.
+
+### Health
+
+```bash
+curl -sS https://gatherbond.vercel.app/api/health
+```
+
+Expected live shape:
+
+```json
+{
+  "database_mode": "turso",
+  "database_reason": null,
+  "database_error_code": null,
+  "database_error_detail": null,
+  "auth_configured": true,
+  "contract_configured": true,
+  "contract_id": "cynopom.testnet",
+  "network_id": "testnet",
+  "database_read": "ok"
+}
+```
+
+---
+
+## 9. Limits and non-goals
+
+- Metadata is not a financial ledger.
+- There is no rich-text/HTML rendering; descriptions are plain text.
+- Images are URL references, not uploaded/stored blobs.
+- There is no search index beyond SQL filtering and the client-side filter.
+- Publication is permanent; deletion is a deliberate non-goal.
+- Rate limits are process-local.
+- The operator can withhold; the contract remains authoritative.
+- No analytics, audit log export or admin console.
+
+See [DOCUMENTATION.md](./DOCUMENTATION.md) for the full system and [SEO.md](./SEO.md) for how verified metadata becomes crawlable HTML.

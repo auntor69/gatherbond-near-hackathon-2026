@@ -71,13 +71,42 @@ function VerifiedNote({ event }) {
   );
 }
 
-export default function EventDetail({ id }) {
-  const [state, setState] = useState({ status: "loading", event: null });
+export default function EventDetail({
+  id,
+  initialEvent = null,
+  initialStatus = null,
+  initialError = null,
+}) {
+  const servedState = initialEvent
+    ? { status: "ready", event: initialEvent }
+    : initialStatus === "conflict"
+      ? { status: "error", event: null, error: initialError }
+      : initialStatus === "unavailable"
+        ? { status: "unavailable", event: null, error: initialError }
+        : null;
+  const served = servedState !== null;
+  const [state, setState] = useState(servedState ?? { status: "loading", event: null });
   const [shareLabel, setShareLabel] = useState("Share event");
   const [reloadKey, setReloadKey] = useState(0);
+  // The server renders in UTC while the browser knows the device zone. Keep the first
+  // client render identical to the server, then reveal the local zone after hydration.
+  const [localZone, setLocalZone] = useState("your local timezone");
   const wallet = useWallet();
 
   useEffect(() => {
+    if (typeof Intl === "undefined") {
+      return;
+    }
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (zone) {
+      setLocalZone(zone);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (served && reloadKey === 0) {
+      return undefined;
+    }
     let active = true;
     setState({ status: "loading", event: null });
 
@@ -115,7 +144,7 @@ export default function EventDetail({ id }) {
     return () => {
       active = false;
     };
-  }, [id, reloadKey]);
+  }, [id, reloadKey, served]);
 
   if (state.status === "loading") {
     return (
@@ -169,10 +198,6 @@ export default function EventDetail({ id }) {
   const lifecycle = eventLifecycle(event);
   const closed = lifecycle.closed;
   const displayStatus = lifecycle.displayStatus;
-  const localZone =
-    typeof Intl === "undefined"
-      ? "your local timezone"
-      : Intl.DateTimeFormat().resolvedOptions().timeZone || "your local timezone";
   const shareUrl = typeof window === "undefined" ? "" : window.location.href;
   const explorerBase =
     event.network === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";

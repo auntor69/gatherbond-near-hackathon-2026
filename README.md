@@ -2,228 +2,462 @@
 
 **Commit to gather. Earn by showing up.**
 
-GatherBond is a commitment-first event platform on NEAR. Organizers create real-world events with a refundable native NEAR deposit. Attendees reserve with the exact deposit, receive a one-time ticket, and get checked in by the organizer. After the event, verified attendees claim their deposit plus a share of the no-show pool. The contract holds the money, records attendance and settles deterministically; the database only stores descriptive metadata.
+GatherBond is a commitment-first event platform on **NEAR Testnet**. Organizers create real-world rooms with a refundable native NEAR deposit. Attendees reserve with the exact deposit and receive a one-time ticket. The organizer checks them in at the door. After the room ends, the first attendee claim settles the event automatically: people who showed up reclaim their bond and split the no-show pool; people who did not show up forfeit theirs.
 
-> **Status:** Testnet v1 is live. The contract is `cynopom.testnet`, the production frontend is <https://gatherbond.vercel.app>, and the Turso metadata layer, NEP-413 wallet sessions and QR check-in are enabled. This is a testnet product: no mainnet funds are used and the contract is not audited.
+The contract holds the money and records attendance. The database stores descriptive metadata and can never override a deposit, a check-in, a refund or a claim.
 
-[![Live app](https://img.shields.io/badge/app-gatherbond.vercel.app-0e100e?style=flat-square)](https://gatherbond.vercel.app)
+> **Judge summary:** the app is live, the contract is live, the money path is on-chain, and every listing shown in discovery is re-hashed against the contract before it is rendered. This is a Testnet prototype with no real funds and no audit.
+
+[![Live app](https://img.shields.io/badge/live-gatherbond.vercel.app-d7ff5f?style=flat-square)](https://gatherbond.vercel.app)
 [![Contract](https://img.shields.io/badge/contract-cynopom.testnet-ff5c35?style=flat-square)](https://testnet.nearblocks.io/address/cynopom.testnet)
-[![Network](https://img.shields.io/badge/network-NEAR%20Testnet-0066ff?style=flat-square)](https://near.org)
-[![Docs](https://img.shields.io/badge/docs-full%20documentation-f1ede4?style=flat-square)](./docs/DOCUMENTATION.md)
+[![Tests](https://img.shields.io/badge/tests-236%20passing-0e100e?style=flat-square)](#verification)
+[![Build](https://img.shields.io/badge/production%20build-21%20routes%20passing-0e100e?style=flat-square)](#verification)
+[![License: MIT](https://img.shields.io/badge/license-MIT-d7ff5f?style=flat-square)](./LICENSE)
 
-## Why GatherBond exists
+---
 
-Free event registrations are cheap promises. A no-show wastes a seat, a venue, food, a coach and someone else's chance to attend. GatherBond makes the commitment real without turning the event into a ticketing business:
+## Why this is not another event page
 
-- the deposit is refundable when the attendee shows up,
-- no-shows fund the people who did,
-- every rule, registration and settlement is readable on chain,
-- the organizer never holds attendee money.
+| Ordinary registration | GatherBond |
+| --- | --- |
+| A button records intent. | A native NEAR deposit escrows the commitment. |
+| No-shows cost the host. | No-show deposits fund the people who attended. |
+| Attendance is a dashboard row. | Attendance is an on-chain boolean written by the organizer inside a fixed window. |
+| Refund policy is prose. | Refund and reward amounts are integer contract rules. |
+| Event details are trusted because a database says so. | Display metadata is verified against the SHA-256 hash anchored at `create_event`. |
+| Settlement needs an admin. | The first attendee claim settles an ended event automatically. |
 
-## How it works
+The design goal is not “tickets on a blockchain.” It is a closed economic loop where **showing up is the only way to get the bond back**, and anyone can audit why.
 
-1. **Reserve.** The attendee connects a NEAR Testnet wallet and sends the exact deposit to the escrow contract.
-2. **Show up.** The attendee receives a one-time `GB1.` QR ticket. The organizer scans it (or pastes the code) inside the check-in window, and the contract records attendance.
-3. **Settle.** The first claim after the event ends settles it automatically; there is no organizer finalize step. At or above 20% attendance, checked-in attendees claim their deposit plus an equal share of the no-show pool. Below 20%, every reservation is refunded in full. Cancelled events refund the full deposit.
+---
 
-## Live surfaces
+## Live proof
 
-| Surface | URL |
+| Surface | Value |
 | --- | --- |
 | Production app | <https://gatherbond.vercel.app> |
-| Contract | [`cynopom.testnet`](https://testnet.nearblocks.io/address/cynopom.testnet) |
-| Health | <https://gatherbond.vercel.app/api/health> |
-| Config | <https://gatherbond.vercel.app/api/config> |
-| Repository | <https://github.com/auntor69/gatherbond-near-hackathon-2026> |
+| NEAR Testnet contract | [`cynopom.testnet`](https://testnet.nearblocks.io/address/cynopom.testnet) |
+| Metadata database | Turso/libSQL, `database_mode: turso`, `database_read: ok` |
+| Wallet sessions | NEP-413, HttpOnly HMAC cookie, enabled |
+| On-chain events created | **8** (development and acceptance runs) |
+| Verified public snapshots | **1** currently indexed — `Sunday Table`, event `0` |
+| Published metadata hash | `e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc` |
+| Create transaction | [`2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a`](https://testnet.nearblocks.io/txns/2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a) |
+| Contract artifact | 415,893-byte WASM, SHA-256 `af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b` |
+| Local verification | 54 contract + 8/8 vectors + 75 frontend + 107 server tests = **236 passing** |
 
-The live contract currently returns **4** events; event `0` (`Sunday Table`) is a published, verified listing backed by the Turso metadata layer, and event `3` is a scripted lifecycle check for the fixed-window schedule (not published).
+**Why only one event is listed when eight exist on chain:** discovery is deliberately fail-closed. An event is visible only when its stored JSON still hashes to its stored digest **and** that digest equals the `metadata_hash` anchored on chain. The other seven events are development/acceptance records without a current verified publication. They are not replaced with demo rows.
 
-## What is live today
+Verified on 2026-11-13 against `/api/health`, `/api/events`, `/api/contract/event-count` and `/api/events/0`.
 
-| Area | Implemented |
+---
+
+## The 5-minute judge path
+
+Everything below can be checked before connecting a wallet. Each row is an action followed by the observable result.
+
+| Do this | See this |
 | --- | --- |
-| Escrow contract | Event creation, exact-deposit registration, capacity, ticket commitments, organizer check-in, ticket rotation, cancellation, permissionless finalization, pull claims, treasury accounting, pagination and failed-transfer recovery |
-| Organizer flow | Wallet session, create event, store canonical metadata, publish a permanent versioned snapshot, check in attendees at the door, cancel if needed |
-| Attendee flow | Wallet session, reserve, one-time QR ticket, download/copy fallback, commitments view, recovery with a fresh ticket commitment, claim settlement |
-| Public proof | Verified event passport, on-chain terms, no-show pool projection, settled recap, attendee receipt, public metadata API |
-| Metadata | Canonical JSON + SHA-256, append-only permanent publish versions, verified published-only discovery |
-| Auth | NEP-413 signature verification, single-use nonces, HttpOnly HMAC session cookie, full-access-key check, rate limits |
-| UI | Nocturne design system, responsive layouts at 390/768/1024/1440, reduced-motion support, self-hosted Instrument Sans/Serif |
+| Open <https://gatherbond.vercel.app> | A server-rendered listing for **Sunday Table**. It is there in the HTML, not only after client JavaScript. |
+| Open the listing | An event passport with the contract’s deposit, capacity, schedule, status and metadata hash. The create transaction links to NEARBlocks. |
+| Open **View room proof** on the ended event | A public recap with registered/checked-in counts and the settlement outcome. No attendee identities are exposed. |
+| View source on the event page | `<title>`, canonical, OpenGraph/Twitter tags and schema.org `Event` JSON-LD for the verified publication. |
+| Open <https://gatherbond.vercel.app/sitemap.xml> | Only the home page, the verified event and its closed recap. Drafts and unverified rows cannot enter the sitemap. |
+| Open <https://gatherbond.vercel.app/robots.txt> | Public rooms allowed; `/api/`, `/studio` and `/commitments` disallowed. |
+| Open `/studio` or `/commitments` and view source | `noindex, nofollow`, because both surfaces are wallet/private state. |
+| Open an unknown event such as `/events/999999` | A real HTTP **404**, not a 200 shell with an error message. |
+| Call `/api/health` | Database, auth and contract readiness in one JSON response. |
+| Call `/api/events` | Only verified published rows; `skipped` counts rows that failed verification. |
+
+A full reserve → check-in → claim run needs funded Testnet accounts, a wallet signature and an organizer check-in. It is documented step by step in [docs/DEPLOY_RUNBOOK.md](./docs/DEPLOY_RUNBOOK.md), not faked in the UI.
+
+---
+
+## How the mechanic works
+
+```mermaid
+flowchart LR
+  A[Organizer creates event] --> B[Attendee reserves exact deposit]
+  B --> C[One-time ticket commitment]
+  C --> D[Organizer checks in at the door]
+  D --> E[Event ends]
+  E --> F[First attendee claim auto-settles]
+  F --> G{Attendance floor}
+  G -->|at least 20%| H[Attendees: deposit + equal no-show share]
+  G -->|below 20%| I[Everyone: full deposit back]
+  F -->|cancelled| J[Everyone: full deposit back]
+```
+
+1. **Create.** The organizer chooses a deposit, capacity (1–500), start/end, registration deadline and check-in window. The contract requires `now < start < end`, registration in the future and no later than start, and check-in opening after registration closes and closing by the end. A non-refundable storage contribution is attached (contract minimum 0.01 NEAR; the studio default is 0.1 NEAR).
+2. **Reserve.** The attendee sends exactly `deposit` in yoctoNEAR plus a 32-byte ticket commitment. The secret behind the ticket never goes on chain.
+3. **Check in.** Only the organizer can mark attendance, only inside the window and only with the matching secret. A ticket is one-time-use.
+4. **Settle.** `claim_settlement` on an ended `Open` event calls the same settlement logic as `finalize_event`; the first claim freezes the pools. At or above 20% attendance, each checked-in attendee receives `deposit + floor(no-show deposits / checked-in)`. Below 20% (including zero check-ins), every reservation, including no-shows, receives its full deposit and no pool is distributed.
+5. **Claim.** Payouts are individual pull withdrawals with a per-event single-flight lock. A failed transfer restores the entitlement; one attendee cannot block another event.
+
+`finalize_event` remains permissionless for tooling and indexers. The product does **not** require or expose an organizer finalize button.
+
+### Economics in one line
+
+```text
+invariant: balance >= Σ(refund_pool + reward_pool) + treasury_accrued
+                    + pending_payouts + storage_stake + buffer
+```
+
+The contract checks this invariant whenever a state change can affect solvency. Registration growth must be covered by pre-existing surplus, never by another attendee’s refundable deposit.
+
+---
+
+## Why NEAR
+
+- **Native escrow:** the deposit is the asset. No wrapped token, no platform balance, no custody layer.
+- **Predictable fees:** small Testnet transfers make a refund/reward loop practical.
+- **Human-readable accounts:** organizers and attendees are account IDs, not opaque addresses.
+- **Fast finality:** check-in and attendance updates are visible immediately at the door.
+- **Wallet-native auth:** NEP-413 signs a human-readable login message; the server verifies a full-access key through read-only RPC and issues its own session.
+
+---
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-  B[Browser] -->|NEP-413 sign-in| A[Next.js App Router]
-  B -->|sign & send transaction| W[NEAR Wallet]
-  W --> C[GatherBond escrow contract]
-  A -->|read-only RPC| C
-  A -->|server-only| D[(Turso / libSQL metadata)]
-  A -->|public API| B
+flowchart TB
+  subgraph Browser
+    UI[Next.js App Router UI]
+    W[NEAR wallet / NEAR Connect]
+    T[Ticket secret in this browser]
+  end
+
+  subgraph Vercel["Vercel — Next.js server"]
+    SSR[Server-rendered event + recap pages]
+    API[Route handlers]
+    AUTH[NEP-413 verification + HMAC session]
+    META[Canonical metadata + hash verification]
+    RPC[Read-only NEAR RPC seam]
+    SEO[Metadata / JSON-LD / sitemap / OG cards]
+  end
+
+  subgraph NEAR["NEAR Testnet"]
+    C[cynopom.testnet escrow contract]
+  end
+
+  subgraph DB["Turso/libSQL"]
+    M[(event_metadata + event_publications)]
+  end
+
+  UI --> SSR
+  UI --> API
+  W -->|signed transactions| C
+  SSR --> META
+  SEO --> META
+  API --> AUTH
+  API --> META
+  META --> M
+  META --> RPC
+  RPC --> C
 ```
 
-- The **contract** is authoritative for organizer, deposit, capacity, schedule, reservations, ticket commitments, attendance, cancellation, finalization, escrow, rewards and claims.
-- **Turso/libSQL** stores only descriptive metadata and its SHA-256. It can never prove payment, attendance or claim entitlement.
-- **Server-side auth** derives the metadata-write actor from a verified wallet session. No server key signs transactions and no client can choose its own actor.
-- **Local development** can run the same metadata layer over SQLite instead of Turso.
+### Trust boundary
+
+| Layer | Authoritative for | Never authoritative for |
+| --- | --- | --- |
+| NEAR contract | deposits, capacity, registration, attendance, cancellation, settlement, rewards, claims, treasury | display copy, images |
+| Metadata database | title, description, category, venue, image URL, tags, publication history | money, attendance, eligibility |
+| Server | wallet-session verification, canonical hashing, HTTP orchestration, SEO rendering | user funds, user signatures |
+| Organizer | door check-in in this MVP | changing a deposit, rewriting attendance after the fact, touching the pool |
+| Browser | ticket secret and wallet interaction | another user’s ticket or balance |
+
+A metadata operator can withhold a listing. It cannot make someone paid, checked in, refundable or settled.
+
+---
+
+## Contract surface
+
+Core methods on `cynopom.testnet`:
+
+| Method | Caller | Purpose |
+| --- | --- | --- |
+| `create_event` | organizer | Create immutable terms + anchor `metadata_hash`; requires storage contribution |
+| `register(event_id, ticket_commitment)` | attendee | Escrow the exact deposit and bind a one-time ticket |
+| `check_in(event_id, attendee, secret)` | organizer | Verify the commitment and mark attendance inside the window |
+| `rotate_ticket_commitment` | attendee | Replace a lost ticket before check-in closes |
+| `cancel_event` | organizer | Cancel before start; full refunds |
+| `finalize_event` | anyone | Permissionless settlement for tooling/indexers |
+| `claim_settlement` | attendee | Auto-settle an ended event if needed, then pull the entitlement |
+| `withdraw_treasury` | treasury | Withdraw accrued rounding remainder only |
+| `get_event`, `get_events`, `get_event_count` | anyone | Public event views |
+| `get_reservation`, `get_reservations_for_account`, `get_attendance_history` | anyone | Bounded reservation/attendance views |
+| `get_total_liability`, `get_pending_amount`, `get_storage_stake`, `get_required_balance`, `get_surplus` | anyone | Solvency and storage observability |
+
+The deploy handover checks **17 required methods** and the `(treasury, network_id)` init arguments. Full details: [docs/DOCUMENTATION.md](./docs/DOCUMENTATION.md#smart-contract).
+
+### Ticket commitment
+
+```text
+SHA-256(
+  "GatherBond:v1"
+  || u32le(len(network_id)) || network_id
+  || u32le(len(contract_id)) || contract_id
+  || u64le(event_id)
+  || u32le(len(attendee)) || attendee
+  || u32le(len(secret)) || secret
+)
+```
+
+Rust and JavaScript are checked against the same 8 known-answer vectors by `scripts/verify-local.sh`. The secret is never stored on chain and never placed in a URL.
+
+---
+
+## Metadata and publication
+
+The canonical document is JSON with sorted keys and no whitespace. Its SHA-256 is anchored on chain. The database stores that document and an append-only publication log.
+
+Key rules:
+
+- Only descriptive fields are allowed. Financial fields such as `deposit`, `capacity`, `registered` or `claimed` are rejected.
+- The server re-hashes the stored JSON on every read.
+- The server reads `get_event(event_id)` and compares the on-chain `metadata_hash`.
+- A mismatch returns `409`; the row is hidden from discovery and never rendered as verified.
+- Publishing appends a version. An unchanged republish is an idempotent no-op. There is no unpublish or delete action in the UI or current API.
+- A draft is not public. Discovery reads only the current published snapshot.
+
+Deep reference: [docs/METADATA.md](./docs/METADATA.md).
+
+---
+
+## HTTP API
+
+| Route | Methods | Auth | Notes |
+| --- | --- | --- | --- |
+| `/api/health` | GET | public | Database/auth/contract readiness; no secrets |
+| `/api/config` | GET | public | Network and contract identity |
+| `/api/contract/event-count` | GET | public | Live on-chain count |
+| `/api/events` | GET | public | Verified published list; supports `limit`, `offset`, `category` |
+| `/api/events/[id]` | GET | public | Verified publication + public contract terms |
+| `/api/events/[id]/metadata` | GET, PUT | PUT requires wallet session | Draft verification / write |
+| `/api/events/[id]/publication` | GET, POST | POST requires organizer session | Public snapshot / append publication |
+| `/api/auth/session` | POST, GET, DELETE | public | NEP-413 login, whoami, logout |
+| `/api/me/commitments` | GET | wallet session | Reservations for the authenticated account only |
+
+All responses use `cache-control: no-store` unless explicitly cached by the route. Missing configuration fails closed with `503`; it never returns sample data.
+
+---
+
+## SEO and crawlability
+
+The public surface is built for humans **and** crawlers, without inventing events.
+
+| Surface | Implementation |
+| --- | --- |
+| Root metadata | `metadataBase`, title template, description, keywords, canonical, robots, OpenGraph, Twitter, manifest, icons |
+| Home | Server-rendered verified shelf + `Organization`, `WebSite` and `ItemList` JSON-LD; 60-second ISR |
+| Event page | Server-rendered verified event + dynamic `generateMetadata` + schema.org `Event` + canonical + per-event OG image |
+| Recap | Server-rendered proof, canonical, `WebPage`/`BreadcrumbList` JSON-LD, indexable only after the room closes |
+| Private routes | `/studio` and `/commitments` are `noindex, nofollow` and disallowed in `robots.txt` |
+| Sitemap | Verified event pages and closed recaps only; paginates the verified publication list |
+| 404 | Real HTTP 404 with Next’s noindex |
+| Social cards | Branded 1200×630 root card and dynamic event card with title/date/venue |
+| Failure mode | If metadata or RPC is unavailable, the sitemap/JSON-LD/event page omit data rather than fabricate it |
+
+Canonical origin is controlled by `NEXT_PUBLIC_SITE_URL` and defaults to `https://gatherbond.vercel.app`. Full operational notes: [docs/SEO.md](./docs/SEO.md).
+
+---
 
 ## Stack
 
-| Layer | Choice |
-| --- | --- |
-| Contract | Rust + `near-sdk`, one escrow contract (`gatherbond-escrow`) |
-| Network | NEAR Testnet only |
-| Frontend | Next.js 16 App Router, React 19, Turbopack, plain CSS design system |
-| Wallet | `@hot-labs/near-connect`, NEP-413 message signing |
-| Metadata | Node ESM modules, `node:sqlite` locally, Turso/libSQL in production |
-| QR | `qrcode` for rendering, `BarcodeDetector` + `jsqr` for Gate Mode |
-| Hosting | Vercel Git integration (`main`) |
+- **Frontend:** Next.js 16.4.5 App Router, React 19.3.1, plain CSS design system, Turbopack.
+- **Contract:** Rust + NEAR SDK, `wasm32-unknown-unknown`, 54 tests.
+- **Metadata:** Turso/libSQL in production, `node:sqlite` locally, append-only publication log.
+- **Auth:** NEP-413 signed login, Ed25519 verification, read-only full-access-key check, HMAC HttpOnly session.
+- **Wallet:** `@hot-labs/near-connect`.
+- **Tests:** `node --test` for frontend/server, `cargo test` for the contract, known-answer vectors cross-language.
+- **Hosting:** Vercel; no server signing key.
+
+---
 
 ## Repository map
 
 ```text
-contracts/            Rust escrow contract + tests
-database/             SQL migration for the metadata layer
-docs/                 deployment, metadata and full documentation
-frontend/             Next.js app, components, client libs, public assets
-local/                private working notes (not tracked)
-scripts/              verification, metadata and deploy handover tools
-server/               auth, metadata, HTTP and NEAR RPC modules
-BUILD_LOG.md          verified implementation history
-MASTERPLAN.md         product, architecture and milestone plan
+contracts/                 Rust escrow contract + 54 tests
+database/migrations/       Turso/libSQL schema
+docs/                      system, metadata, SEO, deployment docs
+frontend/app/              App Router pages, API routes, metadata routes
+frontend/components/       UI, wallet, QR, reserve/check-in/claim surfaces
+frontend/lib/              display mapping, event state, contract math, SEO, ticket crypto
+server/metadata/           canonical JSON, hashing, store, handlers, runtime
+server/auth/               NEP-413, sessions, nonces
+server/http/               framework-agnostic routes, limits, Next runtime
+server/near/               read-only RPC client
+scripts/                   verification and deploy handover
 ```
+
+---
 
 ## Run it locally
 
-```bash
-git clone https://github.com/auntor69/gatherbond-near-hackathon-2026.git
-cd gatherbond-near-hackathon-2026
+### Prerequisites
 
-# frontend
+- Node.js 22+ (the project uses built-in `node:sqlite` for local tests)
+- Rust toolchain with `wasm32-unknown-unknown` for contract work
+- NEAR CLI only if you intend to deploy or exercise the contract manually
+- A NEAR Testnet wallet for wallet flows
+
+### Frontend
+
+```bash
 cd frontend
 npm install
-cp ../.env.example .env.local   # then fill in only the values you need
+cp ../.env.example .env.local
+# Fill TURSO_* for the hosted database, or set METADATA_SQLITE_PATH=.data/gatherbond.sqlite
 npm run dev
 ```
 
-Open <http://localhost:3000>. Without a configured contract the UI fails closed: it disables create/reserve and reports the missing configuration instead of substituting sample data.
+Open <http://localhost:3000>. Without a database, public discovery and metadata pages fail closed with an explicit `503`; the contract itself is unaffected.
 
-For a database-free local run, set `METADATA_SQLITE_PATH=.data/gatherbond.sqlite` and omit the Turso variables. The metadata layer is optional; escrow remains usable without it.
-
-## Environment
-
-The complete annotated template lives in [`.env.example`](./.env.example). Never commit `frontend/.env.local` or any token.
-
-| Variable | Scope | Purpose |
-| --- | --- | --- |
-| `NEXT_PUBLIC_NEAR_NETWORK_ID` | browser | Network label, `testnet` |
-| `NEXT_PUBLIC_NEAR_NODE_URL` | browser | NEAR RPC endpoint |
-| `NEXT_PUBLIC_CONTRACT_NAME` | browser | Contract account for wallet calls |
-| `CONTRACT_NAME` | server | Server-side contract account (falls back to the public name) |
-| `NEAR_NETWORK_ID` | server | Network identity used in route keys |
-| `NEAR_RPC_URL` | server | Read-only RPC used to verify metadata hashes |
-| `TURSO_DATABASE_URL` | server only | Production metadata database |
-| `TURSO_AUTH_TOKEN` | server only | Turso credential; never sent to the browser |
-| `METADATA_SQLITE_PATH` | server only | Local SQLite database for development/tests |
-| `GATHERBOND_SESSION_SECRET` | server only | HMAC secret for session cookies (32+ chars) |
-| `GATHERBOND_AUTH_RECIPIENT` | server | NEP-413 recipient string wallets sign |
-| `GATHERBOND_SESSION_TTL_SECONDS` | server | Session lifetime, default `7200` |
-| `GATHERBOND_SECURE_COOKIES` | server | Set to `1` on HTTPS production |
-| `GATHERBOND_LOGIN_RATE_LIMIT` / `GATHERBOND_LOGIN_ACCOUNT_RATE_LIMIT` | server | Login throttling |
-| `GATHERBOND_WRITE_RATE_LIMIT` | server | Per-actor metadata-write throttling |
-| `GATHERBOND_RATE_LIMIT_DISABLED` | test only | Never set in a deployed environment |
-| `GATHERBOND_ALLOW_DEV_ACTOR` | test only | Never set in a deployed environment |
-
-## Verify
+### Contract
 
 ```bash
-bash scripts/verify-local.sh          # contract + parity + display/QR + metadata/auth/HTTP e2e + deploy handover
-npm run build --prefix frontend       # production Next build
+cd contracts
+cargo fmt --check
+cargo test --offline
 ```
 
-The latest verified local run passed all six steps:
+### Environment
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_NEAR_NETWORK_ID` | yes | `testnet` |
+| `NEXT_PUBLIC_NEAR_NODE_URL` | yes | Wallet RPC |
+| `NEXT_PUBLIC_CONTRACT_NAME` | yes | `cynopom.testnet` |
+| `NEXT_PUBLIC_SITE_URL` | recommended | Canonical public origin for metadata/sitemap |
+| `CONTRACT_NAME` | production | Server-side contract identity |
+| `NEAR_RPC_URL` | production | Read-only verification RPC |
+| `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` | production | Metadata store |
+| `METADATA_SQLITE_PATH` | local alternative | Local SQLite metadata store |
+| `GATHERBOND_SESSION_SECRET` | production | ≥32-character HMAC secret |
+| `GATHERBOND_AUTH_RECIPIENT` | recommended | Wallet-signed login recipient |
+| `GATHERBOND_SECURE_COOKIES=1` | production | Secure session cookie |
+
+Never put a secret in a `NEXT_PUBLIC_*` variable. The full list and defaults are in [`.env.example`](./.env.example).
+
+---
+
+## Verification
+
+The exact command used for the latest release candidate:
+
+```bash
+bash scripts/verify-local.sh
+npm run build --prefix frontend
+```
+
+Latest results:
 
 ```text
-50 contract tests
-8/8 ticket-commitment vectors
-39 Flake Fund + contract display/schedule math + QR round-trip tests
-94 Node metadata/auth/HTTP tests (including live Next + SQLite end-to-end)
-production Next build: /events/[id]/recap present
-deploy handover: 17 required methods, 414,933-byte WASM
+contract format           clean
+contract tests            54 passed
+ticket vectors            8/8 matched
+frontend tests            75 passed
+metadata/auth/HTTP tests  107 passed
+total                     236 passed
+WASM                      415,893 bytes
+SHA-256                   af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b
+production build          exit 0, 21 routes
 ```
 
-The frontend was additionally checked at 390, 768, 1024 and 1440 px across home, event detail, recap, studio, commitments and not-found: zero horizontal overflow, no text outside its viewport, all headings visible and sticky panels reachable.
+The SEO layer adds ten focused tests for canonical URLs, description truncation, Event JSON-LD, per-event OG image selection, Organization/WebSite/ItemList graphs, breadcrumbs, recap graphs and script-tag escaping.
 
-## Contract surface
+Local production-server checks (not claims about the current deployed commit):
 
-| Group | Methods |
-| --- | --- |
-| Lifecycle | `new`, `fund_reserve`, `create_event`, `register`, `check_in`, `rotate_ticket_commitment`, `cancel_event`, `finalize_event`, `claim_settlement`, `withdraw_treasury` |
-| Callbacks | `on_claim_callback`, `on_treasury_callback` |
-| Views | `get_event`, `get_events`, `get_event_count`, `get_reservation`, `get_reservations_for_account`, `get_attendance_history`, `get_treasury_balance`, `get_total_liability`, `get_pending_amount`, `get_storage_stake`, `get_required_balance`, `get_surplus`, `get_last_storage_delta`, `get_max_record_bytes`, `get_treasury_account`, `get_network_id` |
+```text
+GET /                         200
+GET /events/0                 200  verified title/JSON-LD/canonical in HTML
+GET /events/0/recap           200  server-rendered proof
+GET /events/999999            404
+GET /robots.txt               200  studio/commitments/api disallowed
+GET /sitemap.xml              200  3 URLs: home, verified event, closed recap
+GET /opengraph-image          200  image/png
+GET /events/0/opengraph-image 200  image/png
+```
 
-Every money movement is covered by the invariant `balance >= total_liability + pending_total + storage_stake + buffer`. See [`docs/DOCUMENTATION.md`](./docs/DOCUMENTATION.md#smart-contract) for the full accounting and storage policy.
+Full test rationale: [docs/DOCUMENTATION.md](./docs/DOCUMENTATION.md#testing-and-verification).
 
-## API
-
-| Route | Auth | Purpose |
-| --- | --- | --- |
-| `GET /api/config` | public | Network and contract identity |
-| `GET /api/health` | public | Database mode, auth configuration, contract configuration |
-| `GET /api/contract/event-count` | public | On-chain event count |
-| `GET /api/events` | public | Published, verified listings only |
-| `GET /api/events/:id` | public | Verified publication + read-only on-chain terms |
-| `GET /api/events/:id/publication` | public | Current published snapshot |
-| `GET /api/events/:id/metadata` | public | Draft/verification read for the organizer flow |
-| `PUT /api/events/:id/metadata` | organizer session | Save/replace the draft after `create_event` |
-| `POST /api/events/:id/publication` | organizer session | Publish the current draft |
-| `DELETE /api/events/:id/publication` | none | `405`; publications are permanent |
-| `POST /api/auth/session` | public | NEP-413 login |
-| `GET /api/auth/session` | cookie | Current session / auth config |
-| `DELETE /api/auth/session` | cookie | Logout |
-| `GET /api/me/commitments` | wallet session | Reservations + on-chain event state for the signed-in account |
-
-All authenticated responses are `no-store`. The metadata database is never a source of financial truth.
-
-## Security and truth boundary
-
-- **Wallet session:** the server verifies a NEP-413 signature over a domain-separated message, checks the key is a full-access key through read-only RPC, consumes a single-use nonce, and issues an HttpOnly `SameSite=Lax` HMAC cookie. No client-supplied account id is trusted for writes.
-- **Financial authority:** only the contract decides deposits, refunds, rewards, attendance and claims. Metadata rows cannot change money.
-- **Ticket secrecy:** the secret stays in the attendee's browser; only its SHA-256 commitment is on chain. Rotation invalidates the old QR immediately.
-- **Fail closed:** missing database, RPC or session secret returns an explicit `503`/`401`; the app never invents balances or success states.
-- **Testnet only:** no mainnet deployment procedure exists in this repository.
-
-## Design system
-
-The frontend uses **Nocturne**: bone/ink surfaces, ember and cobalt accents, a sharp editorial grid, Instrument Sans and Instrument Serif, and compact header/footer chrome. Motion is deliberate and non-content-hiding: a hero entry, a ticker, a floating pass card and hover lifts, all collapsed to their final state under `prefers-reduced-motion`. Legacy styles remain as a compatibility layer; `nocturne.css` loads last and owns the final visual language.
+---
 
 ## Deployment
 
-- **Frontend:** Vercel Git integration on `main`. Production URL: <https://gatherbond.vercel.app>.
-- **Contract:** NEAR Testnet at `cynopom.testnet`. The current WASM is 414,933 bytes with SHA-256 `8b8817aa9da9f0a0784a9059f59e3c2640c26c9228648b2196a306e78c54e1f0`.
-- **Metadata:** Turso/libSQL, migrated with `database/migrations/0001_event_metadata.sql`.
-- Full procedure: [`docs/DEPLOY_RUNBOOK.md`](./docs/DEPLOY_RUNBOOK.md).
+- **Frontend:** Vercel Git integration on `main`. The build uses the app in `frontend/`; the metadata runtime imports the root `server/` modules through the workspace root.
+- **Database:** apply `database/migrations/0001_event_metadata.sql` to Turso before enabling writes.
+- **Contract:** `cynopom.testnet`; the current signing key is not in this workspace. The runbook is for the maintainer and never prints a key.
+- **SEO:** set `NEXT_PUBLIC_SITE_URL`, deploy, then verify `/robots.txt`, `/sitemap.xml`, canonical tags, dynamic OG images and 404 status.
 
-## Status and limitations
+Step-by-step: [docs/DEPLOY_RUNBOOK.md](./docs/DEPLOY_RUNBOOK.md).
 
-Implemented and verified locally; one funded single-account Testnet acceptance run is recorded in [`BUILD_LOG.md`](./BUILD_LOG.md). Still open:
+---
 
-- a funded multi-account Testnet pilot with published metadata and two browsers,
-- a physical camera scan (the current camera test used the active pipeline with a fixture),
-- independent contract audit and production hardening before any mainnet consideration,
-- a shared rate-limit store if the app is ever scaled to multiple instances.
+## Security model
+
+- The contract is authoritative for money and attendance.
+- NEP-413 login requires a full-access key; function-call keys are rejected.
+- Nonces are single-use and persisted server-side; concurrent replays have one winner.
+- Sessions are HMAC-signed, HttpOnly, `SameSite=Lax` and `Secure` in production.
+- The server derives the actor from the session; no account ID is accepted from a request body.
+- Canonical metadata is verified on read and write; a mismatch is never shown as verified.
+- Payouts are single-flight per event; failed transfers restore the entitlement.
+- No server key can move user funds.
+- JSON-LD is escaped before rendering; no unverified event is injected into structured data.
+
+This is **Testnet only**. It is not audited, has no mainnet procedure and must not hold real funds. See [SECURITY.md](./SECURITY.md).
+
+---
+
+## Known limitations
+
+- **No funded multi-account production pilot.** The contract and full lifecycle are tested; one live single-account acceptance run is recorded. A two-browser reserve/check-in/claim run remains the honest gap.
+- **Camera check-in used an active-pipeline fixture**, not a physical printed QR in front of a camera.
+- **No independent audit.** This is a hackathon prototype.
+- **Organizer check-in is a trust assumption** in the MVP. Attendance is organizer-authorized and on-chain, but it is not proof that a human physically entered the room.
+- **Rate limits and nonces are process-local** and do not coordinate across server replicas.
+- **Metadata availability is centralized.** The operator can withhold a listing, but cannot change financial state.
+- **One verified publication is currently indexed**; the other seven on-chain events are development/acceptance records. This is deliberate fail-closed behavior.
+- **No unpublish.** Publication is permanent by design; there is no delete/withdraw UI.
+- **No mainnet, no production incident history, no legal/trademark clearance.**
+- **SEO deployment is pending** for the commit that adds this document. The implementation and local verification are complete; the production URL still serves the previous commit until the branch is pushed and Vercel rebuilds.
+
+---
+
+## Hackathon submission checklist
+
+- [ ] Public repository visible to judges — verify on GitHub before submitting
+- [x] Live production frontend
+- [x] Live NEAR Testnet contract
+- [x] Real on-chain event, metadata hash and public recap
+- [x] Wallet-signed login and organizer publication path
+- [x] SEO metadata, JSON-LD, sitemap, robots, 404 and social cards (implemented and verified locally; deploy pending)
+- [x] Reproducible 236-test verification and 21-route build
+- [x] MIT license
+- [ ] Demo post on X by the human (organizer rule; never automated)
+- [ ] Final submission payload confirmed by the human
+- [ ] Optional: funded multi-account pilot and physical QR check
+
+`HACKATHON.md` is organizer-provided and intentionally unchanged. Rules live at <https://nearhackathon.com/HACKATHON.md>.
+
+---
 
 ## Documentation
 
-- [`docs/DOCUMENTATION.md`](./docs/DOCUMENTATION.md) — complete system documentation.
-- [`docs/METADATA.md`](./docs/METADATA.md) — canonical metadata and publication API.
-- [`docs/DEPLOY_RUNBOOK.md`](./docs/DEPLOY_RUNBOOK.md) — contract + frontend release runbook.
-- [`MASTERPLAN.md`](./MASTERPLAN.md) — product, economics and milestone plan.
-- [`BUILD_LOG.md`](./BUILD_LOG.md) — verified implementation history.
-- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — development workflow and standards.
-- [`SECURITY.md`](./SECURITY.md) — security model and reporting.
-- [`HACKATHON.md`](./HACKATHON.md) — organizer-provided hackathon rules (kept unchanged).
+| Document | Read it for |
+| --- | --- |
+| [docs/DOCUMENTATION.md](./docs/DOCUMENTATION.md) | The authoritative system guide: architecture, contract, APIs, data model, operations |
+| [docs/SEO.md](./docs/SEO.md) | Metadata policy, indexability matrix, sitemap, structured data and verification |
+| [docs/METADATA.md](./docs/METADATA.md) | Canonical JSON, hashing, publication and verification API |
+| [docs/DEPLOY_RUNBOOK.md](./docs/DEPLOY_RUNBOOK.md) | Contract acceptance and frontend release procedure |
+| [BUILD_LOG.md](./BUILD_LOG.md) | Append-only verified implementation history |
+| [MASTERPLAN.md](./MASTERPLAN.md) | Product strategy, scope, milestones and roadmap |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Development workflow and required checks |
+| [SECURITY.md](./SECURITY.md) | Trust model, controls, reporting and limits |
 
-## License and attribution
+---
 
-No open-source license has been selected for this repository yet; treat the code as all rights reserved until the maintainer adds one. Bundled Instrument Sans and Instrument Serif font files are licensed under the SIL Open Font License (see `frontend/public/fonts/OFL-*.txt`). Open-source dependencies keep their own licenses.
+## License
+
+MIT. See [LICENSE](./LICENSE). Bundled Instrument Sans and Instrument Serif fonts are licensed under the SIL Open Font License; their license files are in `frontend/public/fonts/`.

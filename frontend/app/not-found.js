@@ -2,6 +2,11 @@ import Link from "next/link";
 
 import { ArrowRight } from "../components/icons";
 
+export const metadata = {
+  title: "Page not found",
+  robots: { index: false, follow: false },
+};
+
 export default function NotFound() {
   return (
     <main className="state-page">

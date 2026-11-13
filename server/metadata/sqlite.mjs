@@ -3,7 +3,7 @@
 
 import { DatabaseSync } from "node:sqlite";
 import { createMetadataStore } from "./store.mjs";
-import { MIGRATION_SQL } from "./schema.mjs";
+import { migrationSql } from "./schema.mjs";
 
 export function createSqliteDatabase(path = ":memory:") {
   return new DatabaseSync(path);
@@ -29,7 +29,7 @@ export function sqliteAdapter(db) {
 
 export function openSqliteMetadataStore({ path = ":memory:", db } = {}) {
   const database = db ?? createSqliteDatabase(path);
-  database.exec(MIGRATION_SQL);
+  database.exec(migrationSql());
   const adapter = sqliteAdapter(database);
   return { db: database, adapter, store: createMetadataStore(adapter) };
 }

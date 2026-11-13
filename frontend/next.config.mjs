@@ -18,9 +18,28 @@ const nextConfig = {
   // database-agnostic. Next's static tracer cannot see that runtime require, so without
   // these includes the Vercel function can boot without @libsql/client and every Turso
   // request fails closed as metadata_store_unavailable. Include the client and its
-  // transitive runtime dependencies in the API function bundle.
+  // transitive runtime dependencies in every server surface that reads verified events:
+  // API routes, the homepage shelf, event/recap pages, social cards and the sitemap.
   outputFileTracingIncludes: {
     "/api/**": [
+      "node_modules/@libsql/**/*",
+      "node_modules/ws/**/*",
+      "node_modules/js-base64/**/*",
+      "node_modules/promise-limit/**/*",
+    ],
+    "/": [
+      "node_modules/@libsql/**/*",
+      "node_modules/ws/**/*",
+      "node_modules/js-base64/**/*",
+      "node_modules/promise-limit/**/*",
+    ],
+    "/events/**": [
+      "node_modules/@libsql/**/*",
+      "node_modules/ws/**/*",
+      "node_modules/js-base64/**/*",
+      "node_modules/promise-limit/**/*",
+    ],
+    "/sitemap.xml": [
       "node_modules/@libsql/**/*",
       "node_modules/ws/**/*",
       "node_modules/js-base64/**/*",

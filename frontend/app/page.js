@@ -1,7 +1,10 @@
 import Link from "next/link";
 
 import Discover from "../components/discover";
+import JsonLd from "../components/json-ld";
 import { ArrowRight, ArrowUpRight, Check, ShieldCheck, Ticket } from "../components/icons";
+import { homeGraph } from "../lib/seo.js";
+import { loadPublishedListings } from "../lib/serverEvents.mjs";
 
 const TICKER = [
   "MAKE PLANS",
@@ -11,9 +14,18 @@ const TICKER = [
   "NEAR TESTNET",
 ];
 
-export default function HomePage() {
+export const revalidate = 60;
+
+export const metadata = {
+  alternates: { canonical: "/" },
+};
+
+export default async function HomePage() {
+  const listings = await loadPublishedListings(24);
   return (
-    <main>
+    <>
+      <JsonLd data={homeGraph(listings?.events ?? [])} />
+      <main>
       <section className="hero">
         <div className="shell hero-grid">
           <div className="hero-copy">
@@ -111,7 +123,11 @@ export default function HomePage() {
         </div>
       </div>
 
-      <Discover />
+      <Discover
+        initial={
+          listings ? { events: listings.events, skipped: listings.skipped } : null
+        }
+      />
 
       <section className="section how-section" id="how">
         <div className="shell">
@@ -187,6 +203,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

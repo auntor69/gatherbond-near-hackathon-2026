@@ -9,7 +9,7 @@
 // handlers may construct this client.
 
 import { createMetadataStore } from "./store.mjs";
-import { MIGRATION_SQL } from "./schema.mjs";
+import { migrationSql } from "./schema.mjs";
 
 export function libsqlAdapter(client) {
   if (!client || typeof client.execute !== "function") {
@@ -44,7 +44,7 @@ export function libsqlAdapter(client) {
 }
 
 export async function migrateLibsql(client) {
-  await client.executeMultiple(MIGRATION_SQL);
+  await client.executeMultiple(migrationSql());
 }
 
 export function openLibsqlMetadataStore(client) {
