@@ -10,7 +10,7 @@
 
 import { createMetadataHandlers } from "./handlers.mjs";
 import { createMetadataStore } from "./store.mjs";
-import { ensureModerationSchema, libsqlAdapter } from "./libsql.mjs";
+import { libsqlAdapter } from "./libsql.mjs";
 import { openSqliteMetadataStore } from "./sqlite.mjs";
 import { createContractReader } from "../near/rpc.mjs";
 import { createMetadataRoutes } from "../http/routes.mjs";
@@ -70,10 +70,9 @@ export async function selectStore(env = process.env, { importLibsql } = {}) {
         url: env.TURSO_DATABASE_URL,
         authToken: env.TURSO_AUTH_TOKEN,
       });
-      // The moderation tables are additive and idempotent. Applying only this DDL on
-      // cold start keeps an already-migrated database compatible without re-running the
-      // full metadata migration on every request.
-      await ensureModerationSchema(client);
+      // Migration is explicit. Never run DDL from a serverless cold start: page and API
+      // functions can have different output traces, and a missing migration asset must
+      // not turn every event page into a metadata-store outage.
       return { mode: "turso", store: createMetadataStore(libsqlAdapter(client)), client };
     } catch (error) {
       return {

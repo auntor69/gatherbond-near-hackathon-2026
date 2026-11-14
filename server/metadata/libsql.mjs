@@ -9,7 +9,7 @@
 // handlers may construct this client.
 
 import { createMetadataStore } from "./store.mjs";
-import { migrationSql, moderationSchemaSql } from "./schema.mjs";
+import { migrationSql } from "./schema.mjs";
 
 export function libsqlAdapter(client) {
   if (!client || typeof client.execute !== "function") {
@@ -45,20 +45,6 @@ export function libsqlAdapter(client) {
 
 export async function migrateLibsql(client) {
   await client.executeMultiple(migrationSql());
-}
-
-/** Idempotent cold-start schema for the moderation tables on an existing database. */
-export async function ensureModerationSchema(client) {
-  const sql = moderationSchemaSql();
-  if (typeof client?.executeMultiple === "function") {
-    await client.executeMultiple(sql);
-    return;
-  }
-  if (typeof client?.execute === "function") {
-    await client.execute({ sql, args: [] });
-    return;
-  }
-  throw new Error("libSQL client does not support schema execution");
 }
 
 export function openLibsqlMetadataStore(client) {

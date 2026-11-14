@@ -365,7 +365,7 @@ Unknown fields, control characters and financial fields are rejected. Canonical 
 - The schema retains legacy tombstone support for databases created before publication became permanent. **Current API and UI do not create unpublish tombstones.** There is no delete endpoint.
 - `event_moderation` stores only currently hidden events, with the reason, actor and timestamp. `event_moderation_log` is append-only for hide/restore actions. Public reads exclude hidden rows; restore deletes the hidden row and logs the restore. The escrow contract is never edited.
 
-Migration: `database/migrations/0001_event_metadata.sql` plus `0002_event_moderation.sql`. Both are loaded lazily when a SQLite/libSQL store is opened. Turso cold start applies the idempotent moderation DDL so an existing database gains the moderation tables without a manual release step.
+Migration: `database/migrations/0001_event_metadata.sql` plus `0002_event_moderation.sql`. Both are loaded lazily when a local SQLite store is opened. Turso is migrated explicitly before deploy; no DDL runs on a serverless cold start, because page and API functions can have different output traces.
 
 ### 4.4 Verification matrix
 

@@ -20,8 +20,3 @@ function readMigration(url) {
 export function migrationSql() {
   return `${readMigration(METADATA_MIGRATION)}\n${readMigration(MODERATION_MIGRATION)}`;
 }
-
-/** The moderation migration is safe to run on cold start for existing databases. */
-export function moderationSchemaSql() {
-  return readMigration(MODERATION_MIGRATION);
-}
