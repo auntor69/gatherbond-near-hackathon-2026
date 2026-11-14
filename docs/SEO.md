@@ -227,16 +227,16 @@ Spot checks in the served HTML:
 
 ### Post-deploy checks
 
-Completed on `https://gatherbond.vercel.app` on 2026-11-14:
+Completed on `https://gatherbond.vercel.app` on 2026-11-14 at commit `37f80f8`:
 
 1. `NEXT_PUBLIC_SITE_URL` resolves to the production origin; canonical URLs use it.
 2. `/robots.txt` and `/sitemap.xml` return `200`; the sitemap contains exactly the home page, verified event 12 and its closed recap.
 3. The verified event's HTML contains its canonical, per-event OG meta and `Event` JSON-LD; the JSON-LD `image` is `/events/12/opengraph-image`.
 4. `/events/12/opengraph-image` returns `image/png` at 1200×630.
 5. `/events/999999` returns `404` and `noindex, nofollow`.
-6. Capture the live event page in a browser at desktop and mobile widths; the page and recap must render without an error shell.
+6. Captured the live home, event and recap at 1440×900. Mobile widths and a hydration-console pass were not repeated for this deployment.
 
-**Not yet done:** Google Search Console/Bing Webmaster Tools submission, indexing requests, and Google Rich Results validation. Those require search-engine account access; the production crawl itself has passed.
+**Not yet done:** Google Search Console/Bing Webmaster Tools submission, indexing requests, Google Rich Results validation, and a mobile-width/hydration recheck. Those require search-engine account access or an additional browser pass; the production crawl itself has passed.
 
 ---
 

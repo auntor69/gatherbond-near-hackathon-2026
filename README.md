@@ -14,6 +14,7 @@ The contract holds the money and records attendance. The database stores descrip
 [![Tests](https://img.shields.io/badge/tests-257%20passing-0e100e?style=flat-square)](#verification)
 [![Build](https://img.shields.io/badge/production%20build-26%20routes%20passing-0e100e?style=flat-square)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-d7ff5f?style=flat-square)](./LICENSE)
+[![Release](https://img.shields.io/github/v/release/auntor69/gatherbond-near-hackathon-2026?style=flat-square)](https://github.com/auntor69/gatherbond-near-hackathon-2026/releases)
 
 ![GatherBond — Make plans. Keep them.](docs/assets/gatherbond-home.png)
 
@@ -386,7 +387,7 @@ production build          exit 0, 26 routes
 
 The SEO layer adds ten focused tests for canonical URLs, description truncation, Event JSON-LD, per-event OG image selection, Organization/WebSite/ItemList graphs, breadcrumbs, recap graphs and script-tag escaping.
 
-Production crawl checks (2026-11-14):
+Production crawl checks (2026-11-14, commit `37f80f8`):
 
 ```text
 GET /                          200

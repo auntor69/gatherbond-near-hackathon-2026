@@ -2034,8 +2034,7 @@ and verify the public list, event pages, sitemap and Open Graph responses omit t
 
 ## 2026-11-14 — Live-state docs, dynamic sitemap and CI
 
-**Status:** implemented and locally verified. The production check is recorded after the
-deployment that includes this entry.
+**Status:** shipped and verified in production.
 
 ### What changed
 
@@ -2073,9 +2072,32 @@ git diff --check          clean
 The screenshots were captured from `https://gatherbond.vercel.app` with Chrome at
 1440×900. They are UI captures, not a claim that a funded multi-account lifecycle was run.
 
+### Production verification
+
+Deployed from `37f80f8`:
+
+```text
+GET /                          200
+GET /events/12                 200
+GET /events/12/recap           200
+GET /events/999999             404
+GET /events/10                 404
+GET /sitemap.xml               200  3 URLs: home, event 12, recap
+GET /robots.txt                200  /admin disallowed
+GET /events/12/opengraph-image 200  image/png
+```
+
+The event HTML contains the verified title, canonical `/events/12`, per-event OG image and
+`Event` JSON-LD. The sitemap sends `Cache-Control: public, max-age=0, must-revalidate`
+with `X-Vercel-Cache: MISS`, so the old event `10` entry is gone.
+
+GitHub Actions run `43650370502` passed both jobs: **App tests and build** and **Contract
+format and tests**. `gh run view` reports `conclusion: success`.
+
 ### Limits
 
 - The live count and verified id are demo state; `/api/events` is authoritative if they move.
 - The sitemap is dynamic and can return only the home page while the metadata store is
   unavailable. That is the existing fail-closed policy, not a fallback listing.
-- GitHub Actions is committed in the same change and is verified by the push that follows.
+- Mobile-width screenshots and a hydration-console pass were not repeated for this release.
+- A funded multi-account production reserve → check-in → claim run remains unperformed.

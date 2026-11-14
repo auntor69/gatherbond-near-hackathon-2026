@@ -731,7 +731,7 @@ production build          exit 0, 26 routes
 - Production `/api/events?limit=10`: one verified `Dhaka Builders' Table` row (event `12`), `skipped: 0`.
 - Production `/api/events/12`: verified hash and `Finalized` on-chain terms (capacity 2, 2 registered, 1 checked in).
 - Local production server: home/event/recap/robots/sitemap/OG `200`; missing event `404`; event HTML contains verified title, canonical, OG image, Event JSON-LD; studio/commitments noindex; sitemap has 3 URLs.
-- Production deployment on 2026-11-14: home/event/recap/robots/sitemap/OG `200`; missing event `404`; canonical and `Event` JSON-LD present; Event JSON-LD image is the per-event card; studio/commitments `noindex, nofollow`; dynamic sitemap returns three URLs.
+- Production deployment `37f80f8` on 2026-11-14: home/event/recap/robots/sitemap/OG `200`; missing event `404`; canonical and `Event` JSON-LD present; Event JSON-LD image is the per-event card; studio/commitments `noindex, nofollow`; dynamic sitemap returns three URLs.
 - Live screenshots at 1440×900 were captured for the home page, event `12` passport and its recap. They are UI captures, not a hydration assertion.
 
 ### 10.5 Checks not performed
