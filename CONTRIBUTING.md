@@ -45,9 +45,9 @@ Latest baseline (2026-11-14):
 contract format           clean
 contract tests            54 passed
 ticket vectors            8/8 matched
-frontend tests            75 passed
+frontend tests            77 passed
 metadata/auth/admin/HTTP tests  126 passed
-total                     255 passed
+total                     257 passed
 production build          exit 0, 26 routes
 ```
 
@@ -72,7 +72,7 @@ Local SEO verification:
 node --test frontend/lib/seo.test.mjs
 npm run build --prefix frontend
 npm run start --prefix frontend -- -p 3107
-curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3107/events/0
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3107/events/12
 curl -sS http://127.0.0.1:3107/sitemap.xml
 curl -sS http://127.0.0.1:3107/robots.txt
 ```

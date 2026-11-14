@@ -1,7 +1,7 @@
 # GatherBond — Testnet Deploy & Acceptance Runbook
 
 **Scope:** NEAR Testnet only. No mainnet. No real funds.
-**Last verified:** 2026-11-13
+**Last verified:** 2026-11-14
 **Contract:** `cynopom.testnet`
 **Artifact:** 415,893 bytes · SHA-256 `af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b`
 
@@ -306,23 +306,24 @@ The old QR/code is invalid immediately. The deposit, attendance and claim state 
 
 ## 7. Live Testnet record
 
-Verified 2026-11-13:
+Verified 2026-11-14:
 
 | Item | Value |
 | --- | --- |
 | Network | NEAR Testnet |
 | Contract | `cynopom.testnet` |
-| On-chain event count | **8** |
+| On-chain event count | **13** |
 | Verified public snapshots | **1** |
-| Public event | `Sunday Table` (event `0`) |
-| Deposit / capacity | 1 NEAR / 20 |
-| Registered / checked in | 1 / 0 |
+| Public event | `Dhaka Builders' Table` (event `12`) |
+| Deposit / capacity | 1 NEAR / 2 |
+| Registered / checked in | 2 / 1 |
 | Current status | `Finalized` |
-| Metadata hash | `e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc` |
-| Create tx | `2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a` |
+| Metadata hash | `24c7ab39b08019d6bf4d2ba6c5090ce2f51dec760b48ec05863239e9d1696b5e` |
+| Create tx | `9PrJ26Y6TBYDs4MZv5mG2ndbs1XvuYxd8QbTaKT2ski3` |
+| Published | `2026-11-14T21:34:31.293Z` |
 | Contract artifact | 415,893 bytes · `af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b` |
 
-The other nine on-chain events are development/acceptance or duplicate demo records with no current verified publication. Discovery intentionally hides them. This is not a data-loss bug.
+The other twelve on-chain events are development/acceptance or duplicate demo records with no current verified publication. Discovery intentionally hides them. This is not a data-loss bug.
 
 `/api/health` at verification time:
 
@@ -356,7 +357,7 @@ Latest expected shape: exit `0`, **26 routes**, including:
 /events/[id]/opengraph-image   dynamic image
 /opengraph-image               static image
 /robots.txt                    static
-/sitemap.xml                   static, 1h revalidate
+/sitemap.xml                   dynamic, verified rows on every crawl
 /manifest.webmanifest          static
 /studio, /commitments          static noindex shells
 /api/*                         dynamic Node.js handlers
@@ -384,15 +385,17 @@ Never set `GATHERBOND_ALLOW_DEV_ACTOR` or `GATHERBOND_RATE_LIMIT_DISABLED` in pr
 
 ```bash
 BASE=https://gatherbond.vercel.app
+EVENT_ID=12  # current verified id; use /api/events as the authority
 curl -sS "$BASE/api/health"
 curl -sS "$BASE/api/contract/event-count"
 curl -sS "$BASE/api/events?limit=10"
 curl -sS -o /dev/null -w '%{http_code}\n' "$BASE/"
-curl -sS -o /dev/null -w '%{http_code}\n' "$BASE/events/0"
+curl -sS -o /dev/null -w '%{http_code}\n' "$BASE/events/$EVENT_ID"
+curl -sS -o /dev/null -w '%{http_code}\n' "$BASE/events/$EVENT_ID/recap"
 curl -sS -o /dev/null -w '%{http_code}\n' "$BASE/events/999999"
 curl -sS "$BASE/robots.txt"
 curl -sS "$BASE/sitemap.xml"
-curl -sSI "$BASE/events/0/opengraph-image"
+curl -sSI "$BASE/events/$EVENT_ID/opengraph-image"
 ```
 
 Expected:

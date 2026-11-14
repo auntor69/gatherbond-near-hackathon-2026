@@ -2031,3 +2031,51 @@ DELETE /api/admin/unlock                  200; access returns to 401
 
 Deploy, confirm `/api/health`, sign in with the allowlisted wallet, hide the duplicate ids,
 and verify the public list, event pages, sitemap and Open Graph responses omit them.
+
+## 2026-11-14 — Live-state docs, dynamic sitemap and CI
+
+**Status:** implemented and locally verified. The production check is recorded after the
+deployment that includes this entry.
+
+### What changed
+
+- Refreshed the public live snapshot to the current verified state: **13 on-chain events**,
+  one verified public publication (`Dhaka Builders' Table`, event `12`), with its hash,
+  create transaction, final terms and publication time. Historical `BUILD_LOG.md` entries
+  were left unchanged.
+- Replaced the obsolete event `0` / `Sunday Table` production instructions with event `12`
+  and made `/api/events` the authority when demo ids move.
+- Made `/sitemap.xml` render from the verified store on each crawl. Next metadata routes do
+  not reliably invalidate through `revalidatePath` on Vercel, so the old 1-hour cache could
+  keep a 404 event and omit the current publication.
+- Added a tested publication-cache helper. Publication, hide and restore now revalidate the
+  home shelf, event page, recap and Open Graph card after the write succeeds.
+- Added GitHub Actions verification for the 257-test suite, the 26-route production build,
+  Rust formatting and the 54 contract tests.
+- Added real 1440×900 screenshots of the live home, event passport and room proof to the
+  README.
+
+### Verification
+
+```text
+contract format           clean
+contract tests            54 passed
+ticket vectors            8/8 matched
+frontend tests            77 passed
+metadata/auth/admin/HTTP tests  126 passed
+total                     257 passed
+production build          exit 0, 26 routes
+sitemap build output      dynamic (ƒ /sitemap.xml)
+workflow YAML             parsed successfully
+git diff --check          clean
+```
+
+The screenshots were captured from `https://gatherbond.vercel.app` with Chrome at
+1440×900. They are UI captures, not a claim that a funded multi-account lifecycle was run.
+
+### Limits
+
+- The live count and verified id are demo state; `/api/events` is authoritative if they move.
+- The sitemap is dynamic and can return only the home page while the metadata store is
+  unavailable. That is the existing fail-closed policy, not a fallback listing.
+- GitHub Actions is committed in the same change and is verified by the push that follows.

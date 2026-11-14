@@ -6,30 +6,23 @@ import {
   isAdminMutationRequest,
   requireAdmin,
 } from "../../../../../../../server/admin/http.mjs";
+import { publicationRevalidationTargets } from "../../../../../../lib/publicationRevalidation.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function revalidateEventSurfaces(eventId) {
-  for (const [path, type] of [
-    ["/", "layout"],
-    [`/events/${eventId}`, "page"],
-    [`/events/${eventId}/recap`, "page"],
-    ["/sitemap.xml", "page"],
-  ]) {
+  for (const target of publicationRevalidationTargets(eventId)) {
     try {
-      revalidatePath(path, type);
+      if (target.type) {
+        revalidatePath(target.path, target.type);
+      } else {
+        revalidatePath(target.path);
+      }
     } catch {
       // The moderation write already succeeded. A stale cache is corrected by the next
       // request or revalidation cycle; never report a rollback that did not happen.
     }
-  }
-  try {
-    // The social card is a separately cacheable route, so the event page purge alone
-    // does not clear a previously generated card for a newly hidden event.
-    revalidatePath(`/events/${eventId}/opengraph-image`);
-  } catch {
-    // Same rule as above: the moderation write is already committed.
   }
 }
 

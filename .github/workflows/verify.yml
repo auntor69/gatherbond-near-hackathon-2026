@@ -1,0 +1,65 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Frontend tests
+        run: node --test frontend/lib/*.test.mjs
+
+      - name: Server tests
+        run: >-
+          node --test
+          server/metadata/test/*.test.mjs
+          server/auth/test/*.test.mjs
+          server/admin/test/*.test.mjs
+          server/http/test/*.test.mjs
+          server/near/test/*.test.mjs
+
+      - name: Production build
+        run: npm run build --prefix frontend
+
+  contract:
+    name: Contract format and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Install NASM
+        run: sudo apt-get update && sudo apt-get install -y nasm
+
+      - name: Format
+        run: cargo fmt --manifest-path contracts/Cargo.toml --check
+
+      - name: Tests
+        run: cargo test --manifest-path contracts/Cargo.toml --locked

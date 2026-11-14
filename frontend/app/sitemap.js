@@ -3,7 +3,10 @@ import { eventJsonLd } from "../lib/seo.js";
 import { loadAllPublishedListings } from "../lib/serverEvents.mjs";
 import { absoluteUrl, eventPath, recapPath, siteUrl } from "../lib/site.js";
 
-export const revalidate = 3600;
+// Sitemap metadata routes do not reliably invalidate through revalidatePath on
+// Vercel. Render from verified listings on each crawl so a published, hidden or
+// restored event cannot leave a stale URL behind.
+export const dynamic = "force-dynamic";
 
 export default async function sitemap() {
   const base = siteUrl();

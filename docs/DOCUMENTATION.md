@@ -1,6 +1,6 @@
 # GatherBond — System Documentation
 
-**Version:** Testnet v1.1 · **Last updated:** 2026-11-13 · **Network:** NEAR Testnet only
+**Version:** Testnet v1.1 · **Last updated:** 2026-11-14 · **Network:** NEAR Testnet only
 **Contract:** `cynopom.testnet` · **Production app:** <https://gatherbond.vercel.app>
 
 GatherBond is a commitment-first event platform. Organizers create real-world rooms with a refundable native NEAR deposit. Attendees reserve with the exact deposit and receive a one-time ticket. The organizer checks them in at the door. After the room ends, the first attendee claim settles the event automatically: checked-in attendees reclaim their bond and split the no-show pool; no-shows forfeit theirs.
@@ -334,15 +334,15 @@ Unknown fields, control characters and financial fields are rejected. Canonical 
 {
   "category": "Community",
   "contract_id": "cynopom.testnet",
-  "created_at": "2026-11-10T05:04:55.231Z",
-  "description": "",
-  "image_url": "",
+  "created_at": "2026-11-14T21:33:51.815Z",
+  "description": "An intimate builders' meetup for people curious about NEAR, Web3, and community-led projects. Bring a project, a question, or an idea to share. This is a GatherBond product demonstration on NEAR Testnet, not a confirmed public event. Reservations use testnet NEAR only, which has no real-world monetary value. Attendees receive a one-time ticket code, and the organizer records attendance during the event window. Refunds and any no-show pool distribution follow the on-chain contract rules.",
+  "image_url": "https://i.ibb.co.com/5gVGdWDm/Gather-Bond-Dhaka-Builders-Table-Cover.png",
   "network_id": "testnet",
-  "organizer_account_id": "cynopom.testnet",
+  "organizer_account_id": "gatherbond-demo-organizer.testnet",
   "schema_version": 1,
-  "tags": ["supper"],
-  "title": "Sunday Table",
-  "venue": "Banani Kitchen, Dhaka, Bangladesh"
+  "tags": ["NEAR", "Dhaka", "Builders", "Community", "Web3", "Meetup", "Testnet"],
+  "title": "Dhaka Builders' Table",
+  "venue": "Banani, Dhaka, Bangladesh"
 }
 ```
 
@@ -554,7 +554,7 @@ A public page or API failure never substitutes local fixtures. `503` is a failur
 | Event metadata | `generateMetadata` with verified title, factual description, canonical, article OG/Twitter, dynamic image |
 | Event structured data | schema.org `Event` with status, dates, place, organizer, contract identifier and the per-event OG image |
 | Recap structured data | `WebPage` + `BreadcrumbList`, with the Event as `about` |
-| Sitemap | Verified events and closed recaps; 1-hour revalidation; home only on failure |
+| Sitemap | Verified events and closed recaps; rendered per crawl; home only on failure |
 | Robots | Public allowed; `/api/`, `/studio`, `/commitments` disallowed |
 | Noindex | Studio, commitments, open recaps, missing/conflict event metadata, 404 |
 | Social images | 1200×630 root and per-event `next/og` cards |
@@ -706,9 +706,9 @@ npm run build --prefix frontend
 contract format           clean
 contract tests            54 passed
 ticket vectors            8/8 matched
-frontend tests            75 passed
+frontend tests            77 passed
 metadata/auth/admin/HTTP tests  126 passed
-total                     255 passed
+total                     257 passed
 WASM                      415,893 bytes
 SHA-256                   af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b
 production build          exit 0, 26 routes
@@ -719,20 +719,20 @@ production build          exit 0, 26 routes
 | Tier | Coverage |
 | --- | --- |
 | Contract (54) | creation validation, deposit/capacity/deadline, ticket check-in, replay, rotation, cancellation, settlement above/below/exactly 20%, no-show refunds, treasury bounds, rounding, locks, callbacks, solvency, storage, pagination, known-answer vectors |
-| Frontend (75) | NEAR parsing/formatting, schedule mapping, ticket encoding/QR round-trip, event lifecycle boundaries, claim eligibility, listing/detail mapping, metadata hash display, Flake Fund math, SEO builders, single-flight guard |
+| Frontend (77) | NEAR parsing/formatting, schedule mapping, ticket encoding/QR round-trip, event lifecycle boundaries, claim eligibility, listing/detail mapping, metadata hash display, Flake Fund math, SEO builders, single-flight guard, publication cache revalidation |
 | Server (126) | canonical JSON/hash vectors, field rejection, store idempotency/conflicts/races, publication versions, moderation hide/restore and audit scoping, tamper and on-chain mismatch, NEP-413 signatures/nonces/sessions, admin sessions and unlock throttling, rate limits, RPC mapping, HTTP end-to-end over a real Next server and SQLite, fail-closed database/RPC paths |
-| SEO (10 of 75) | canonical origin, path encoding, description truncation, Event JSON-LD, per-event OG image, cancelled status, graph/ItemList, breadcrumbs, recap graph, script escaping |
+| SEO (10 of 77) | canonical origin, path encoding, description truncation, Event JSON-LD, per-event OG image, cancelled status, graph/ItemList, breadcrumbs, recap graph, script escaping |
 | Build | Next metadata routes, dynamic OG cards, admin routes, server component collection, TypeScript check, 26 routes |
 
 ### 10.4 Manual checks actually performed
 
 - Production `/api/health`: `turso`, `database_read: ok`, auth and contract configured.
-- Production `/api/contract/event-count`: `8`.
-- Production `/api/events?limit=10`: one verified `Sunday Table` row, `skipped: 0`.
-- Production `/api/events/0`: verified hash and `Finalized` on-chain terms.
+- Production `/api/contract/event-count`: `13`.
+- Production `/api/events?limit=10`: one verified `Dhaka Builders' Table` row (event `12`), `skipped: 0`.
+- Production `/api/events/12`: verified hash and `Finalized` on-chain terms (capacity 2, 2 registered, 1 checked in).
 - Local production server: home/event/recap/robots/sitemap/OG `200`; missing event `404`; event HTML contains verified title, canonical, OG image, Event JSON-LD; studio/commitments noindex; sitemap has 3 URLs.
-- Deployed commit `76439b5` on Vercel: home/event/recap/robots/sitemap/OG `200`; missing event `404`; canonical and `Event` JSON-LD present; Event JSON-LD image is the per-event card; studio/commitments `noindex, nofollow`; sitemap has exactly 3 URLs.
-- Browser on the production event page: no hydration console error; the server-safe timezone fallback changed to the device zone (`Asia/Dhaka`) after hydration.
+- Production deployment on 2026-11-14: home/event/recap/robots/sitemap/OG `200`; missing event `404`; canonical and `Event` JSON-LD present; Event JSON-LD image is the per-event card; studio/commitments `noindex, nofollow`; dynamic sitemap returns three URLs.
+- Live screenshots at 1440×900 were captured for the home page, event `12` passport and its recap. They are UI captures, not a hydration assertion.
 
 ### 10.5 Checks not performed
 
@@ -783,11 +783,12 @@ Use [DEPLOY_RUNBOOK.md](./DEPLOY_RUNBOOK.md). The current `cynopom.testnet` sign
 curl -sS https://gatherbond.vercel.app/api/health
 curl -sS https://gatherbond.vercel.app/api/contract/event-count
 curl -sS https://gatherbond.vercel.app/api/events?limit=10
-curl -sS -o /dev/null -w '%{http_code}\n' https://gatherbond.vercel.app/events/0
+curl -sS -o /dev/null -w '%{http_code}\n' https://gatherbond.vercel.app/events/12
+curl -sS -o /dev/null -w '%{http_code}\n' https://gatherbond.vercel.app/events/12/recap
 curl -sS -o /dev/null -w '%{http_code}\n' https://gatherbond.vercel.app/events/999999
 curl -sS https://gatherbond.vercel.app/robots.txt
 curl -sS https://gatherbond.vercel.app/sitemap.xml
-curl -sSI https://gatherbond.vercel.app/events/0/opengraph-image
+curl -sSI https://gatherbond.vercel.app/events/12/opengraph-image
 ```
 
 Expected: `database_read: ok`; event count is the live chain count; only verified rows; `200`/`404` as above; sitemap has no drafts; OG content type is `image/png`.

@@ -157,7 +157,7 @@ flowchart LR
 | M6 | Event passport, recap, studio, commitments | Done | production routes |
 | M7 | QR check-in, gate mode, ticket recovery | Done | fixture pipeline + Testnet lifecycle |
 | M8 | Lifecycle/concurrency hardening | Done | race tests, claim paths, 236 total tests |
-| M9 | SEO + documentation release | **Done — deployed and verified live** | `docs/SEO.md`, 75 frontend tests, build 21 routes, commit `76439b5` |
+| M9 | SEO + documentation release | **Done — deployed and verified live** | `docs/SEO.md`, 77 frontend tests, build 26 routes |
 | M10 | Funded multi-account pilot | Open | requires two funded accounts and a live event |
 | M11 | Independent audit + mainnet plan | Out of scope for hackathon | post-hackathon |
 
@@ -176,15 +176,15 @@ flowchart LR
 | Item | Value |
 | --- | --- |
 | Contract | `cynopom.testnet` |
-| Event count | 10 on chain |
-| Verified publications | 1 (`Sunday Table`, event 0) |
+| Event count | 13 on chain |
+| Verified publications | 1 (`Dhaka Builders' Table`, event 12) |
 | Database | Turso, `database_read: ok` |
 | Auth | configured |
-| Tests | 54 contract + 8/8 vectors + 75 frontend + 126 server |
+| Tests | 54 contract + 77 frontend + 126 server; 8/8 ticket vectors |
 | Build | exit 0, 26 routes |
-| SEO production status | live on Vercel; canonical, JSON-LD, sitemap, robots and OG verified 2026-11-13 |
+| SEO production status | live on Vercel; canonical, JSON-LD, sitemap, robots and OG verified 2026-11-14 |
 
-The nine extra on-chain events are development/acceptance or duplicate demo records. Discovery hides them because they lack a current verified publication. This is the fail-closed design, not a bug.
+The twelve extra on-chain events are development/acceptance or duplicate demo records. Discovery hides them because they lack a current verified publication. This is the fail-closed design, not a bug.
 
 ## 12. Roadmap
 
@@ -192,7 +192,7 @@ The nine extra on-chain events are development/acceptance or duplicate demo reco
 
 - [x] Live contract and frontend
 - [x] Verified event, hash and recap
-- [x] 255-test verification and 26-route build
+- [x] 257-test verification and 26-route build
 - [x] SEO implementation and docs
 - [x] MIT license
 - [x] Push/deploy the SEO release
@@ -280,7 +280,7 @@ Do not claim these before measuring them.
 3. **Live proof (60s):** health, event count, verified event, hash, NEARBlocks transaction, recap.
 4. **Trust (45s):** show `metadata_hash` on chain, canonical JSON, verified-only discovery, fail-closed 503.
 5. **SEO (30s):** view source on event, sitemap, robots, dynamic OG.
-6. **Evidence (30s):** 255 tests, 26-route build, 54 contract tests.
+6. **Evidence (30s):** 257 tests, 26-route build, 54 contract tests.
 7. **Honesty (20s):** testnet only, no audit, multi-account pilot still open.
 
 ## 17. Documentation map

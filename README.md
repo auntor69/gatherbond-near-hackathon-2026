@@ -10,9 +10,12 @@ The contract holds the money and records attendance. The database stores descrip
 
 [![Live app](https://img.shields.io/badge/live-gatherbond.vercel.app-d7ff5f?style=flat-square)](https://gatherbond.vercel.app)
 [![Contract](https://img.shields.io/badge/contract-cynopom.testnet-ff5c35?style=flat-square)](https://testnet.nearblocks.io/address/cynopom.testnet)
-[![Tests](https://img.shields.io/badge/tests-255%20passing-0e100e?style=flat-square)](#verification)
+[![Verify](https://github.com/auntor69/gatherbond-near-hackathon-2026/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/auntor69/gatherbond-near-hackathon-2026/actions/workflows/verify.yml)
+[![Tests](https://img.shields.io/badge/tests-257%20passing-0e100e?style=flat-square)](#verification)
 [![Build](https://img.shields.io/badge/production%20build-26%20routes%20passing-0e100e?style=flat-square)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-d7ff5f?style=flat-square)](./LICENSE)
+
+![GatherBond — Make plans. Keep them.](docs/assets/gatherbond-home.png)
 
 ---
 
@@ -39,16 +42,16 @@ The design goal is not “tickets on a blockchain.” It is a closed economic lo
 | NEAR Testnet contract | [`cynopom.testnet`](https://testnet.nearblocks.io/address/cynopom.testnet) |
 | Metadata database | Turso/libSQL, `database_mode: turso`, `database_read: ok` |
 | Wallet sessions | NEP-413, HttpOnly HMAC cookie, enabled |
-| On-chain events created | **10** (development, acceptance and demo runs) |
-| Verified public snapshots | **1** currently indexed — `Sunday Table`, event `0` |
-| Published metadata hash | `e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc` |
-| Create transaction | [`2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a`](https://testnet.nearblocks.io/txns/2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a) |
+| On-chain events created | **13 at last check** (development, acceptance and demo runs) |
+| Verified public snapshots | **1** currently indexed — `Dhaka Builders' Table`, event `12` |
+| Published metadata hash | `24c7ab39b08019d6bf4d2ba6c5090ce2f51dec760b48ec05863239e9d1696b5e` |
+| Create transaction | [`9PrJ26Y6TBYDs4MZv5mG2ndbs1XvuYxd8QbTaKT2ski3`](https://testnet.nearblocks.io/txns/9PrJ26Y6TBYDs4MZv5mG2ndbs1XvuYxd8QbTaKT2ski3) |
 | Contract artifact | 415,893-byte WASM, SHA-256 `af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b` |
-| Local verification | 54 contract + 8/8 vectors + 75 frontend + 126 server tests = **255 passing** |
+| Local verification | 54 contract + 77 frontend + 126 server tests = **257 passing**, plus 8/8 ticket vectors |
 
-**Why only one event is listed when ten exist on chain:** discovery is deliberately fail-closed. An event is visible only when its stored JSON still hashes to its stored digest **and** that digest equals the `metadata_hash` anchored on chain. The other nine events are development/acceptance or duplicate demo records without a current verified publication. They are not replaced with fabricated rows.
+**Why only one event is listed when thirteen exist on chain:** discovery is deliberately fail-closed. An event is visible only when its stored JSON still hashes to its stored digest **and** that digest equals the `metadata_hash` anchored on chain. The other twelve events are development/acceptance or duplicate demo records without a current verified publication. They are not replaced with fabricated rows.
 
-Verified on 2026-11-13 against `/api/health`, `/api/events`, `/api/contract/event-count` and `/api/events/0`.
+Verified on 2026-11-14 against `/api/health`, `/api/events`, `/api/contract/event-count` and `/api/events/12`. The event count and verified id are live demo state; `/api/events` is authoritative if they move.
 
 ---
 
@@ -58,11 +61,11 @@ Everything below can be checked before connecting a wallet. Each row is an actio
 
 | Do this | See this |
 | --- | --- |
-| Open <https://gatherbond.vercel.app> | A server-rendered listing for **Sunday Table**. It is there in the HTML, not only after client JavaScript. |
+| Open <https://gatherbond.vercel.app> | A server-rendered listing for **Dhaka Builders' Table**. It is there in the HTML, not only after client JavaScript. |
 | Open the listing | An event passport with the contract’s deposit, capacity, schedule, status and metadata hash. The create transaction links to NEARBlocks. |
 | Open **View room proof** on the ended event | A public recap with registered/checked-in counts and the settlement outcome. No attendee identities are exposed. |
 | View source on the event page | `<title>`, canonical, OpenGraph/Twitter tags and schema.org `Event` JSON-LD for the verified publication. |
-| Open <https://gatherbond.vercel.app/sitemap.xml> | Only the home page, the verified event and its closed recap. Drafts and unverified rows cannot enter the sitemap. |
+| Open <https://gatherbond.vercel.app/sitemap.xml> | Only the home page, verified event pages and closed recaps. Drafts and unverified rows cannot enter the sitemap. |
 | Open <https://gatherbond.vercel.app/robots.txt> | Public rooms allowed; `/api/`, `/studio`, `/commitments` and `/admin` disallowed. |
 | Open `/studio` or `/commitments` and view source | `noindex, nofollow`, because both surfaces are wallet/private state. |
 | Open an unknown event such as `/events/999999` | A real HTTP **404**, not a 200 shell with an error message. |
@@ -70,6 +73,12 @@ Everything below can be checked before connecting a wallet. Each row is an actio
 | Call `/api/events` | Only verified published rows; `skipped` counts rows that failed verification. |
 
 A full reserve → check-in → claim run needs funded Testnet accounts, a wallet signature and an organizer check-in. It is documented step by step in [docs/DEPLOY_RUNBOOK.md](./docs/DEPLOY_RUNBOOK.md), not faked in the UI.
+
+### Screenshots
+
+| Verified event passport | Public room proof |
+| --- | --- |
+| ![Verified event passport](docs/assets/gatherbond-event.png) | ![Public room proof](docs/assets/gatherbond-recap.png) |
 
 ---
 
@@ -367,9 +376,9 @@ Latest results:
 contract format           clean
 contract tests            54 passed
 ticket vectors            8/8 matched
-frontend tests            75 passed
+frontend tests            77 passed
 metadata/auth/admin/HTTP tests  126 passed
-total                     255 passed
+total                     257 passed
 WASM                      415,893 bytes
 SHA-256                   af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b
 production build          exit 0, 26 routes
@@ -377,20 +386,20 @@ production build          exit 0, 26 routes
 
 The SEO layer adds ten focused tests for canonical URLs, description truncation, Event JSON-LD, per-event OG image selection, Organization/WebSite/ItemList graphs, breadcrumbs, recap graphs and script-tag escaping.
 
-Production crawl checks (2026-11-13, commit `76439b5`):
+Production crawl checks (2026-11-14):
 
 ```text
-GET /                         200
-GET /events/0                 200  verified title/JSON-LD/canonical in HTML
-GET /events/0/recap           200  server-rendered proof
-GET /events/999999            404
-GET /robots.txt               200  studio/commitments/api disallowed
-GET /sitemap.xml              200  3 URLs: home, verified event, closed recap
-GET /opengraph-image          200  image/png
-GET /events/0/opengraph-image 200  image/png
+GET /                          200
+GET /events/12                 200  verified title/JSON-LD/canonical in HTML
+GET /events/12/recap           200  server-rendered proof
+GET /events/999999             404
+GET /robots.txt                200  studio/commitments/api/admin disallowed
+GET /sitemap.xml               200  home + verified event + closed recap
+GET /opengraph-image           200  image/png
+GET /events/12/opengraph-image 200  image/png
 ```
 
-Browser check: `/events/0` hydrated with no console hydration error and changed the timezone label from the server-safe fallback to the device zone (`Asia/Dhaka`). Event JSON-LD and the event OG meta both resolve to the per-event card.
+Browser check: the live home, event and recap pages loaded at 1440×900 and were captured in the screenshots above. Event JSON-LD and the event OG meta resolve to the per-event card.
 
 Full test rationale: [docs/DOCUMENTATION.md](./docs/DOCUMENTATION.md#testing-and-verification).
 
@@ -431,7 +440,7 @@ This is **Testnet only**. It is not audited, has no mainnet procedure and must n
 - **Organizer check-in is a trust assumption** in the MVP. Attendance is organizer-authorized and on-chain, but it is not proof that a human physically entered the room.
 - **Rate limits and nonces are process-local** and do not coordinate across server replicas.
 - **Metadata availability is centralized.** The operator can withhold a listing, but cannot change financial state.
-- **One verified publication is currently indexed**; the other nine on-chain events are development/acceptance or duplicate demo records. This is deliberate fail-closed behavior.
+- **One verified publication is currently indexed**; the other twelve on-chain events are development/acceptance or duplicate demo records. This is deliberate fail-closed behavior.
 - **No on-chain delete.** The contract has no `delete_event` method, so a moderator can hide a listing but cannot erase the contract event, its publication history or any funds. `event_moderation` is a reversible public-surface takedown, not a chain edit.
 - **No mainnet, no production incident history, no legal/trademark clearance.**
 - **No Search Console/Bing submission, Google rich-results validation or analytics.** The crawl routes are live and verified, but search-engine account setup is human-owned.
@@ -446,7 +455,7 @@ This is **Testnet only**. It is not audited, has no mainnet procedure and must n
 - [x] Real on-chain event, metadata hash and public recap
 - [x] Wallet-signed login and organizer publication path
 - [x] SEO metadata, JSON-LD, sitemap, robots, 404 and social cards (live and verified on Vercel)
-- [x] Reproducible 255-test verification and 26-route build
+- [x] Reproducible 257-test verification and 26-route build
 - [x] MIT license
 - [x] GitHub About description, homepage and topics
 - [ ] Demo post on X by the human (organizer rule; never automated)

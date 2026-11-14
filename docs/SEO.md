@@ -1,6 +1,6 @@
 # GatherBond — SEO & Crawlability
 
-**Status:** live on Vercel · **Last verified:** 2026-11-13 (commit `76439b5`)
+**Status:** live on Vercel · **Last verified:** 2026-11-14
 **Canonical production origin:** `https://gatherbond.vercel.app`
 **Rule:** no unverified event may enter metadata, JSON-LD, the sitemap or a social card.
 
@@ -70,7 +70,7 @@ NEXT_PUBLIC_SITE_URL=https://gatherbond.vercel.app
 | `frontend/app/commitments/page.js` | `noindex, nofollow` + canonical |
 | `frontend/app/not-found.js` | “Page not found” title; Next emits the noindex |
 | `frontend/app/robots.js` | robots route |
-| `frontend/app/sitemap.js` | Verified-only sitemap, 1-hour revalidation |
+| `frontend/app/sitemap.js` | Verified-only sitemap, rendered on each crawl |
 | `frontend/app/manifest.js` | PWA/install metadata |
 | `frontend/app/icon.svg` | Brand icon/favicon |
 | `frontend/app/opengraph-image.js` | Root social card |
@@ -131,15 +131,15 @@ Cancelled/failed event status maps to `https://schema.org/EventCancelled`; every
 - Adds `/events/[id]` only when `eventJsonLd()` can build a valid event.
 - Adds `/events/[id]/recap` only when `eventLifecycle(event).closed` is true.
 - Uses `publishedAt` as `lastModified`.
-- Revalidates hourly.
+- Runs per request so a newly published, hidden or restored event cannot leave a stale URL. It returns only the home page if the store is unavailable (fail closed).
 - If the metadata store or RPC fails, it returns the static home entry instead of stale or invented events.
 
-Observed local output on 2026-11-13:
+Observed local output on 2026-11-14:
 
 ```xml
 <loc>https://gatherbond.vercel.app/</loc>
-<loc>https://gatherbond.vercel.app/events/0</loc>
-<loc>https://gatherbond.vercel.app/events/0/recap</loc>
+<loc>https://gatherbond.vercel.app/events/12</loc>
+<loc>https://gatherbond.vercel.app/events/12/recap</loc>
 ```
 
 Only one publication existed at the time. This is the expected result, not a truncated fixture.
@@ -192,7 +192,7 @@ bash scripts/verify-local.sh
 npm run build --prefix frontend
 ```
 
-The SEO test file covers canonical URL construction, path encoding, description truncation, useful fallbacks, Event JSON-LD, per-event OG image selection, cancelled status, graph composition, breadcrumbs, recap graphs and script-tag escaping. The full suite currently reports **75 frontend tests** (10 SEO).
+The SEO test file covers canonical URL construction, path encoding, description truncation, useful fallbacks, Event JSON-LD, per-event OG image selection, cancelled status, graph composition, breadcrumbs, recap graphs and script-tag escaping. The full suite currently reports **77 frontend tests** (10 SEO). Two separate publication-cache tests cover the exact home/event/recap/card paths invalidated after a status change; the sitemap is dynamic, so it has no stale entry to purge.
 
 ### Local production server
 
@@ -205,20 +205,20 @@ Observed:
 
 ```text
 GET /                          200
-GET /events/0                  200
-GET /events/0/recap            200
+GET /events/12                 200
+GET /events/12/recap           200
 GET /events/999999             404
 GET /robots.txt                200
 GET /sitemap.xml               200
 GET /opengraph-image           200  image/png
-GET /events/0/opengraph-image  200  image/png
+GET /events/12/opengraph-image 200  image/png
 ```
 
 Spot checks in the served HTML:
 
-- `<title>Sunday Table · GatherBond</title>`
-- `<link rel="canonical" href="https://gatherbond.vercel.app/events/0">`
-- `<meta property="og:image" content="https://gatherbond.vercel.app/events/0/opengraph-image">`
+- `<title>Dhaka Builders' Table · GatherBond</title>`
+- `<link rel="canonical" href="https://gatherbond.vercel.app/events/12">`
+- `<meta property="og:image" content="https://gatherbond.vercel.app/events/12/opengraph-image">`
 - `<meta name="robots" content="index, follow">`
 - an `application/ld+json` script containing `"@type":"Event"`
 - the event title, venue and verified publication version in the initial HTML
@@ -227,14 +227,14 @@ Spot checks in the served HTML:
 
 ### Post-deploy checks
 
-Completed on `https://gatherbond.vercel.app` at commit `76439b5`:
+Completed on `https://gatherbond.vercel.app` on 2026-11-14:
 
 1. `NEXT_PUBLIC_SITE_URL` resolves to the production origin; canonical URLs use it.
-2. `/robots.txt` and `/sitemap.xml` return `200`; the sitemap contains exactly the home page, verified event 0 and its closed recap.
-3. The verified event's HTML contains its canonical, per-event OG meta and `Event` JSON-LD; the JSON-LD `image` is `/events/0/opengraph-image`.
-4. `/events/0/opengraph-image` returns `image/png` at 1200×630.
+2. `/robots.txt` and `/sitemap.xml` return `200`; the sitemap contains exactly the home page, verified event 12 and its closed recap.
+3. The verified event's HTML contains its canonical, per-event OG meta and `Event` JSON-LD; the JSON-LD `image` is `/events/12/opengraph-image`.
+4. `/events/12/opengraph-image` returns `image/png` at 1200×630.
 5. `/events/999999` returns `404` and `noindex, nofollow`.
-6. `/events/0` hydrates without a console hydration error; the timezone label moves from `your local timezone` to the device zone (`Asia/Dhaka`).
+6. Capture the live event page in a browser at desktop and mobile widths; the page and recap must render without an error shell.
 
 **Not yet done:** Google Search Console/Bing Webmaster Tools submission, indexing requests, and Google Rich Results validation. Those require search-engine account access; the production crawl itself has passed.
 
@@ -247,5 +247,6 @@ Completed on `https://gatherbond.vercel.app` at commit `76439b5`:
 - Never add `offers`, ratings or attendance claims that the contract does not prove.
 - Keep `NEXT_PUBLIC_SITE_URL` free of paths and trailing slashes.
 - Keep JSON-LD serialization through `jsonLdString()`; do not hand-write a `<script>` string.
-- After publishing a new event, allow up to one hour for the sitemap ISR or trigger a redeploy.
+- Publishing, hiding or restoring a listing now revalidates `/`, the event page, its recap and its OG card immediately after the write succeeds. The sitemap is dynamic and reflects the next crawl without a purge.
+- If a database/chain change happens outside these app routes, the sitemap still reflects the next verified read; static pages may need the same revalidation or a redeploy.
 - Update this file and the README SEO section when routes, metadata or indexability change.

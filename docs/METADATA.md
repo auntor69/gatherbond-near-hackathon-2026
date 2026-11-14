@@ -57,28 +57,28 @@ The digest is lowercase hex in the database and a 32-byte array on chain.
 
 ### 2.3 Verified example
 
-This is the current live publication for event `0`:
+This is the current live publication for event `12`:
 
 ```json
 {
   "category": "Community",
   "contract_id": "cynopom.testnet",
-  "created_at": "2026-11-10T05:04:55.231Z",
-  "description": "",
-  "image_url": "",
+  "created_at": "2026-11-14T21:33:51.815Z",
+  "description": "An intimate builders' meetup for people curious about NEAR, Web3, and community-led projects. Bring a project, a question, or an idea to share. This is a GatherBond product demonstration on NEAR Testnet, not a confirmed public event. Reservations use testnet NEAR only, which has no real-world monetary value. Attendees receive a one-time ticket code, and the organizer records attendance during the event window. Refunds and any no-show pool distribution follow the on-chain contract rules.",
+  "image_url": "https://i.ibb.co.com/5gVGdWDm/Gather-Bond-Dhaka-Builders-Table-Cover.png",
   "network_id": "testnet",
-  "organizer_account_id": "cynopom.testnet",
+  "organizer_account_id": "gatherbond-demo-organizer.testnet",
   "schema_version": 1,
-  "tags": ["supper"],
-  "title": "Sunday Table",
-  "venue": "Banani Kitchen, Dhaka, Bangladesh"
+  "tags": ["NEAR", "Dhaka", "Builders", "Community", "Web3", "Meetup", "Testnet"],
+  "title": "Dhaka Builders' Table",
+  "venue": "Banani, Dhaka, Bangladesh"
 }
 ```
 
 ```text
-metadata_sha256  e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc
-create_tx_hash   2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a
-publication v1   published 2026-11-10T05:05:21.485Z
+metadata_sha256  24c7ab39b08019d6bf4d2ba6c5090ce2f51dec760b48ec05863239e9d1696b5e
+create_tx_hash   9PrJ26Y6TBYDs4MZv5mG2ndbs1XvuYxd8QbTaKT2ski3
+publication v1   published 2026-11-14T21:34:31.293Z
 ```
 
 ---
@@ -157,20 +157,20 @@ Base: `/api`. All responses are JSON with `cache-control: no-store`.
       "event": {
         "network_id": "testnet",
         "contract_id": "cynopom.testnet",
-        "event_id": "0"
+        "event_id": "12"
       },
-      "metadata": { "title": "Sunday Table", "venue": "Banani Kitchen, Dhaka, Bangladesh" },
-      "metadata_sha256": "e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc",
-      "metadata_hash": [224, 37, 127, 231, "..."],
+      "metadata": { "title": "Dhaka Builders' Table", "venue": "Banani, Dhaka, Bangladesh" },
+      "metadata_sha256": "24c7ab39b08019d6bf4d2ba6c5090ce2f51dec760b48ec05863239e9d1696b5e",
+      "metadata_hash": [36, 199, 171, 57, "..."],
       "publication_version": 1,
-      "published_at": "2026-11-10T05:05:21.485Z",
-      "create_tx_hash": "2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a",
+      "published_at": "2026-11-14T21:34:31.293Z",
+      "create_tx_hash": "9PrJ26Y6TBYDs4MZv5mG2ndbs1XvuYxd8QbTaKT2ski3",
       "onchain": {
         "status": "Finalized",
-        "deposit": "100000000000000000000000",
-        "capacity": 20,
-        "registered": 1,
-        "checked_in": 0
+        "deposit": "1000000000000000000000000",
+        "capacity": 2,
+        "registered": 2,
+        "checked_in": 1
       }
     }
   ],
@@ -191,14 +191,14 @@ Returns the verified publication plus public contract terms. This is the event p
 ```json
 {
   "verified": true,
-  "event": { "network_id": "testnet", "contract_id": "cynopom.testnet", "event_id": "0" },
+  "event": { "network_id": "testnet", "contract_id": "cynopom.testnet", "event_id": "12" },
   "version": 1,
   "publication_status": "published",
-  "metadata": { "title": "Sunday Table" },
-  "metadata_sha256": "e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc",
-  "published_by": "cynopom.testnet",
-  "published_at": "2026-11-10T05:05:21.485Z",
-  "onchain": { "status": "Finalized", "registered": 1, "checked_in": 0 }
+  "metadata": { "title": "Dhaka Builders' Table" },
+  "metadata_sha256": "24c7ab39b08019d6bf4d2ba6c5090ce2f51dec760b48ec05863239e9d1696b5e",
+  "published_by": "gatherbond-demo-organizer.testnet",
+  "published_at": "2026-11-14T21:34:31.293Z",
+  "onchain": { "status": "Finalized", "capacity": 2, "registered": 2, "checked_in": 1 }
 }
 ```
 
@@ -218,8 +218,8 @@ Both endpoints require a valid NEP-413 session cookie. The actor is derived from
 
 ```json
 {
-  "metadata": { "schema_version": 1, "title": "Sunday Table", "..." : "..." },
-  "create_tx_hash": "2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a"
+  "metadata": { "schema_version": 1, "title": "Dhaka Builders' Table", "..." : "..." },
+  "create_tx_hash": "9PrJ26Y6TBYDs4MZv5mG2ndbs1XvuYxd8QbTaKT2ski3"
 }
 ```
 
@@ -302,7 +302,7 @@ Covered:
 - real HTTP login → PUT → publish → GET over Next + SQLite;
 - fail-closed missing DB/RPC/auth paths.
 
-Latest counts: **126 server/metadata/auth/admin/HTTP tests**, part of **255 total**.
+Latest counts: **126 server/metadata/auth/admin/HTTP tests**, part of **257 total**.
 
 ---
 
