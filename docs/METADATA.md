@@ -1,6 +1,6 @@
 # GatherBond — Event Metadata Layer
 
-**Status:** implemented and live on Turso · **Updated:** 2026-11-13
+**Status:** implemented and live on Turso · **Updated:** 2026-11-14
 **Boundary:** display metadata only. The NEAR contract is authoritative for money, capacity, attendance, settlement and claims.
 
 ---
@@ -21,7 +21,7 @@ It cannot:
 - change a deposit, capacity or attendance;
 - prove payment or check-in;
 - make an unverified row visible;
-- unpublish or delete a published event through the current API.
+- unpublish or delete a published event as its organizer through the current API. A separate allowlisted moderator can hide a public listing.
 
 ---
 
@@ -85,7 +85,7 @@ publication v1   published 2026-11-10T05:05:21.485Z
 
 ## 3. Database schema
 
-Migration: `database/migrations/0001_event_metadata.sql`.
+Migrations: `database/migrations/0001_event_metadata.sql` and `0002_event_moderation.sql`.
 
 ### 3.1 `event_metadata`
 
@@ -111,7 +111,11 @@ Append-only log:
 | `metadata_json`, `metadata_sha256`, `create_tx_hash` | Immutable snapshot for a publish |
 | `published_by`, `published_at` | Actor and timestamp |
 
-The highest version is current. A publish row is never mutated. The schema retains legacy `unpublish` tombstones because a database may predate the permanent-publication policy; **the current API does not create new tombstones and exposes no unpublish/delete action.** The store still understands an old tombstone as “the next publish must append a new version.”
+The highest version is current. A publish row is never mutated. The schema retains legacy `unpublish` tombstones because a database may predate the permanent-publication policy; **the current organizer API does not create new tombstones and exposes no delete action.** The store still understands an old tombstone as “the next publish must append a new version.” An allowlisted moderator can hide a listing using the separate `event_moderation` registry; that is reversible, audited and never edits publication history.
+
+### 3.3 `event_moderation` and `event_moderation_log`
+
+`event_moderation` holds only the currently hidden listings, keyed by `(network_id, contract_id, event_id)` with the reason, actor and timestamp. `event_moderation_log` is an append-only hide/restore audit trail. Restoring deletes the current hidden row and appends a restore entry; publication and contract history are never touched.
 
 ---
 
@@ -131,6 +135,7 @@ A row is public only if all of these are true:
 | Local or on-chain hash mismatch | `409 metadata_hash_mismatch` |
 | Store unavailable | `503 metadata_store_unavailable` |
 | RPC unavailable | `503 chain_unavailable` |
+| Hidden by moderation | `404 not_published`; omitted from discovery/sitemap |
 | Invalid event ID | `400 invalid_key` |
 
 Discovery does not fail the whole list when one row is bad. It skips that row and increments `skipped`.
@@ -240,7 +245,7 @@ No body. Appends the current verified draft as a new public version.
 - `409` draft no longer matches the chain.
 - `503` store/RPC unavailable.
 
-There is no `DELETE` and no unpublish route.
+There is no `DELETE` and no organizer unpublish route. A private admin route can hide or restore the public listing without deleting publication or contract history.
 
 ### 5.3 Error envelope
 
@@ -297,7 +302,7 @@ Covered:
 - real HTTP login → PUT → publish → GET over Next + SQLite;
 - fail-closed missing DB/RPC/auth paths.
 
-Latest counts: **107 server/metadata/auth/HTTP tests**, part of **236 total**.
+Latest counts: **126 server/metadata/auth/admin/HTTP tests**, part of **255 total**.
 
 ---
 
@@ -319,7 +324,7 @@ Save a new draft whose canonical hash matches a new on-chain metadata hash, then
 
 ### Withhold a listing
 
-The metadata operator can stop serving a row (for example, by taking the database offline or removing the publication through a direct operator process). There is no user-facing unpublish button. Withholding display data cannot change contract state.
+An allowlisted moderator can hide a listing from `/admin`. The action is reversible, audited, and scoped to the active contract. It does not delete the on-chain event, publication history or funds; the contract remains authoritative and directly callable.
 
 ### Health
 
@@ -351,9 +356,9 @@ Expected live shape:
 - There is no rich-text/HTML rendering; descriptions are plain text.
 - Images are URL references, not uploaded/stored blobs.
 - There is no search index beyond SQL filtering and the client-side filter.
-- Publication is permanent; deletion is a deliberate non-goal.
+- Publication history is permanent; organizer deletion is a deliberate non-goal. A moderator can hide a listing, but cannot delete the contract event, publication history or funds.
 - Rate limits are process-local.
 - The operator can withhold; the contract remains authoritative.
-- No analytics, audit log export or admin console.
+- No analytics or audit-log export. The private moderation console is intentionally limited to hide/restore.
 
 See [DOCUMENTATION.md](./DOCUMENTATION.md) for the full system and [SEO.md](./SEO.md) for how verified metadata becomes crawlable HTML.

@@ -6,12 +6,14 @@
 // registration, attendance or claims; it only stores descriptive metadata.
 //
 // Publication is append-only: every publish appends one row to event_publications.
-// A row with action='publish' carries the immutable snapshot. Publication is permanent:
-// new versions are appended, and the latest publish stays public forever, including for
-// historical rows whose later version was a legacy tombstone. Nothing is deleted.
+// A row with action='publish' carries the immutable snapshot. Publication history is
+// permanent: new versions are appended, and the latest publish stays in history even for
+// legacy tombstones. A separate event_moderation registry can hide the public listing;
+// it never deletes metadata, publications, contract state or funds.
 
 import {
   MetadataConflictError,
+  MetadataHiddenError,
   MetadataValidationError,
   canonicalJson,
   canonicalMetadata,
@@ -22,6 +24,25 @@ import {
 const PUBLICATION_STATUSES = new Set(["pending", "published", "hidden"]);
 const TX_HASH = /^[1-9A-HJ-NP-Za-km-z]{32,88}$/;
 const MAX_PAGE = 50;
+const ADMIN_ACTOR = /^[a-z0-9][a-z0-9._-]{1,63}$/;
+
+function requireModerationText(value, field, { min = 1, max = 500 } = {}) {
+  if (typeof value !== "string") {
+    throw new MetadataValidationError(field, "must be a string");
+  }
+  const text = value.trim();
+  if (text.length < min || text.length > max) {
+    throw new MetadataValidationError(field, `must be between ${min} and ${max} characters`);
+  }
+  return text;
+}
+
+function requireAdminActor(value) {
+  if (typeof value !== "string" || !ADMIN_ACTOR.test(value)) {
+    throw new MetadataValidationError("actor", "must be a valid NEAR account id");
+  }
+  return value;
+}
 
 function rowToRecord(row) {
   if (!row) {
@@ -71,6 +92,22 @@ function publicationRowToRecord(row) {
     create_tx_hash: row.create_tx_hash,
     published_by: row.published_by,
     published_at: row.published_at,
+  };
+}
+
+function moderationRowToRecord(row) {
+  if (!row) {
+    return null;
+  }
+  return {
+    key: {
+      network_id: row.network_id,
+      contract_id: row.contract_id,
+      event_id: row.event_id,
+    },
+    reason: row.reason,
+    actor: row.actor,
+    updated_at: row.updated_at,
   };
 }
 
@@ -158,8 +195,140 @@ export function createMetadataStore(db) {
     return rowToRecord(row);
   }
 
+  async function getModeration(key) {
+    const normalized = normalizeEventKey(key);
+    const row = await db.get(
+      `SELECT network_id, contract_id, event_id, reason, actor, updated_at
+         FROM event_moderation
+        WHERE network_id = ? AND contract_id = ? AND event_id = ?`,
+      [normalized.network_id, normalized.contract_id, normalized.event_id],
+    );
+    return moderationRowToRecord(row);
+  }
+
+  async function isHidden(key) {
+    const normalized = normalizeEventKey(key);
+    const row = await db.get(
+      `SELECT 1 AS hidden FROM event_moderation
+        WHERE network_id = ? AND contract_id = ? AND event_id = ?`,
+      [normalized.network_id, normalized.contract_id, normalized.event_id],
+    );
+    return Boolean(row);
+  }
+
+  async function hide({ key, reason, actor } = {}) {
+    const normalized = normalizeEventKey(key);
+    const safeReason = requireModerationText(reason, "reason", { min: 3, max: 500 });
+    const safeActor = requireAdminActor(actor);
+    const updatedAt = new Date().toISOString();
+
+    await db.run(
+      `INSERT INTO event_moderation (network_id, contract_id, event_id, reason, actor, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (network_id, contract_id, event_id)
+       DO UPDATE SET reason = excluded.reason, actor = excluded.actor, updated_at = excluded.updated_at`,
+      [
+        normalized.network_id,
+        normalized.contract_id,
+        normalized.event_id,
+        safeReason,
+        safeActor,
+        updatedAt,
+      ],
+    );
+    await db.run(
+      `INSERT INTO event_moderation_log (
+        network_id, contract_id, event_id, action, reason, actor, created_at
+      ) VALUES (?, ?, ?, 'hide', ?, ?, ?)`,
+      [
+        normalized.network_id,
+        normalized.contract_id,
+        normalized.event_id,
+        safeReason,
+        safeActor,
+        updatedAt,
+      ],
+    );
+
+    return { hidden: true, reason: safeReason, actor: safeActor, updated_at: updatedAt };
+  }
+
+  async function restore({ key, reason, actor } = {}) {
+    const normalized = normalizeEventKey(key);
+    const safeReason = requireModerationText(reason, "reason", { min: 3, max: 500 });
+    const safeActor = requireAdminActor(actor);
+    const updatedAt = new Date().toISOString();
+    const result = await db.run(
+      `DELETE FROM event_moderation
+        WHERE network_id = ? AND contract_id = ? AND event_id = ?`,
+      [normalized.network_id, normalized.contract_id, normalized.event_id],
+    );
+    const restored = Number(result?.changes ?? 0) > 0;
+    if (restored) {
+      await db.run(
+        `INSERT INTO event_moderation_log (
+          network_id, contract_id, event_id, action, reason, actor, created_at
+        ) VALUES (?, ?, ?, 'restore', ?, ?, ?)`,
+        [
+          normalized.network_id,
+          normalized.contract_id,
+          normalized.event_id,
+          safeReason,
+          safeActor,
+          updatedAt,
+        ],
+      );
+    }
+    return {
+      hidden: false,
+      restored,
+      reason: safeReason,
+      actor: safeActor,
+      updated_at: updatedAt,
+    };
+  }
+
+  async function listModerationLog({ limit = 20, networkId, contractId } = {}) {
+    const pageSize = Math.min(Math.max(Number(limit) || 20, 1), 100);
+    let scope = "";
+    const params = [];
+    if (networkId !== undefined || contractId !== undefined) {
+      const normalized = normalizeEventKey({
+        network_id: networkId,
+        contract_id: contractId,
+        event_id: "0",
+      });
+      scope = "WHERE network_id = ? AND contract_id = ?";
+      params.push(normalized.network_id, normalized.contract_id);
+    }
+    params.push(pageSize);
+    const rows = await db.all(
+      `SELECT id, network_id, contract_id, event_id, action, reason, actor, created_at
+         FROM event_moderation_log
+        ${scope}
+        ORDER BY id DESC
+        LIMIT ?`,
+      params,
+    );
+    return rows.map((row) => ({
+      id: Number(row.id),
+      key: {
+        network_id: row.network_id,
+        contract_id: row.contract_id,
+        event_id: row.event_id,
+      },
+      action: row.action,
+      reason: row.reason,
+      actor: row.actor,
+      created_at: row.created_at,
+    }));
+  }
+
   async function publish({ key, published_by } = {}) {
     const normalized = normalizeEventKey(key);
+    if (await isHidden(normalized)) {
+      throw new MetadataHiddenError();
+    }
     const record = await get(normalized);
     if (!record) {
       return { outcome: "not_found", publication: null };
@@ -354,6 +523,12 @@ export function createMetadataStore(db) {
 
     publish,
 
+    getModeration,
+    isHidden,
+    hide,
+    restore,
+    listModerationLog,
+
     /**
      * Public listing: the latest version must be a publish, and its snapshot digest must
      * still equal the current draft digest. Returning the current draft (rather than the
@@ -384,6 +559,12 @@ export function createMetadataStore(db) {
                 )
               WHERE p.action = 'publish'
                 AND p.metadata_sha256 = m.metadata_sha256
+                AND NOT EXISTS (
+                  SELECT 1 FROM event_moderation mod
+                   WHERE mod.network_id = m.network_id
+                     AND mod.contract_id = m.contract_id
+                     AND mod.event_id = m.event_id
+                )
                 AND m.category = ?
               ORDER BY m.created_at DESC, m.event_id DESC
               LIMIT ? OFFSET ?`,
@@ -408,6 +589,12 @@ export function createMetadataStore(db) {
                 )
               WHERE p.action = 'publish'
                 AND p.metadata_sha256 = m.metadata_sha256
+                AND NOT EXISTS (
+                  SELECT 1 FROM event_moderation mod
+                   WHERE mod.network_id = m.network_id
+                     AND mod.contract_id = m.contract_id
+                     AND mod.event_id = m.event_id
+                )
               ORDER BY m.created_at DESC, m.event_id DESC
               LIMIT ? OFFSET ?`,
             [pageSize, pageOffset],
@@ -418,14 +605,14 @@ export function createMetadataStore(db) {
 
     /**
      * Compatibility for store callers: publishing always goes through the versioned
-     * append-only log. There is no unpublish path.
+     * append-only log. A moderator can hide a listing without deleting its history.
      */
     async setPublicationStatus(key, status) {
       if (!PUBLICATION_STATUSES.has(status)) {
         throw new MetadataValidationError("publication_status", "is not a known status");
       }
       if (status !== "published") {
-        throw new MetadataValidationError("publication_status", "publication cannot be hidden or removed");
+        throw new MetadataValidationError("publication_status", "publication history cannot be edited");
       }
       const result = await publish({ key });
       return result.outcome !== "not_found";

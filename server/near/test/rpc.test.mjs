@@ -44,6 +44,29 @@ test("get_event encodes the argument and decodes the contract view", async () =>
   });
 });
 
+test("get_events encodes U64 from as a string and caps the page size", async () => {
+  let call;
+  const fetchImpl = async (url, init) => {
+    call = JSON.parse(init.body);
+    return rpcResponse({
+      jsonrpc: "2.0",
+      result: { result: viewBytes([{ event_id: 0 }]) },
+    });
+  };
+  const reader = createContractReader({
+    rpcUrl: "https://rpc.testnet.near.org",
+    contractId: "contract.testnet",
+    fetchImpl,
+  });
+
+  assert.deepEqual(await reader.getEvents(0, 100), [{ event_id: 0 }]);
+  assert.equal(call.params.method_name, "get_events");
+  assert.deepEqual(
+    JSON.parse(Buffer.from(call.params.args_base64, "base64").toString("utf8")),
+    { from: "0", limit: 20 },
+  );
+});
+
 test("empty and null views map to null", async () => {
   const empty = createContractReader({
     rpcUrl: "https://rpc.testnet.near.org",

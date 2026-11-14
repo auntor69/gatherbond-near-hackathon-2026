@@ -11,6 +11,19 @@ const nextConfig = {
   // Allow that loopback origin so HMR and client hydration work in local preview.
   allowedDevOrigins: ["127.0.0.1"],
   outputFileTracingRoot: workspaceRoot,
+  async headers() {
+    const privateHeaders = [
+      { key: "Cache-Control", value: "private, no-store, max-age=0" },
+      { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+      { key: "X-Frame-Options", value: "DENY" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "no-referrer" },
+    ];
+    return [
+      { source: "/admin/:path*", headers: privateHeaders },
+      { source: "/api/admin/:path*", headers: privateHeaders },
+    ];
+  },
   turbopack: {
     root: workspaceRoot,
   },
@@ -22,24 +35,28 @@ const nextConfig = {
   // API routes, the homepage shelf, event/recap pages, social cards and the sitemap.
   outputFileTracingIncludes: {
     "/api/**": [
+      "database/migrations/**/*",
       "node_modules/@libsql/**/*",
       "node_modules/ws/**/*",
       "node_modules/js-base64/**/*",
       "node_modules/promise-limit/**/*",
     ],
     "/": [
+      "database/migrations/**/*",
       "node_modules/@libsql/**/*",
       "node_modules/ws/**/*",
       "node_modules/js-base64/**/*",
       "node_modules/promise-limit/**/*",
     ],
     "/events/**": [
+      "database/migrations/**/*",
       "node_modules/@libsql/**/*",
       "node_modules/ws/**/*",
       "node_modules/js-base64/**/*",
       "node_modules/promise-limit/**/*",
     ],
     "/sitemap.xml": [
+      "database/migrations/**/*",
       "node_modules/@libsql/**/*",
       "node_modules/ws/**/*",
       "node_modules/js-base64/**/*",

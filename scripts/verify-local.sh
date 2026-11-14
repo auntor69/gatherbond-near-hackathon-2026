@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One clean local verification run: contract format + tests (zero warnings), ticket
-# commitment parity, event-metadata tests, and the print-only deploy handover.
+# commitment parity, event-metadata/auth/admin tests, and the print-only deploy handover.
 # No deployment, no accounts, no signatures, no funds.
 set -euo pipefail
 
@@ -32,8 +32,8 @@ node "$ROOT/scripts/verify-ticket-commitment.mjs"
 echo "== 4/6 frontend event state, display, contract math and QR helpers =="
 node --test "$ROOT"/frontend/lib/*.test.mjs
 
-echo "== 5/6 metadata + auth + publication + HTTP tests (incl. live Next + SQLite end-to-end) =="
-node --test "$ROOT"/server/metadata/test/*.test.mjs "$ROOT"/server/auth/test/*.test.mjs "$ROOT"/server/http/test/*.test.mjs "$ROOT"/server/near/test/*.test.mjs
+echo "== 5/6 metadata + auth + admin + HTTP tests (incl. live Next + SQLite end-to-end) =="
+node --test "$ROOT"/server/metadata/test/*.test.mjs "$ROOT"/server/auth/test/*.test.mjs "$ROOT"/server/admin/test/*.test.mjs "$ROOT"/server/http/test/*.test.mjs "$ROOT"/server/near/test/*.test.mjs
 
 echo "== 6/6 deploy handover (print-only) =="
 bash "$ROOT/scripts/deploy-contract.sh"

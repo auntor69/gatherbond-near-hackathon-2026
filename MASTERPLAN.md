@@ -4,7 +4,7 @@
 > **Hackathon:** NEAR HACKATHON 2026 — Build Beyond Boundaries
 > **Network:** NEAR Testnet only
 > **Status:** Testnet v1.1 implemented; SEO/docs release deployed to Vercel and production crawl routes verified
-> **Last updated:** 2026-11-13
+> **Last updated:** 2026-11-14
 > **Primary track:** Social Money (`social`)
 > **Secondary:** Open Innovation (`open`), only if the final submission genuinely fits
 
@@ -41,7 +41,7 @@ The contract holds the money and the attendance record. The database holds displ
 | **One commitment, one ticket** | Ticket secret stays in the browser; commitment is on chain |
 | **No admin settlement** | The first claim settles an ended event; there is no organizer finalize button |
 | **No platform cut** | The platform takes no deposit or no-show cut |
-| **Permanent publication** | No unpublish button; corrections append a new version |
+| **Permanent publication** | No organizer unpublish button; corrections append a new version. An allowlisted moderator can hide a listing from public surfaces without deleting contract or publication history. |
 | **Verified discovery only** | Unverified rows are hidden, not shown with a warning badge |
 | **Readable, not crypto-native** | Human account IDs, editorial UI and plain-language rules |
 
@@ -122,7 +122,7 @@ The platform takes no cut. Exactly 20% passes the floor. The remainder accrues t
 - Organizer reputation, social graph or messaging.
 - Fiat/card payments.
 - Refundable deposits in arbitrary tokens.
-- Admin CMS, analytics or a support console.
+- Admin CMS, analytics or a support desk. A narrow, private moderation console exists for audited public-listing hide/restore.
 - Unpublish/delete.
 - Multi-tenant organizations or team accounts.
 - Automated physical access control.
@@ -171,20 +171,20 @@ flowchart LR
 - Ten SEO tests, including per-event OG image selection.
 - Full documentation rewrite and MIT license.
 
-## 11. Live snapshot (2026-11-13)
+## 11. Live snapshot (2026-11-14)
 
 | Item | Value |
 | --- | --- |
 | Contract | `cynopom.testnet` |
-| Event count | 8 on chain |
+| Event count | 10 on chain |
 | Verified publications | 1 (`Sunday Table`, event 0) |
 | Database | Turso, `database_read: ok` |
 | Auth | configured |
-| Tests | 54 contract + 8/8 vectors + 75 frontend + 107 server |
-| Build | exit 0, 21 routes |
+| Tests | 54 contract + 8/8 vectors + 75 frontend + 126 server |
+| Build | exit 0, 26 routes |
 | SEO production status | live on Vercel; canonical, JSON-LD, sitemap, robots and OG verified 2026-11-13 |
 
-The seven extra on-chain events are development/acceptance records. Discovery hides them because they lack a current verified publication. This is the fail-closed design, not a bug.
+The nine extra on-chain events are development/acceptance or duplicate demo records. Discovery hides them because they lack a current verified publication. This is the fail-closed design, not a bug.
 
 ## 12. Roadmap
 
@@ -192,7 +192,7 @@ The seven extra on-chain events are development/acceptance records. Discovery hi
 
 - [x] Live contract and frontend
 - [x] Verified event, hash and recap
-- [x] 236-test verification and 21-route build
+- [x] 255-test verification and 26-route build
 - [x] SEO implementation and docs
 - [x] MIT license
 - [x] Push/deploy the SEO release
@@ -280,7 +280,7 @@ Do not claim these before measuring them.
 3. **Live proof (60s):** health, event count, verified event, hash, NEARBlocks transaction, recap.
 4. **Trust (45s):** show `metadata_hash` on chain, canonical JSON, verified-only discovery, fail-closed 503.
 5. **SEO (30s):** view source on event, sitemap, robots, dynamic OG.
-6. **Evidence (30s):** 236 tests, 21-route build, 54 contract tests.
+6. **Evidence (30s):** 255 tests, 26-route build, 54 contract tests.
 7. **Honesty (20s):** testnet only, no audit, multi-account pilot still open.
 
 ## 17. Documentation map

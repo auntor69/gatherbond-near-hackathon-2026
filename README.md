@@ -10,8 +10,8 @@ The contract holds the money and records attendance. The database stores descrip
 
 [![Live app](https://img.shields.io/badge/live-gatherbond.vercel.app-d7ff5f?style=flat-square)](https://gatherbond.vercel.app)
 [![Contract](https://img.shields.io/badge/contract-cynopom.testnet-ff5c35?style=flat-square)](https://testnet.nearblocks.io/address/cynopom.testnet)
-[![Tests](https://img.shields.io/badge/tests-236%20passing-0e100e?style=flat-square)](#verification)
-[![Build](https://img.shields.io/badge/production%20build-21%20routes%20passing-0e100e?style=flat-square)](#verification)
+[![Tests](https://img.shields.io/badge/tests-255%20passing-0e100e?style=flat-square)](#verification)
+[![Build](https://img.shields.io/badge/production%20build-26%20routes%20passing-0e100e?style=flat-square)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-d7ff5f?style=flat-square)](./LICENSE)
 
 ---
@@ -39,14 +39,14 @@ The design goal is not “tickets on a blockchain.” It is a closed economic lo
 | NEAR Testnet contract | [`cynopom.testnet`](https://testnet.nearblocks.io/address/cynopom.testnet) |
 | Metadata database | Turso/libSQL, `database_mode: turso`, `database_read: ok` |
 | Wallet sessions | NEP-413, HttpOnly HMAC cookie, enabled |
-| On-chain events created | **8** (development and acceptance runs) |
+| On-chain events created | **10** (development, acceptance and demo runs) |
 | Verified public snapshots | **1** currently indexed — `Sunday Table`, event `0` |
 | Published metadata hash | `e0257fe70d537f0ca6e6eb6c2851210833039cb76b6fc740e655f213232d99fc` |
 | Create transaction | [`2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a`](https://testnet.nearblocks.io/txns/2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a) |
 | Contract artifact | 415,893-byte WASM, SHA-256 `af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b` |
-| Local verification | 54 contract + 8/8 vectors + 75 frontend + 107 server tests = **236 passing** |
+| Local verification | 54 contract + 8/8 vectors + 75 frontend + 126 server tests = **255 passing** |
 
-**Why only one event is listed when eight exist on chain:** discovery is deliberately fail-closed. An event is visible only when its stored JSON still hashes to its stored digest **and** that digest equals the `metadata_hash` anchored on chain. The other seven events are development/acceptance records without a current verified publication. They are not replaced with demo rows.
+**Why only one event is listed when ten exist on chain:** discovery is deliberately fail-closed. An event is visible only when its stored JSON still hashes to its stored digest **and** that digest equals the `metadata_hash` anchored on chain. The other nine events are development/acceptance or duplicate demo records without a current verified publication. They are not replaced with fabricated rows.
 
 Verified on 2026-11-13 against `/api/health`, `/api/events`, `/api/contract/event-count` and `/api/events/0`.
 
@@ -63,7 +63,7 @@ Everything below can be checked before connecting a wallet. Each row is an actio
 | Open **View room proof** on the ended event | A public recap with registered/checked-in counts and the settlement outcome. No attendee identities are exposed. |
 | View source on the event page | `<title>`, canonical, OpenGraph/Twitter tags and schema.org `Event` JSON-LD for the verified publication. |
 | Open <https://gatherbond.vercel.app/sitemap.xml> | Only the home page, the verified event and its closed recap. Drafts and unverified rows cannot enter the sitemap. |
-| Open <https://gatherbond.vercel.app/robots.txt> | Public rooms allowed; `/api/`, `/studio` and `/commitments` disallowed. |
+| Open <https://gatherbond.vercel.app/robots.txt> | Public rooms allowed; `/api/`, `/studio`, `/commitments` and `/admin` disallowed. |
 | Open `/studio` or `/commitments` and view source | `noindex, nofollow`, because both surfaces are wallet/private state. |
 | Open an unknown event such as `/events/999999` | A real HTTP **404**, not a 200 shell with an error message. |
 | Call `/api/health` | Database, auth and contract readiness in one JSON response. |
@@ -217,7 +217,7 @@ Key rules:
 - The server re-hashes the stored JSON on every read.
 - The server reads `get_event(event_id)` and compares the on-chain `metadata_hash`.
 - A mismatch returns `409`; the row is hidden from discovery and never rendered as verified.
-- Publishing appends a version. An unchanged republish is an idempotent no-op. There is no unpublish or delete action in the UI or current API.
+- Publishing appends a version. An unchanged republish is an idempotent no-op. Publication history is never deleted. An allowlisted moderator can hide a listing from every public surface; the contract event and its funds remain untouched.
 - A draft is not public. Discovery reads only the current published snapshot.
 
 Deep reference: [docs/METADATA.md](./docs/METADATA.md).
@@ -237,8 +237,16 @@ Deep reference: [docs/METADATA.md](./docs/METADATA.md).
 | `/api/events/[id]/publication` | GET, POST | POST requires organizer session | Public snapshot / append publication |
 | `/api/auth/session` | POST, GET, DELETE | public | NEP-413 login, whoami, logout |
 | `/api/me/commitments` | GET | wallet session | Reservations for the authenticated account only |
+| `/api/admin/access` | GET | allowlisted wallet session | Private console status; no event data |
+| `/api/admin/unlock` | POST, DELETE | allowlisted wallet + same-origin header | Optional second-factor unlock / lock |
+| `/api/admin/events` | GET | allowlisted wallet + unlock | All on-chain events and moderation state |
+| `/api/admin/events/[id]/moderation` | POST | allowlisted wallet + unlock + same-origin header | Hide or restore a public listing |
 
 All responses use `cache-control: no-store` unless explicitly cached by the route. Missing configuration fails closed with `503`; it never returns sample data.
+
+### Private moderation
+
+The `/admin` console is deliberately absent from navigation and disallowed in `robots.txt`. Every admin route checks, on the server, that the actor came from a verified NEP-413 session and is in `GATHERBOND_ADMIN_ACCOUNTS`. If `GATHERBOND_ADMIN_KEY` is set, a short-lived, account-bound `HttpOnly` unlock cookie is required too. Mutations require an exact event-id confirmation, a reason, a same-origin `Origin`, and the `x-gatherbond-admin` header. Hiding writes `event_moderation` and an append-only audit row; it does not delete an on-chain event, its publication history, or any funds. Restoring removes the hidden row and appends a restore audit row.
 
 ---
 
@@ -336,6 +344,9 @@ cargo test --offline
 | `GATHERBOND_SESSION_SECRET` | production | ≥32-character HMAC secret |
 | `GATHERBOND_AUTH_RECIPIENT` | recommended | Wallet-signed login recipient |
 | `GATHERBOND_SECURE_COOKIES=1` | production | Secure session cookie |
+| `GATHERBOND_ADMIN_ACCOUNTS` | recommended | Comma-separated wallet accounts allowed on `/admin`; defaults to `CONTRACT_NAME` |
+| `GATHERBOND_ADMIN_KEY` | recommended | Optional 16+ character second factor for admin unlock |
+| `GATHERBOND_ADMIN_SESSION_TTL_SECONDS` | optional | Admin unlock lifetime; default 1800 |
 
 Never put a secret in a `NEXT_PUBLIC_*` variable. The full list and defaults are in [`.env.example`](./.env.example).
 
@@ -357,11 +368,11 @@ contract format           clean
 contract tests            54 passed
 ticket vectors            8/8 matched
 frontend tests            75 passed
-metadata/auth/HTTP tests  107 passed
-total                     236 passed
+metadata/auth/admin/HTTP tests  126 passed
+total                     255 passed
 WASM                      415,893 bytes
 SHA-256                   af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b
-production build          exit 0, 21 routes
+production build          exit 0, 26 routes
 ```
 
 The SEO layer adds ten focused tests for canonical URLs, description truncation, Event JSON-LD, per-event OG image selection, Organization/WebSite/ItemList graphs, breadcrumbs, recap graphs and script-tag escaping.
@@ -388,7 +399,7 @@ Full test rationale: [docs/DOCUMENTATION.md](./docs/DOCUMENTATION.md#testing-and
 ## Deployment
 
 - **Frontend:** Vercel Git integration on `main`. The build uses the app in `frontend/`; the metadata runtime imports the root `server/` modules through the workspace root.
-- **Database:** apply `database/migrations/0001_event_metadata.sql` to Turso before enabling writes.
+- **Database:** apply `database/migrations/0001_event_metadata.sql` and `0002_event_moderation.sql` to Turso before enabling writes.
 - **Contract:** `cynopom.testnet`; the current signing key is not in this workspace. The runbook is for the maintainer and never prints a key.
 - **SEO:** set `NEXT_PUBLIC_SITE_URL`, deploy, then verify `/robots.txt`, `/sitemap.xml`, canonical tags, dynamic OG images and 404 status.
 
@@ -420,8 +431,8 @@ This is **Testnet only**. It is not audited, has no mainnet procedure and must n
 - **Organizer check-in is a trust assumption** in the MVP. Attendance is organizer-authorized and on-chain, but it is not proof that a human physically entered the room.
 - **Rate limits and nonces are process-local** and do not coordinate across server replicas.
 - **Metadata availability is centralized.** The operator can withhold a listing, but cannot change financial state.
-- **One verified publication is currently indexed**; the other seven on-chain events are development/acceptance records. This is deliberate fail-closed behavior.
-- **No unpublish.** Publication is permanent by design; there is no delete/withdraw UI.
+- **One verified publication is currently indexed**; the other nine on-chain events are development/acceptance or duplicate demo records. This is deliberate fail-closed behavior.
+- **No on-chain delete.** The contract has no `delete_event` method, so a moderator can hide a listing but cannot erase the contract event, its publication history or any funds. `event_moderation` is a reversible public-surface takedown, not a chain edit.
 - **No mainnet, no production incident history, no legal/trademark clearance.**
 - **No Search Console/Bing submission, Google rich-results validation or analytics.** The crawl routes are live and verified, but search-engine account setup is human-owned.
 
@@ -435,7 +446,7 @@ This is **Testnet only**. It is not audited, has no mainnet procedure and must n
 - [x] Real on-chain event, metadata hash and public recap
 - [x] Wallet-signed login and organizer publication path
 - [x] SEO metadata, JSON-LD, sitemap, robots, 404 and social cards (live and verified on Vercel)
-- [x] Reproducible 236-test verification and 21-route build
+- [x] Reproducible 255-test verification and 26-route build
 - [x] MIT license
 - [x] GitHub About description, homepage and topics
 - [ ] Demo post on X by the human (organizer rule; never automated)

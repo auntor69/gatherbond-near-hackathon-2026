@@ -13,6 +13,7 @@
 
 import {
   MetadataConflictError,
+  MetadataHiddenError,
   MetadataValidationError,
   hashEquals,
   hashMetadata,
@@ -29,6 +30,9 @@ function invalidKey(error) {
 }
 
 function storeFailure(error) {
+  if (error instanceof MetadataHiddenError) {
+    return respond(403, { error: "event_hidden" });
+  }
   if (error instanceof MetadataConflictError) {
     return respond(409, { error: "metadata_conflict", detail: error.message });
   }
@@ -99,6 +103,14 @@ export function createMetadataHandlers({
         return respond(401, { error: "unauthorized" });
       }
 
+      try {
+        if (await store.isHidden(normalized)) {
+          return respond(403, { error: "event_hidden" });
+        }
+      } catch {
+        return respond(503, { error: "metadata_store_unavailable" });
+      }
+
       let hashed;
       try {
         hashed = await hashMetadata(metadata);
@@ -162,6 +174,13 @@ export function createMetadataHandlers({
 
       let record;
       try {
+        if (await store.isHidden(normalized)) {
+          return respond(404, { error: "not_published" });
+        }
+      } catch {
+        return respond(503, { error: "metadata_store_unavailable" });
+      }
+      try {
         record = await store.get(normalized);
       } catch {
         return respond(503, { error: "metadata_store_unavailable" });
@@ -213,6 +232,14 @@ export function createMetadataHandlers({
       }
       if (!actor) {
         return respond(401, { error: "unauthorized" });
+      }
+
+      try {
+        if (await store.isHidden(normalized)) {
+          return respond(403, { error: "event_hidden" });
+        }
+      } catch {
+        return respond(503, { error: "metadata_store_unavailable" });
       }
 
       let record;
@@ -293,6 +320,13 @@ export function createMetadataHandlers({
 
       let publication;
       try {
+        if (await store.isHidden(normalized)) {
+          return respond(404, { error: "not_published" });
+        }
+      } catch {
+        return respond(503, { error: "metadata_store_unavailable" });
+      }
+      try {
         publication = await store.getPublication(normalized);
       } catch {
         return respond(503, { error: "metadata_store_unavailable" });
@@ -344,6 +378,13 @@ export function createMetadataHandlers({
       }
 
       let publication;
+      try {
+        if (await store.isHidden(normalized)) {
+          return respond(404, { error: "not_published" });
+        }
+      } catch {
+        return respond(503, { error: "metadata_store_unavailable" });
+      }
       try {
         publication = await store.getPublication(normalized);
       } catch {

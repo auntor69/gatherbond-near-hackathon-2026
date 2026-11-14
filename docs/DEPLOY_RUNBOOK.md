@@ -322,7 +322,7 @@ Verified 2026-11-13:
 | Create tx | `2xymPbgCGRsEXZMFxYhhmqJFKuXt6x5nTop3TyHBDk5a` |
 | Contract artifact | 415,893 bytes · `af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b` |
 
-The other seven on-chain events are development/acceptance records with no current verified publication. Discovery intentionally hides them. This is not a data-loss bug.
+The other nine on-chain events are development/acceptance or duplicate demo records with no current verified publication. Discovery intentionally hides them. This is not a data-loss bug.
 
 `/api/health` at verification time:
 
@@ -347,7 +347,7 @@ The other seven on-chain events are development/acceptance records with no curre
 npm run build --prefix frontend
 ```
 
-Latest expected shape: exit `0`, **21 routes**, including:
+Latest expected shape: exit `0`, **26 routes**, including:
 
 ```text
 /                              static, 1m revalidate

@@ -1956,3 +1956,78 @@ GET /events/0/opengraph-image  200  image/png, 1200x630
 - No funded multi-account production reserve/check-in/claim run in this session.
 - The live shelf still contains one verified publication; the other seven on-chain events are
   development/acceptance records and remain excluded by design.
+
+## 2026-11-14 — Private moderation console for duplicate and scam listings
+
+**Status:** implemented, reviewed and locally verified; production deployment is not
+verified in this session.
+
+### What changed
+
+- Added an unlinked `/admin` page and private API routes. Access requires a verified NEP-413
+  wallet session, an allowlisted account (`GATHERBOND_ADMIN_ACCOUNTS`, defaulting to the
+  active contract account), and — when configured — a 16+ character server-side
+  `GATHERBOND_ADMIN_KEY`. The unlock cookie is HttpOnly, SameSite=Strict, account-bound and
+  expires after 30 minutes.
+- Added `event_moderation` and append-only `event_moderation_log` tables. Hide is a
+  reversible public-surface takedown; restore removes the active hidden row. Neither
+  touches contract state, funds or publication history.
+- Hidden events are omitted from discovery, event pages, recaps, public metadata and
+  publication APIs, Open Graph cards and the sitemap. Organizer writes are rejected with
+  `event_hidden` while a listing is hidden.
+- Added server-side moderation handlers, audit scoping to the active contract, admin tests,
+  migration tracing, security headers and a `robots.txt` disallow.
+- Fixed `get_events.from` to serialize as a NEAR `U64` JSON string; the real testnet RPC now
+  lists all 10 events for the console.
+
+### Review hardening
+
+- Same-origin mutations compare the browser-forbidden `Host` header, not client-settable
+  `X-Forwarded-Host`; a forged forwarded host cannot pass.
+- Unlock attempts are rate-limited per allowlisted account rather than spoofable client IP.
+- Moderation audit queries use the active network and contract; another deployment's log
+  cannot appear.
+- Expired sessions clear loaded inventory instead of leaving stale rows visible; lock
+  failures stay visible and success notices survive the post-action refresh.
+- Removed the obsolete account-id fallback, unused imports, the duplicate wallet-session
+  effect and a dead auth branch.
+
+### Verification
+
+```text
+contract format           clean
+contract tests            54 passed
+ticket vectors            8/8 matched
+frontend tests            75 passed
+metadata/auth/admin/HTTP tests  126 passed
+total                     255 passed
+production build          exit 0, 26 routes
+```
+
+Local HTTP verification with a synthetic signed session:
+
+```text
+GET  /api/admin/access                    401 before unlock
+POST /api/admin/unlock (forged origin)    403 cross_origin_request
+POST /api/admin/unlock (correct key)      200, non-Secure local cookie
+GET  /api/admin/events                    200, 10 events, 0 hidden, 0 audit rows
+POST hide event 9                         200, hidden count 1, scoped audit row
+POST restore event 9                      200, hidden count 0, restore audit row
+DELETE /api/admin/unlock                  200; access returns to 401
+```
+
+### Limits
+
+- The contract has no `delete_event`; hidden events remain directly callable on-chain and
+  their funds and history are untouched. This is a presentation-layer takedown.
+- The console was verified with synthetic signed session/admin tokens and the real testnet
+  RPC, not a real wallet-extension handshake in a browser.
+- Two duplicate demo events (ids `8` and `9`) are visible to the admin but have not been
+  hidden in production. A known scam event must be selected by its exact id.
+- Production needs both migrations applied and the admin env configured; setting
+  `GATHERBOND_ADMIN_KEY` is recommended for the second factor.
+
+### Next action
+
+Deploy, confirm `/api/health`, sign in with the allowlisted wallet, hide the duplicate ids,
+and verify the public list, event pages, sitemap and Open Graph responses omit them.

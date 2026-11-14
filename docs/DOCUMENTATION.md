@@ -69,7 +69,7 @@ Free registration records intent, not commitment. No-shows waste venue capacity,
 | Claims | Individual pull transfers | One failed transfer cannot block the room |
 | Platform cut | Zero | The product does not take a deposit or no-show cut |
 | Metadata | Off-chain canonical JSON + SHA-256 | Cheap display data, contract-anchored |
-| Publication | Append-only, permanent | No silent disappearance; no unpublish UI |
+| Publication | Append-only, permanent | No silent disappearance; allowlisted takedown is reversible and audited |
 | Discovery | Verified-only | An unverified row is never shown |
 | Hosting | Vercel + Turso | Serverless Next.js and a managed SQLite-compatible store |
 
@@ -362,9 +362,10 @@ Unknown fields, control characters and financial fields are rejected. Canonical 
 - `action`: `publish` or legacy `unpublish`.
 - A publish row carries an immutable metadata snapshot and hash.
 - The highest version is current.
-- The schema retains legacy tombstone support for databases created before publication became permanent. **Current API and UI do not create unpublish tombstones.** There is no delete or unpublish endpoint.
+- The schema retains legacy tombstone support for databases created before publication became permanent. **Current API and UI do not create unpublish tombstones.** There is no delete endpoint.
+- `event_moderation` stores only currently hidden events, with the reason, actor and timestamp. `event_moderation_log` is append-only for hide/restore actions. Public reads exclude hidden rows; restore deletes the hidden row and logs the restore. The escrow contract is never edited.
 
-Migration: `database/migrations/0001_event_metadata.sql`. The migration is loaded lazily when a SQLite/libSQL store is opened; it is not read at Next build time.
+Migration: `database/migrations/0001_event_metadata.sql` plus `0002_event_moderation.sql`. Both are loaded lazily when a SQLite/libSQL store is opened. Turso cold start applies the idempotent moderation DDL so an existing database gains the moderation tables without a manual release step.
 
 ### 4.4 Verification matrix
 
@@ -385,7 +386,7 @@ A mismatch never falls back to a cached display copy.
 - `POST /api/events/:id/publication` appends a new published version. If the current publication already has identical content, the operation is an idempotent no-op and returns the existing version.
 - `GET /api/events/:id/publication` returns only the current public snapshot; a draft is never returned.
 - `GET /api/events/:id` returns the verified publication plus `onchain` terms.
-- Publishing is permanent; there is no API to remove a public event.
+- Publishing is permanent. An allowlisted admin can hide a listing from public surfaces; this does not remove the contract event or its publication history, and restore is audited.
 - Cross-account publish is rejected by the session-derived actor.
 
 Deep API examples: [METADATA.md](./METADATA.md).
@@ -471,6 +472,10 @@ All JSON responses use `cache-control: no-store` unless a route explicitly opts 
 | `/api/events/[id]` | GET | public | 200 `{verified, event, metadata, onchain, ...}` | 404 unpublished; 409 hash/chain mismatch; 503 unavailable |
 | `/api/events/[id]/metadata` | GET | public | 200 verified draft | 404 no draft; 409 mismatch |
 | `/api/events/[id]/metadata` | PUT | session | 201 inserted / 200 updated | Body `{metadata, create_tx_hash}`; 401/403/409/503 |
+| `/api/admin/access` | GET | admin wallet | 200 gate status | No event data |
+| `/api/admin/unlock` | POST, DELETE | admin wallet + same-origin header | 200 unlock / lock | Optional second factor; no key is returned |
+| `/api/admin/events` | GET | admin wallet + unlock | 200 on-chain/moderation inventory | No event data without the gate |
+| `/api/admin/events/[id]/moderation` | POST | admin wallet + unlock + same-origin header | 200 hide/restore | Requires reason; hide requires exact event-id confirmation |
 | `/api/events/[id]/publication` | GET | public | 200 current snapshot | 404 not published |
 | `/api/events/[id]/publication` | POST | organizer session | 201 new / 200 unchanged | 401/403/409/503 |
 | `/api/auth/session` | POST | public | 200 + cookie | NEP-413 login |
@@ -634,7 +639,7 @@ Without a database:
 - The contract is still readable through RPC endpoints and the escrow remains usable.
 - No sample event is shown.
 
-The local SQLite adapter applies `database/migrations/0001_event_metadata.sql` automatically when the store opens.
+The local SQLite adapter applies `database/migrations/0001_event_metadata.sql` and `0002_event_moderation.sql` automatically when the store opens.
 
 ### 9.3 Contract
 
@@ -662,6 +667,8 @@ On Windows, add the Visual Studio CMake directory to `PATH` and set `AWS_LC_SYS_
 | `GATHERBOND_SESSION_SECRET` | server | production | ≥32 chars; login disabled if absent |
 | `GATHERBOND_AUTH_RECIPIENT` | server/public via session response | recommended | default `gatherbond.app` |
 | `GATHERBOND_SESSION_TTL_SECONDS` | server | no | `7200` |
+| `GATHERBOND_ADMIN_ACCOUNTS` | server | production | comma-separated allowlist; defaults to the active contract account |
+| `GATHERBOND_ADMIN_KEY` | server | optional | ≥16 chars; adds a second factor to the wallet gate |
 | `GATHERBOND_SECURE_COOKIES` | server | production `1` | HTTPS cookie |
 | `GATHERBOND_LOGIN_RATE_LIMIT` | server | no | `10` |
 | `GATHERBOND_LOGIN_ACCOUNT_RATE_LIMIT` | server | no | `10` |
@@ -690,21 +697,21 @@ npm run build --prefix frontend
 2. `cargo test --offline`
 3. ticket-commitment vectors
 4. all `frontend/lib/*.test.mjs`
-5. all metadata/auth/HTTP/NEAR RPC tests, including a real Next server + SQLite end-to-end flow
+5. all metadata/auth/admin/HTTP/NEAR RPC tests, including a real Next server + SQLite end-to-end flow
 6. print-only deploy handover
 
-### 10.2 Latest verified results (2026-11-13)
+### 10.2 Latest verified results (2026-11-14)
 
 ```text
 contract format           clean
 contract tests            54 passed
 ticket vectors            8/8 matched
 frontend tests            75 passed
-metadata/auth/HTTP tests  107 passed
-total                     236 passed
+metadata/auth/admin/HTTP tests  126 passed
+total                     255 passed
 WASM                      415,893 bytes
 SHA-256                   af6b8bbc13c9ec589345a50df62ab73183033d5ad15b71da1deff96e4691da4b
-production build          exit 0, 21 routes
+production build          exit 0, 26 routes
 ```
 
 ### 10.3 What the tiers cover
@@ -713,9 +720,9 @@ production build          exit 0, 21 routes
 | --- | --- |
 | Contract (54) | creation validation, deposit/capacity/deadline, ticket check-in, replay, rotation, cancellation, settlement above/below/exactly 20%, no-show refunds, treasury bounds, rounding, locks, callbacks, solvency, storage, pagination, known-answer vectors |
 | Frontend (75) | NEAR parsing/formatting, schedule mapping, ticket encoding/QR round-trip, event lifecycle boundaries, claim eligibility, listing/detail mapping, metadata hash display, Flake Fund math, SEO builders, single-flight guard |
-| Server (107) | canonical JSON/hash vectors, field rejection, store idempotency/conflicts/races, publication versions, tamper and on-chain mismatch, NEP-413 signatures/nonces/sessions, rate limits, RPC mapping, HTTP end-to-end over a real Next server and SQLite, fail-closed database/RPC paths |
+| Server (126) | canonical JSON/hash vectors, field rejection, store idempotency/conflicts/races, publication versions, moderation hide/restore and audit scoping, tamper and on-chain mismatch, NEP-413 signatures/nonces/sessions, admin sessions and unlock throttling, rate limits, RPC mapping, HTTP end-to-end over a real Next server and SQLite, fail-closed database/RPC paths |
 | SEO (10 of 75) | canonical origin, path encoding, description truncation, Event JSON-LD, per-event OG image, cancelled status, graph/ItemList, breadcrumbs, recap graph, script escaping |
-| Build | Next metadata routes, dynamic OG cards, server component collection, TypeScript check, 21 routes |
+| Build | Next metadata routes, dynamic OG cards, admin routes, server component collection, TypeScript check, 26 routes |
 
 ### 10.4 Manual checks actually performed
 
@@ -750,7 +757,7 @@ Do not report a check as passed when it is in this list.
 ### 11.2 Metadata database
 
 1. Create a Turso database.
-2. Apply `database/migrations/0001_event_metadata.sql`.
+2. Apply `database/migrations/0001_event_metadata.sql` and `0002_event_moderation.sql`.
 3. Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` as server-only variables.
 4. Confirm `/api/health` reports `database_mode: turso` and `database_read: ok`.
 5. Never expose the auth token in a `NEXT_PUBLIC_*` variable or client bundle.
@@ -797,7 +804,7 @@ create event on chain
   → recap becomes indexable when closed
 ```
 
-There is no unpublish. Correct a mistake by publishing a new version; earlier versions remain in history.
+There is no organizer unpublish. Correct a mistake by publishing a new version; earlier versions remain in history. An allowlisted moderator can hide the public listing; the contract event and publication history stay intact.
 
 ### 11.7 Observability
 
@@ -888,8 +895,8 @@ Report vulnerabilities per [SECURITY.md](../SECURITY.md), not in a public issue.
 - **Organizer check-in trust**: attendance is organizer-authorized, not physical proof.
 - **Process-local rate limits and nonces** do not coordinate across replicas.
 - **Metadata availability is centralized**: the operator can withhold a listing.
-- **One verified publication is currently indexed**; seven other on-chain events are development/acceptance records.
-- **Publication is permanent**; no unpublish/delete UI or API.
+- **One verified publication is currently indexed**; nine other on-chain events are development/acceptance or duplicate demo records.
+- **Publication history is permanent**; organizer unpublish/delete is absent. A private allowlisted moderator can hide/restore the public listing, but cannot delete the contract event, publication history or funds.
 - **No Search Console/Bing submission, no Google rich-results validation, no analytics.** The crawl routes are live and verified.
 - **No privacy policy, terms of service or legal review.**
 - **No mobile native app; the browser is the client.**

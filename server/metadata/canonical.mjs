@@ -72,6 +72,14 @@ export class MetadataConflictError extends Error {
   }
 }
 
+/** A moderator has removed this event from every public presentation surface. */
+export class MetadataHiddenError extends Error {
+  constructor(message = "event is hidden by moderation") {
+    super(message);
+    this.name = "MetadataHiddenError";
+  }
+}
+
 function requireText(field, value, maxBytes, { allowEmpty = false } = {}) {
   if (typeof value !== "string") {
     throw new MetadataValidationError(field, "must be a string");

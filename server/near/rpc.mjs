@@ -76,6 +76,18 @@ export function createContractReader({ rpcUrl, contractId, fetchImpl = globalThi
       return value === null || value === undefined ? "0" : String(value);
     },
 
+    /** Bounded on-chain event listing, used only by the private moderation console. */
+    async getEvents(from = 0, limit = 20) {
+      const value = await callView("get_events", {
+        // near-sdk serializes U64 as a JSON string. Passing a number makes the
+        // contract trap during argument deserialization, which looks like a generic
+        // malformed RPC result from the client's perspective.
+        from: String(from ?? 0),
+        limit: Math.min(Number(limit) || 20, 20),
+      });
+      return Array.isArray(value) ? value : [];
+    },
+
     /** Bounded reservations for an account, newest contract order preserved. */
     async getReservationsForAccount(accountId, from = 0, limit = 20) {
       return callView("get_reservations_for_account", {

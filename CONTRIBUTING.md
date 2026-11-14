@@ -39,16 +39,16 @@ bash scripts/verify-local.sh
 npm run build --prefix frontend
 ```
 
-Latest baseline (2026-11-13):
+Latest baseline (2026-11-14):
 
 ```text
 contract format           clean
 contract tests            54 passed
 ticket vectors            8/8 matched
 frontend tests            75 passed
-metadata/auth/HTTP tests  107 passed
-total                     236 passed
-production build          exit 0, 21 routes
+metadata/auth/admin/HTTP tests  126 passed
+total                     255 passed
+production build          exit 0, 26 routes
 ```
 
 Do not skip, weaken or delete tests to make a change pass. If a test is wrong, explain why and fix the behavior it describes.

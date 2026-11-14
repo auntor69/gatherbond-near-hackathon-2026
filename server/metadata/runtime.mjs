@@ -10,14 +10,20 @@
 
 import { createMetadataHandlers } from "./handlers.mjs";
 import { createMetadataStore } from "./store.mjs";
-import { libsqlAdapter } from "./libsql.mjs";
+import { ensureModerationSchema, libsqlAdapter } from "./libsql.mjs";
 import { openSqliteMetadataStore } from "./sqlite.mjs";
 import { createContractReader } from "../near/rpc.mjs";
 import { createMetadataRoutes } from "../http/routes.mjs";
 import { createAuthRoutes } from "../auth/routes.mjs";
 import { nonceStoreForSelection } from "../auth/nonceStore.mjs";
 import { isSessionSecretConfigured, readSessionCookie } from "../auth/session.mjs";
-import { createRateLimiters, readRateLimitConfig } from "../http/rateLimit.mjs";
+import {
+  createRateLimiter,
+  createRateLimiters,
+  readRateLimitConfig,
+} from "../http/rateLimit.mjs";
+import { adminKeyStatus, parseAdminAccounts } from "../admin/auth.mjs";
+import { createAdminHandlers } from "../admin/handlers.mjs";
 
 /** Keep deployment diagnostics useful without exposing URLs or long credentials. */
 function safeErrorDetail(error) {
@@ -38,6 +44,11 @@ function unavailableStore(reason) {
     listPublished: fail,
     getPublication: fail,
     publish: fail,
+    getModeration: fail,
+    isHidden: fail,
+    hide: fail,
+    restore: fail,
+    listModerationLog: fail,
     setPublicationStatus: fail,
     count: fail,
   };
@@ -59,6 +70,10 @@ export async function selectStore(env = process.env, { importLibsql } = {}) {
         url: env.TURSO_DATABASE_URL,
         authToken: env.TURSO_AUTH_TOKEN,
       });
+      // The moderation tables are additive and idempotent. Applying only this DDL on
+      // cold start keeps an already-migrated database compatible without re-running the
+      // full metadata migration on every request.
+      await ensureModerationSchema(client);
       return { mode: "turso", store: createMetadataStore(libsqlAdapter(client)), client };
     } catch (error) {
       return {
@@ -153,6 +168,13 @@ export async function createMetadataRuntime({
     return allowDevActor ? request.headers.get("x-gatherbond-actor") : null;
   };
 
+  // Admin authorization never trusts the development actor header. It only accepts a
+  // real NEP-413 session, then checks the server-side allowlist.
+  const getSessionActor = async (request) => {
+    const session = readSessionCookie(request, authConfig);
+    return session.accountId ?? null;
+  };
+
   const authorize = ({ actor, metadata }) =>
     Boolean(actor && metadata && actor === metadata.organizer_account_id);
 
@@ -166,6 +188,26 @@ export async function createMetadataRuntime({
     contractId,
   });
 
+  const configuredAdminAccounts = env.GATHERBOND_ADMIN_ACCOUNTS;
+  const adminAccounts = parseAdminAccounts(
+    configuredAdminAccounts && configuredAdminAccounts.trim()
+      ? configuredAdminAccounts
+      : configuredContract ?? "",
+  );
+  const adminKey = String(env.GATHERBOND_ADMIN_KEY ?? "").trim();
+  const adminKeyState = adminKeyStatus(adminKey);
+  const adminUnlockLimiter = createRateLimiter({
+    limit: Math.max(1, Number(env.GATHERBOND_ADMIN_UNLOCK_RATE_LIMIT) || 5),
+    windowMs:
+      Math.max(1, Number(env.GATHERBOND_ADMIN_UNLOCK_RATE_WINDOW_SECONDS) || 600) * 1000,
+  });
+  const adminHandlers = createAdminHandlers({
+    store,
+    reader,
+    networkId,
+    contractId,
+  });
+
   return {
     mode: selection.mode,
     reason: selection.reason ?? null,
@@ -173,6 +215,16 @@ export async function createMetadataRuntime({
     contractId: configuredContract,
     reader,
     getActor,
+    getSessionActor,
+    admin: {
+      accounts: adminAccounts,
+      secret: authConfig.secret,
+      key: adminKey,
+      keyStatus: adminKeyState,
+      secure: authConfig.secure,
+      ttlSeconds: Math.max(300, Number(env.GATHERBOND_ADMIN_SESSION_TTL_SECONDS) || 1800),
+      unlockLimiter: adminUnlockLimiter,
+    },
     status: {
       database_mode: selection.mode,
       // Expose only a reason code and a redacted diagnostic, never credentials.
@@ -187,6 +239,7 @@ export async function createMetadataRuntime({
       network_id: networkId,
     },
     handlers,
+    adminHandlers,
     routes,
     authRoutes,
   };

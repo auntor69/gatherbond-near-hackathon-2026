@@ -73,7 +73,7 @@ Out of scope:
 - SHA-256 verified on read and write.
 - On-chain `metadata_hash` compared on every public read.
 - Mismatch returns `409` and hides the row.
-- Publication is append-only; no unpublish/delete endpoint.
+- Publication is append-only. There is no delete endpoint. An allowlisted moderator can hide a listing from public surfaces; the on-chain event and publication history remain intact and the action is audited.
 
 ### Frontend and SEO
 
@@ -81,6 +81,7 @@ Out of scope:
 - JSON-LD is escaped so a value cannot close the script tag.
 - Only verified published events enter metadata, JSON-LD, sitemap or OG cards.
 - Private wallet surfaces are `noindex, nofollow`.
+- `/admin` and `/api/admin/*` are unlinked, noindex and server-gated by a verified NEP-413 session plus `GATHERBOND_ADMIN_ACCOUNTS`; an optional `GATHERBOND_ADMIN_KEY` adds an account-bound HttpOnly unlock cookie. Mutations require same-origin and a custom header, and are append-only audited.
 - Missing/unpublished events return a real 404.
 - No server signing key exists in the deployment.
 
@@ -101,7 +102,7 @@ If a secret is exposed, rotate it immediately and remove it from history before 
 - No independent contract audit.
 - Testnet only; no mainnet funds.
 - Process-local rate limiting and nonces are not shared across replicas.
-- The metadata operator can withhold listings but cannot alter money or attendance.
+- The metadata operator can hide listings via a reversible moderation registry but cannot delete on-chain events or alter money or attendance. Hiding does not stop direct contract calls by someone who knows the event id.
 - Organizer check-in is a trust assumption; it is not physical proof of presence.
 - The camera check-in path has been verified through the active pipeline with a fixture, not a physical printed QR.
 - The release contract uses `panic = "abort"`, so rejected on-chain calls surface as opaque WASM traps.
